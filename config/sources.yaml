@@ -1,8 +1,17 @@
+# 数据源优先级（R5-P2-01：collector/adapters/sources.py 消费此配置）
+# primary 失败时按 fallback 顺序降级；口径差异由各模块适配层归一化。
+
 market:
   primary: eastmoney
   fallback:
-    - sina
     - tencent
+    - sina
+
+# 全市场 spot（涨跌家数 / 两市成交额）：东财独有涨停池等接口不参与降级
+spot:
+  primary: eastmoney
+  fallback:
+    - sina
 
 northbound:
   primary: hkex

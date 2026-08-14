@@ -1,4 +1,8 @@
-"""模块 3：市场情绪指标。"""
+"""模块 3：市场情绪指标。
+
+多源降级（R5-P2-01）：涨跌家数/暂停家数按 sources.yaml 的 spot 顺序
+尝试 eastmoney / sina；涨停/跌停/炸板池为东财独有接口，失败如实记录。
+"""
 
 from __future__ import annotations
 
@@ -8,8 +12,10 @@ from typing import Any
 
 import pandas as pd
 
+from collector.adapters.sources import try_sources
 from collector.schema import TZ_SHANGHAI
 from collector.status import ModuleStatus
+
 
 def is_st(
     name: str,
@@ -23,11 +29,53 @@ def is_st(
         )
     )
 
+
+def _fetch_spot_counts(
+    source: str,
+) -> dict[str, int]:
+    """按指定源返回全市场涨跌统计。"""
+    import akshare as ak
+
+    if source == "eastmoney":
+        spot = ak.stock_zh_a_spot_em()
+    elif source == "sina":
+        spot = ak.stock_zh_a_spot()
+    else:
+        raise ValueError(f"unknown spot source: {source}")
+
+    if spot is None or spot.empty:
+        raise ValueError("empty stock spot")
+
+    pct_col = _pick_col(
+        spot,
+        (
+            "涨跌幅",
+            "change_pct",
+            "pct_chg",
+        ),
+    )
+
+    if pct_col is None:
+        raise ValueError(
+            "涨跌幅 column missing"
+        )
+
+    values = pd.to_numeric(
+        spot[pct_col],
+        errors="coerce",
+    )
+
+    return {
+        "riseCount": int((values > 0).sum()),
+        "fallCount": int((values < 0).sum()),
+        "flatCount": int((values == 0).sum()),
+        "suspendedCount": int(values.isna().sum()),
+    }
+
+
 def collect_sentiment(
     trade_date: str,
 ) -> dict[str, Any]:
-    import akshare as ak
-
     today = datetime.now(
         TZ_SHANGHAI
     ).date().isoformat()
@@ -36,7 +84,7 @@ def collect_sentiment(
         return {
             "status": ModuleStatus.UNAVAILABLE.value,
             "dataDate": trade_date,
-            "source": ["EASTMONEY"],
+            "source": ["EASTMONEY", "SINA"],
             "reason": "HISTORICAL_FULL_SENTIMENT_NOT_SUPPORTED",
             "riseCount": None,
             "fallCount": None,
@@ -54,7 +102,7 @@ def collect_sentiment(
     result: dict[str, Any] = {
         "status": ModuleStatus.FINAL.value,
         "dataDate": trade_date,
-        "source": ["EASTMONEY"],
+        "source": ["EASTMONEY", "SINA"],
         "riseCount": None,
         "fallCount": None,
         "flatCount": None,
@@ -67,48 +115,24 @@ def collect_sentiment(
         "errors": [],
     }
 
-    try:
-        spot = ak.stock_zh_a_spot_em()
+    counts, used, source_errors = try_sources(
+        "spot",
+        ["eastmoney"],
+        _fetch_spot_counts,
+    )
 
-        if spot is None or spot.empty:
-            raise ValueError("empty stock spot")
-
-        pct_col = _pick_col(
-            spot,
-            (
-                "涨跌幅",
-                "change_pct",
-                "pct_chg",
-            ),
-        )
-
-        if pct_col is None:
-            raise ValueError(
-                "涨跌幅 column missing"
-            )
-
-        values = pd.to_numeric(
-            spot[pct_col],
-            errors="coerce",
-        )
-
-        result["riseCount"] = int(
-            (values > 0).sum()
-        )
-        result["fallCount"] = int(
-            (values < 0).sum()
-        )
-        result["flatCount"] = int(
-            (values == 0).sum()
-        )
-        result["suspendedCount"] = int(
-            values.isna().sum()
-        )
-
-    except Exception as exc:  # noqa: BLE001
+    if counts is None:
         result["errors"].append(
-            f"spot: {exc}"
+            "spot: " + "; ".join(source_errors or ["unknown spot failure"])
         )
+    else:
+        result["riseCount"] = counts["riseCount"]
+        result["fallCount"] = counts["fallCount"]
+        result["flatCount"] = counts["flatCount"]
+        result["suspendedCount"] = counts["suspendedCount"]
+        result["spotSource"] = used.upper() if used else None
+
+    import akshare as ak
 
     try:
         pool = ak.stock_zt_pool_em(
@@ -145,11 +169,10 @@ def collect_sentiment(
             date=yyyymmdd
         )
 
-        result["brokenLimitCount"] = (
-            0
-            if pool is None or pool.empty
-            else int(len(pool))
-        )
+        if pool is None or pool.empty:
+            result["brokenLimitCount"] = 0
+        else:
+            result["brokenLimitCount"] = int(len(pool))
 
     except Exception as exc:  # noqa: BLE001
         result["errors"].append(
@@ -160,6 +183,7 @@ def collect_sentiment(
         result["status"] = ModuleStatus.ERROR.value
 
     return result
+
 
 def _split_st_pool(
     df,
@@ -189,6 +213,7 @@ def _split_st_pool(
     )
 
     return len(names) - st_count, st_count
+
 
 def _pick_col(
     df,

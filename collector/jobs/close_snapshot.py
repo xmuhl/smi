@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from datetime import date, datetime, time
 
 from collector.calendar import is_trading_day
@@ -16,6 +17,27 @@ from collector.jobs.common import (
 )
 from collector.schema import TZ_SHANGHAI
 from collector.status import ModuleStatus
+
+# R5-P2-01：任务级有限重试（可重试错误 → 退避重试，最多 4 次）
+RETRYABLE_VALIDATION_ERRORS = {
+    "REQUIRED_INDEX_MISSING",
+    "MARKET_DATE_NOT_VERIFIED",
+    "STOCK_UNIVERSE_TOO_SMALL",
+}
+
+# 第 2~4 次尝试前的等待秒数（+2min → +5min → +10min）
+RETRY_DELAYS_SECONDS = [120, 300, 600]
+
+
+def _is_retryable(errors: list[str]) -> bool:
+    """仅对披露延迟/网络类错误重试；日历、schema 等错误立即 fail-closed。"""
+    if not errors:
+        return False
+
+    return all(
+        error.split(":", 1)[0] in RETRYABLE_VALIDATION_ERRORS
+        for error in errors
+    )
 
 def _validate_close_snapshot(
     snapshot: dict,
@@ -116,6 +138,11 @@ def main() -> int:
         action="store_true",
         help="重新执行采集；不会绕过收盘安全校验",
     )
+    parser.add_argument(
+        "--no-retry",
+        action="store_true",
+        help="禁用任务级重试（测试用）",
+    )
     args = parser.parse_args()
 
     target = resolve_target_date(args.date)
@@ -134,17 +161,36 @@ def main() -> int:
         print(f"BEFORE_CLOSE {target}")
         return 2
 
-    snapshot = build_snapshot(target, legacy=False)
-    snapshot["generationReason"] = "CLOSE_SNAPSHOT"
+    attempt = 0
+    retry_delays = [] if args.no_retry else RETRY_DELAYS_SECONDS
 
-    validation_errors = _validate_close_snapshot(snapshot, target)
+    while True:
+        attempt += 1
+        snapshot = build_snapshot(target, legacy=False)
+        snapshot["generationReason"] = "CLOSE_SNAPSHOT"
 
-    if validation_errors:
+        validation_errors = _validate_close_snapshot(snapshot, target)
+
+        if not validation_errors:
+            break
+
+        if attempt > len(retry_delays) or not _is_retryable(validation_errors):
+            # 调试用：失败时打印每个模块的状态与错误，便于 GitHub Actions 日志定位
+            print(f"VALIDATION_FAILED {target} " + ",".join(validation_errors))
+            for name, mod in snapshot["modules"].items():
+                print(
+                    f"  module={name} status={mod.get('status')} "
+                    f"dataDate={mod.get('dataDate')} reason={mod.get('reason','')[:60]} "
+                    f"errors={str(mod.get('errors',''))[:200]}"
+                )
+            return 2
+
+        delay = retry_delays[attempt - 1]
         print(
-            f"VALIDATION_FAILED {target} "
-            + ",".join(validation_errors)
+            f"RETRY_SCHEDULED {target} attempt={attempt + 1} "
+            f"delay={delay}s errors={",".join(validation_errors)}"
         )
-        return 2
+        time.sleep(delay)
 
     changed, _ = write_if_changed(
         snapshot,
@@ -161,6 +207,7 @@ def main() -> int:
         print(f"NO_CHANGE {target}")
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
