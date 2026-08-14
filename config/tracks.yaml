@@ -1,0 +1,40 @@
+tracks:
+  - id: dividend_cnsoe
+    name: 高股息中特估
+    enabled: true
+    board_type: concept
+    board_code: BK1139
+    expected_name: 中特估
+    positioning: 高股息/央国企价值
+
+  - id: power
+    name: 电力
+    enabled: true
+    board_type: industry
+    board_code: BK0428
+    expected_name: 电力
+    positioning: 公用事业/高股息
+
+  - id: healthcare
+    name: 医药生物
+    enabled: true
+    board_type: industry
+    board_code: BK1216
+    expected_name: 医药生物
+    positioning: 防御+成长
+
+  - id: semiconductor_ai
+    name: 半导体/AI算力
+    enabled: true
+    board_type: composite
+    composite:
+      - code: BK1036
+        name: 半导体
+        weight: 0.5
+      - code: BK1134
+        name: 算力概念
+        weight: 0.5
+    positioning: 科技成长
+
+rps:
+  universe: eastmoney_supported_track_boards

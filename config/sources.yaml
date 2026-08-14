@@ -1,0 +1,13 @@
+market:
+  primary: eastmoney
+  fallback:
+    - sina
+    - tencent
+
+northbound:
+  primary: hkex
+
+margin:
+  primary:
+    - sse
+    - szse

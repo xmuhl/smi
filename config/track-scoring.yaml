@@ -1,0 +1,92 @@
+weights:
+  turnover_rank: 10
+  main_net_inflow: 15
+  continuous_inflow_days: 10
+  ma_alignment: 10
+  rps60: 15
+  excess_return_20d: 10
+  limit_up: 8
+  ladder_completeness: 7
+  red_stock_ratio: 5
+  core_catalyst: 5
+  earnings_realization: 5
+  total: 100
+
+scoring:
+  turnover_rank:
+    top20pct: 100
+    pct20_40: 80
+    pct40_60: 60
+    pct60_80: 40
+    bottom20pct: 20
+
+  main_net_inflow:
+    inflow_top20: 100
+    inflow_top20_50: 80
+    inflow_rest: 60
+    near_zero: 40
+    outflow: 15
+
+  continuous_inflow_days:
+    ">=5": 100
+    "3~4": 80
+    "2": 60
+    "1": 40
+    "0": 0
+
+  ma_alignment:
+    close_gt_ma5_10_20: 100
+    close_gt_ma_all: 70
+    close_gt_two_ma: 40
+    other: 0
+
+  rps60:
+    score: direct
+
+  excess_return_20d:
+    ">=+5%": 100
+    "+2%~+5%": 80
+    "0~+2%": 60
+    "-2%~0": 40
+    "<-2%": 0
+
+  limit_up_rate:
+    ">=3%": 100
+    "1.5%~3%": 80
+    "0.5%~1.5%": 60
+    ">0": 40
+    "0": 0
+
+  ladder_completeness:
+    "3板以上有梯队": 100
+    "2板+首板": 70
+    "仅首板": 40
+    "无涨停": 0
+
+  red_stock_ratio:
+    ">=70%": 100
+    "60%~70%": 80
+    "50%~60%": 60
+    "40%~50%": 40
+    "<40%": 0
+
+  core_catalyst:
+    STRONG: 100
+    CONFIRMED: 80
+    NEUTRAL: 50
+    WEAK: 20
+    NONE: 0
+    UNKNOWN: null
+
+  earnings_realization:
+    STRONG: 100
+    CONFIRMED: 80
+    NEUTRAL: 50
+    WEAK: 20
+    NEGATIVE: 0
+    UNKNOWN: null
+
+decision:
+  pass_min: 75
+  watch_min: 55
+  coverage_warn_pct: 80

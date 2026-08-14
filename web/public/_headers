@@ -1,0 +1,11 @@
+/data/manifest.json
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/data/latest.json
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/data/status.json
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/data/daily/*
+  Cache-Control: public, max-age=60, must-revalidate

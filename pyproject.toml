@@ -1,0 +1,12 @@
+[project]
+name = "smi"
+version = "1.0.0"
+description = "SMI - A股收盘全景 Web 看板数据采集"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["collector/tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"

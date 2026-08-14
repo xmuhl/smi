@@ -1,0 +1,54 @@
+volume_state:
+  expansion_threshold_pct: 5
+  contraction_threshold_pct: -5
+
+validation:
+  min_valid_stock_count: 4000
+  required_indices:
+    - "000001"
+    - "399001"
+    - "399006"
+
+calendar:
+  source: SSE_2026_OFFICIAL_CLOSURES
+  closed_dates:
+    # 元旦
+    - "2026-01-01"
+    - "2026-01-02"
+
+    # 春节（周末无需重复列出）
+    - "2026-02-16"
+    - "2026-02-17"
+    - "2026-02-18"
+    - "2026-02-19"
+    - "2026-02-20"
+    - "2026-02-23"
+
+    # 清明节
+    - "2026-04-06"
+
+    # 劳动节
+    - "2026-05-01"
+    - "2026-05-04"
+    - "2026-05-05"
+
+    # 端午节
+    - "2026-06-19"
+
+    # 中秋节
+    - "2026-09-25"
+
+    # 国庆节
+    - "2026-10-01"
+    - "2026-10-02"
+    - "2026-10-05"
+    - "2026-10-06"
+    - "2026-10-07"
+
+northbound:
+  sh_url: "https://www3.hkexnews.hk/sdw/search/mutualmarket.aspx?t=sh"
+  sz_url: "https://www3.hkexnews.hk/sdw/search/mutualmarket.aspx?t=sz"
+  quarterly_publication_dates: {}
+
+margin:
+  min_balance: 0.0

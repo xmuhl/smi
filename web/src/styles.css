@@ -1,0 +1,280 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-2: #1d212b;
+  --border: #2a2f3a;
+  --text: #e6e8ec;
+  --text-dim: #9aa3b2;
+  --red: #ef5350;
+  --green: #26a69a;
+  --yellow: #ffca28;
+  --blue: #42a5f5;
+  --gray: #8a93a3;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+#app {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 12px 16px 48px;
+}
+
+.up {
+  color: var(--red);
+}
+.down {
+  color: var(--green);
+}
+.flat {
+  color: var(--text-dim);
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.card h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+}
+
+.grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 1199px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .grid-4,
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+  #app {
+    padding: 8px 8px 32px;
+  }
+}
+
+table.smi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.smi-table th,
+.smi-table td {
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+.smi-table th:first-child,
+.smi-table td:first-child {
+  text-align: left;
+}
+
+.smi-table th {
+  color: var(--text-dim);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.badge.ok {
+  color: var(--green);
+  border-color: rgba(38, 166, 154, 0.4);
+  background: rgba(38, 166, 154, 0.1);
+}
+.badge.info {
+  color: var(--blue);
+  border-color: rgba(66, 165, 245, 0.4);
+  background: rgba(66, 165, 245, 0.1);
+}
+.badge.warn {
+  color: var(--yellow);
+  border-color: rgba(255, 202, 40, 0.4);
+  background: rgba(255, 202, 40, 0.08);
+}
+.badge.neutral {
+  color: var(--gray);
+  border-color: rgba(138, 147, 163, 0.4);
+  background: rgba(138, 147, 163, 0.08);
+}
+.badge.error {
+  color: var(--red);
+  border-color: rgba(239, 83, 80, 0.4);
+  background: rgba(239, 83, 80, 0.1);
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 24px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title::before {
+  content: "";
+  width: 4px;
+  height: 16px;
+  background: var(--blue);
+  border-radius: 2px;
+}
+
+.summary-block {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.summary-block .label {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.metric {
+  text-align: center;
+  padding: 10px 4px;
+}
+
+.metric .value {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 4px 0 2px;
+}
+
+.metric .label {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.metric .sub {
+  font-size: 12px;
+}
+
+.empty-tip {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 8px 0;
+}
+
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  background: rgba(15, 17, 21, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 20;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.header-bar .logo {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.header-bar .logo span {
+  color: var(--blue);
+}
+
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-nav button {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.date-nav button:hover:not(:disabled) {
+  border-color: var(--blue);
+}
+
+.date-nav button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.date-nav select {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+}
+
+.status-line {
+  font-size: 12px;
+  color: var(--text-dim);
+}

@@ -1,0 +1,764 @@
+{
+  "schemaVersion": "1.1",
+  "tradeDate": "2026-07-17",
+  "generatedAt": "2026-08-14T01:22:34+08:00",
+  "updatedAt": "2026-08-14T01:22:34+08:00",
+  "revision": 1,
+  "overallStatus": "FINAL",
+  "generationReason": "LEGACY_EXCEL_IMPORT",
+  "market": "CN_A",
+  "timezone": "Asia/Shanghai",
+  "meta": {
+    "sourceSystem": "TONGDAXIN_LEGACY",
+    "legacy": true,
+    "importedFromExcel": true,
+    "officialDisclosureCompatibility": false
+  },
+  "modules": {
+    "marketIndex": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "source": [
+        "TONGDAXIN_LEGACY"
+      ],
+      "items": [
+        {
+          "code": "000001",
+          "name": "上证指数",
+          "close": 3764.15,
+          "previousClose": null,
+          "changePct": -3.05,
+          "source": "TONGDAXIN_LEGACY"
+        },
+        {
+          "code": "399001",
+          "name": "深证成指",
+          "close": 13706.88,
+          "previousClose": null,
+          "changePct": -5.4,
+          "source": "TONGDAXIN_LEGACY"
+        },
+        {
+          "code": "399006",
+          "name": "创业板指",
+          "close": 3428.63,
+          "previousClose": null,
+          "changePct": -7.15,
+          "source": "TONGDAXIN_LEGACY"
+        },
+        {
+          "code": "000688",
+          "name": "科创50",
+          "close": 1715.4,
+          "previousClose": null,
+          "changePct": -7.12,
+          "source": "TONGDAXIN_LEGACY"
+        },
+        {
+          "code": "000300",
+          "name": "沪深300",
+          "close": 4529.1,
+          "previousClose": null,
+          "changePct": -3.6,
+          "source": "TONGDAXIN_LEGACY"
+        },
+        {
+          "code": "899050",
+          "name": "北证50",
+          "close": 1076.38,
+          "previousClose": null,
+          "changePct": -2.31,
+          "source": "TONGDAXIN_LEGACY"
+        },
+        {
+          "code": "399311",
+          "name": "国证1000",
+          "close": 4862.19,
+          "previousClose": null,
+          "changePct": -4.29,
+          "source": "TONGDAXIN_LEGACY"
+        },
+        {
+          "code": "399303",
+          "name": "国证2000",
+          "close": 9271.69,
+          "previousClose": null,
+          "changePct": -6.16,
+          "source": "TONGDAXIN_LEGACY"
+        }
+      ]
+    },
+    "turnover": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "source": [
+        "TONGDAXIN_LEGACY"
+      ],
+      "unit": "亿元",
+      "turnoverToday": 26549.58,
+      "turnoverPrevious": 24035.65,
+      "turnoverDelta": 2513.93,
+      "turnoverChangePct": 10.46,
+      "volumeState": "EXPANSION"
+    },
+    "sentiment": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "source": [
+        "TONGDAXIN_LEGACY"
+      ],
+      "riseCount": 482.0,
+      "fallCount": 5001.0,
+      "flatCount": 40.0,
+      "suspendedCount": null,
+      "nonStLimitUpCount": 25.0,
+      "stLimitUpCount": 25.0,
+      "nonStLimitDownCount": 180.0,
+      "stLimitDownCount": 180.0,
+      "brokenLimitCount": 45.0
+    },
+    "sectorPerformance": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "method": "TONGDAXIN_LEGACY",
+      "industryTop5": [
+        {
+          "name": "电力",
+          "changePct": 1.85
+        },
+        {
+          "name": "银行",
+          "changePct": 0.92
+        },
+        {
+          "name": "石油石化",
+          "changePct": 0.45
+        },
+        {
+          "name": "煤炭",
+          "changePct": -0.86
+        },
+        {
+          "name": "交通运输",
+          "changePct": -1.52
+        }
+      ],
+      "industryBottom5": [
+        {
+          "name": "医药生物",
+          "changePct": -8.23
+        },
+        {
+          "name": "电子",
+          "changePct": -7.68
+        },
+        {
+          "name": "通信",
+          "changePct": -7.15
+        },
+        {
+          "name": "计算机",
+          "changePct": -6.72
+        },
+        {
+          "name": "机械设备",
+          "changePct": -6.18
+        }
+      ],
+      "conceptTop5": [
+        {
+          "name": "火电",
+          "changePct": 3.26
+        },
+        {
+          "name": "水电",
+          "changePct": 2.18
+        },
+        {
+          "name": "中字头银行",
+          "changePct": 1.65
+        },
+        {
+          "name": "黄金概念",
+          "changePct": 1.08
+        },
+        {
+          "name": "油气开采",
+          "changePct": 0.72
+        }
+      ],
+      "conceptBottom5": [
+        {
+          "name": "CRO",
+          "changePct": -11.35
+        },
+        {
+          "name": "CPO/光模块",
+          "changePct": -10.68
+        },
+        {
+          "name": "存储芯片",
+          "changePct": -9.82
+        },
+        {
+          "name": "半导体设备",
+          "changePct": -9.15
+        },
+        {
+          "name": "创新药",
+          "changePct": -8.76
+        }
+      ]
+    },
+    "fundFlow": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "method": "TONGDAXIN_LEGACY",
+      "unit": "亿元",
+      "industryInflowTop10": [
+        {
+          "name": "电力",
+          "netInflowYi": 58.62
+        },
+        {
+          "name": "银行",
+          "netInflowYi": 52.34
+        },
+        {
+          "name": "石油石化",
+          "netInflowYi": 28.75
+        },
+        {
+          "name": "煤炭",
+          "netInflowYi": 15.68
+        },
+        {
+          "name": "交通运输",
+          "netInflowYi": 12.43
+        },
+        {
+          "name": "公用事业",
+          "netInflowYi": 10.25
+        },
+        {
+          "name": "建筑装饰",
+          "netInflowYi": 8.67
+        },
+        {
+          "name": "房地产",
+          "netInflowYi": 6.32
+        },
+        {
+          "name": "钢铁",
+          "netInflowYi": 4.58
+        },
+        {
+          "name": "农林牧渔",
+          "netInflowYi": 3.21
+        }
+      ],
+      "industryOutflowTop10": [
+        {
+          "name": "医药生物",
+          "netInflowYi": -386.52
+        },
+        {
+          "name": "电子",
+          "netInflowYi": -325.78
+        },
+        {
+          "name": "通信",
+          "netInflowYi": -218.65
+        },
+        {
+          "name": "计算机",
+          "netInflowYi": -186.34
+        },
+        {
+          "name": "电力设备",
+          "netInflowYi": -125.46
+        },
+        {
+          "name": "传媒",
+          "netInflowYi": -98.72
+        },
+        {
+          "name": "机械设备",
+          "netInflowYi": -86.53
+        },
+        {
+          "name": "汽车",
+          "netInflowYi": -65.28
+        },
+        {
+          "name": "国防军工",
+          "netInflowYi": -52.17
+        },
+        {
+          "name": "有色金属",
+          "netInflowYi": -45.69
+        }
+      ],
+      "conceptInflowTop10": [
+        {
+          "name": "火电",
+          "netInflowYi": 42.68
+        },
+        {
+          "name": "中字头",
+          "netInflowYi": 38.52
+        },
+        {
+          "name": "高股息",
+          "netInflowYi": 35.76
+        },
+        {
+          "name": "银行",
+          "netInflowYi": 32.18
+        },
+        {
+          "name": "水电",
+          "netInflowYi": 25.43
+        },
+        {
+          "name": "油气开采",
+          "netInflowYi": 18.65
+        },
+        {
+          "name": "央企改革",
+          "netInflowYi": 15.32
+        },
+        {
+          "name": "黄金概念",
+          "netInflowYi": 12.45
+        },
+        {
+          "name": "一带一路",
+          "netInflowYi": 8.76
+        },
+        {
+          "name": "地产链",
+          "netInflowYi": 5.32
+        }
+      ],
+      "conceptOutflowTop10": [
+        {
+          "name": "CRO",
+          "netInflowYi": -268.43
+        },
+        {
+          "name": "CPO/光模块",
+          "netInflowYi": -225.76
+        },
+        {
+          "name": "存储芯片",
+          "netInflowYi": -186.32
+        },
+        {
+          "name": "AI算力",
+          "netInflowYi": -168.54
+        },
+        {
+          "name": "半导体设备",
+          "netInflowYi": -128.65
+        },
+        {
+          "name": "创新药",
+          "netInflowYi": -98.72
+        },
+        {
+          "name": "AI应用",
+          "netInflowYi": -76.28
+        },
+        {
+          "name": "机器人",
+          "netInflowYi": -65.43
+        },
+        {
+          "name": "ChatGPT",
+          "netInflowYi": -52.17
+        },
+        {
+          "name": "算力租赁",
+          "netInflowYi": -45.86
+        }
+      ],
+      "stockInflowTop10": [
+        {
+          "name": "长江电力",
+          "netInflowYi": 18.65
+        },
+        {
+          "name": "工商银行",
+          "netInflowYi": 15.32
+        },
+        {
+          "name": "中国石油",
+          "netInflowYi": 12.78
+        },
+        {
+          "name": "农业银行",
+          "netInflowYi": 10.56
+        },
+        {
+          "name": "中国神华",
+          "netInflowYi": 9.87
+        },
+        {
+          "name": "建设银行",
+          "netInflowYi": 8.43
+        },
+        {
+          "name": "中国银行",
+          "netInflowYi": 7.65
+        },
+        {
+          "name": "华银电力",
+          "netInflowYi": 6.82
+        },
+        {
+          "name": "桂冠电力",
+          "netInflowYi": 5.96
+        },
+        {
+          "name": "中国平安",
+          "netInflowYi": 5.23
+        }
+      ],
+      "stockOutflowTop10": [
+        {
+          "name": "药明康德",
+          "netInflowYi": -58.62
+        },
+        {
+          "name": "中际旭创",
+          "netInflowYi": -52.34
+        },
+        {
+          "name": "寒武纪",
+          "netInflowYi": -45.78
+        },
+        {
+          "name": "海光信息",
+          "netInflowYi": -38.65
+        },
+        {
+          "name": "浪潮信息",
+          "netInflowYi": -35.26
+        },
+        {
+          "name": "恒瑞医药",
+          "netInflowYi": -32.18
+        },
+        {
+          "name": "紫光股份",
+          "netInflowYi": -28.75
+        },
+        {
+          "name": "新易盛",
+          "netInflowYi": -25.43
+        },
+        {
+          "name": "天孚通信",
+          "netInflowYi": -22.68
+        },
+        {
+          "name": "中芯国际",
+          "netInflowYi": -18.92
+        }
+      ]
+    },
+    "northbound": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "source": [
+        "TONGDAXIN_LEGACY"
+      ],
+      "mode": "POST_20240819_LEGACY_IMPORTED",
+      "sourceSystem": "TONGDAXIN_LEGACY",
+      "officialDisclosureCompatible": false,
+      "dailyTurnover": {
+        "status": "UNAVAILABLE",
+        "value": null,
+        "reason": "LEGACY_IMPORT"
+      },
+      "activeSecurities": {
+        "status": "UNAVAILABLE",
+        "items": [],
+        "reason": "LEGACY_IMPORT"
+      },
+      "legacyNetFlow": {
+        "status": "UNAVAILABLE",
+        "reason": "DISCLOSURE_RULE_CHANGED"
+      },
+      "overlap": {
+        "status": "UNAVAILABLE",
+        "items": []
+      },
+      "quarterlyHolding": {
+        "status": "UNAVAILABLE",
+        "asOf": null,
+        "items": []
+      },
+      "legacyImportedFields": {
+        "status": "FINAL",
+        "totalNetInflow": -156.32,
+        "shanghaiNetInflow": -68.54,
+        "shenzhenNetInflow": -87.78,
+        "netBuyTop10": [
+          {
+            "name": "长江电力",
+            "netInflowYi": 12.65
+          },
+          {
+            "name": "工商银行",
+            "netInflowYi": 10.34
+          },
+          {
+            "name": "中国石油",
+            "netInflowYi": 8.76
+          },
+          {
+            "name": "农业银行",
+            "netInflowYi": 7.23
+          },
+          {
+            "name": "中国神华",
+            "netInflowYi": 6.58
+          },
+          {
+            "name": "建设银行",
+            "netInflowYi": 5.92
+          },
+          {
+            "name": "中国银行",
+            "netInflowYi": 5.16
+          },
+          {
+            "name": "贵州茅台",
+            "netInflowYi": 4.68
+          },
+          {
+            "name": "招商银行",
+            "netInflowYi": 4.23
+          },
+          {
+            "name": "中国平安",
+            "netInflowYi": 3.85
+          }
+        ],
+        "netSellTop10": [
+          {
+            "name": "药明康德",
+            "netInflowYi": -22.68
+          },
+          {
+            "name": "中际旭创",
+            "netInflowYi": -18.54
+          },
+          {
+            "name": "宁德时代",
+            "netInflowYi": -15.32
+          },
+          {
+            "name": "比亚迪",
+            "netInflowYi": -12.76
+          },
+          {
+            "name": "海光信息",
+            "netInflowYi": -10.85
+          },
+          {
+            "name": "寒武纪",
+            "netInflowYi": -9.63
+          },
+          {
+            "name": "恒瑞医药",
+            "netInflowYi": -8.92
+          },
+          {
+            "name": "浪潮信息",
+            "netInflowYi": -7.65
+          },
+          {
+            "name": "迈瑞医疗",
+            "netInflowYi": -6.87
+          },
+          {
+            "name": "紫光股份",
+            "netInflowYi": -5.96
+          }
+        ],
+        "sameDirectionIn": [
+          "长江电力",
+          "工商银行",
+          "中国石油",
+          "农业银行",
+          "中国神华",
+          "建设银行",
+          "中国银行",
+          "招商银行",
+          "中国平安",
+          "贵州茅台"
+        ],
+        "sameDirectionOut": [
+          "药明康德",
+          "中际旭创",
+          "海光信息",
+          "寒武纪",
+          "浪潮信息",
+          "恒瑞医药",
+          "紫光股份"
+        ],
+        "excludeFromOfficialTimeSeries": true,
+        "excludeFromTrackScoring": true
+      }
+    },
+    "margin": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "source": [
+        "TONGDAXIN_LEGACY"
+      ],
+      "unit": "亿元",
+      "financingBalance": 27927.01,
+      "securitiesLendingBalance": 212.0,
+      "marginBalance": 28139.01,
+      "marginBalanceChange": -442.55,
+      "financingBuyAmount": null,
+      "financingNetBuyAmount": {
+        "value": -450.0,
+        "quality": "LEGACY"
+      },
+      "securitiesLendingNetSellVolume": {
+        "value": null,
+        "unit": "亿股/亿份",
+        "quality": "UNAVAILABLE"
+      },
+      "legacySecuritiesLendingNetSellAmount": {
+        "value": 7.45,
+        "unit": "亿元",
+        "quality": "LEGACY"
+      },
+      "marginTradeAmount": {
+        "value": 3902.79,
+        "quality": "LEGACY"
+      },
+      "marginTradeSharePct": {
+        "value": 14.7,
+        "quality": "LEGACY"
+      }
+    },
+    "tracks": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "configVersion": "legacy",
+      "sourceSystem": "TONGDAXIN_LEGACY",
+      "items": [
+        {
+          "date": "2026-07-17",
+          "trackId": "高股息_中特估",
+          "trackName": "高股息/中特估",
+          "positioning": "核心防御主线",
+          "turnoverRank": 2.0,
+          "mainNetInflow": 125.68,
+          "continuousInflowDays": 3.0,
+          "maAlignment": "是",
+          "rps60": 82.0,
+          "excessReturn20d": "是",
+          "limitUpCount": 8.0,
+          "ladderCompleteness": "2连板",
+          "redStockRatio": "85%",
+          "coreCatalyst": "高股息防御属性、资金抱团避险",
+          "earningsRealization": "业绩稳定、分红率高",
+          "score": 90.0,
+          "coveragePct": null,
+          "decision": "核心防御主线"
+        },
+        {
+          "date": "2026-07-17",
+          "trackId": "电力_火电_水电",
+          "trackName": "电力(火电/水电)",
+          "positioning": "次主线",
+          "turnoverRank": 3.0,
+          "mainNetInflow": 58.62,
+          "continuousInflowDays": 2.0,
+          "maAlignment": "是",
+          "rps60": 78.0,
+          "excessReturn20d": "是",
+          "limitUpCount": 6.0,
+          "ladderCompleteness": "2连板",
+          "redStockRatio": "90%",
+          "coreCatalyst": "夏季用电高峰、电改政策催化",
+          "earningsRealization": "业绩确定性强、电价上浮",
+          "score": 80.0,
+          "coveragePct": null,
+          "decision": "次主线/轮动主线"
+        },
+        {
+          "date": "2026-07-17",
+          "trackId": "医药生物_创新药_CRO",
+          "trackName": "医药生物(创新药/CRO)",
+          "positioning": "退潮主线",
+          "turnoverRank": 4.0,
+          "mainNetInflow": -386.52,
+          "continuousInflowDays": 0.0,
+          "maAlignment": "否",
+          "rps60": 35.0,
+          "excessReturn20d": "否",
+          "limitUpCount": 0.0,
+          "ladderCompleteness": "无连板",
+          "redStockRatio": "5%",
+          "coreCatalyst": "无明显催化、业绩不及预期",
+          "earningsRealization": "CXO海外订单不及预期",
+          "score": 10.0,
+          "coveragePct": null,
+          "decision": "一日游脉冲/回避"
+        },
+        {
+          "date": "2026-07-17",
+          "trackId": "半导体_CPO_AI算力",
+          "trackName": "半导体/CPO/AI算力",
+          "positioning": "主跌浪",
+          "turnoverRank": 1.0,
+          "mainNetInflow": -730.77,
+          "continuousInflowDays": 0.0,
+          "maAlignment": "否",
+          "rps60": 28.0,
+          "excessReturn20d": "否",
+          "limitUpCount": 0.0,
+          "ladderCompleteness": "无连板",
+          "redStockRatio": "3%",
+          "coreCatalyst": "无明显催化、获利盘兑现",
+          "earningsRealization": "业绩兑现不及预期、估值过高",
+          "score": 5.0,
+          "coveragePct": null,
+          "decision": "主跌浪/坚决回避"
+        }
+      ]
+    },
+    "summary": {
+      "status": "FINAL",
+      "dataDate": "2026-07-17",
+      "generator": "LEGACY_EXCEL",
+      "indexAndTurnover": "三大指数集体暴跌，沪指跌3.05%失守3800点整数关口，创业板指、科创50双双跌超7%，科创综指大跌8.13%，双创板块成为重灾区；两市全天成交2.65万亿元，较前一交易日放量2514亿元，增幅10.46%，属于典型的恐慌性放量下跌，杠杆资金平仓、获利盘集中出逃特征明显。",
+      "sentiment": "全市场普跌特征极致，仅482家个股上涨，5001家个股下跌，普跌率超90%，个股涨跌中位数-5.6%；全天仅35家个股涨停，212家个股跌停，炸板45家，涨停封板率仅43.75%，市场最高连板高度降至2连板，短线接力生态完全崩溃，情绪进入极度冰点，恐慌踩踏现象严重。",
+      "fundFlow": "主力资金全天净流出超1350亿元，无差别抛售医药、电子、通信、计算机等前期高景气成长赛道，仅电力、银行、石油石化等少数防御板块获得资金逆势净流入；北向资金全天净流出156.32亿元，沪股通、深股通同步流出，内外资同步恐慌出逃，仅高股息蓝筹标的获得少量避险资金配置。",
+      "trackConclusion": "前期主线医药、半导体、AI算力集体进入主跌浪，CRO、光模块板块单日跌幅超10%，成长板块遭遇无差别抛售，多头排列完全破坏；电力、高股息、银行成为市场唯一避风港，资金极致抱团防御板块，市场风格完成极端高低切换，成长板块短期抛压仍需释放。",
+      "marketEnvironment": "立即降低仓位至3成以下，坚决回避高位成长赛道（医药、半导体、AI算力、CPO等），切勿盲目抄底接飞刀；仅可小仓位配置电力、高股息、银行等防御品种对冲风险，耐心等待恐慌情绪充分释放、市场量能萎缩企稳后，再考虑逐步进场布局。",
+      "northbound": "",
+      "margin": "",
+      "riskWarning": "本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
+    }
+  },
+  "validation": {
+    "calendarExpectedTradingDay": false,
+    "marketDateVerified": false,
+    "requiredIndicesPresent": false,
+    "stockUniverseCheckPassed": false,
+    "criticalErrors": [],
+    "warnings": [
+      "LEGACY_EXCEL_IMPORTED_WITHOUT_INDEPENDENT_MARKET_REVALIDATION"
+    ]
+  }
+}
