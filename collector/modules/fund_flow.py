@@ -56,6 +56,25 @@ def _parse_yi_amount(
     return number
 
 
+def _normalize_code(value) -> str | None:
+    """A 股代码规范化：int/str → 标准 6 位字符串（R7-P2-02 修复）。
+
+    拒绝 NaN/空/非纯数字/超过 6 位异常值。
+    """
+    if value is None:
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        return None
+    text = str(value).strip()
+    if not text or not text.isdigit():
+        return None
+    if len(text) > 6:
+        return None
+    return text.zfill(6)
+
 def _fetch_fund_flow(
     source: str,
 ) -> dict[str, Any]:
@@ -281,7 +300,7 @@ def _split_ths(
         rows.append(
             {
                 "code": (
-                    str(row.get(code_col, "") or "")
+                    _normalize_code(row.get(code_col))
                     if code_col
                     else ""
                 ),

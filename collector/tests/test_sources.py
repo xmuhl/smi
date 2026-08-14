@@ -201,12 +201,12 @@ def test_sectors_falls_back_to_ths():
     def stock_board_concept_name_em(*args, **kwargs):
         raise ConnectionError("push2 blocked")
 
-    def stock_fund_flow_industry(symbol=None):
+    def stock_board_industry_summary_ths():
         return pd.DataFrame({
-            "行业": ["电子化学品", "半导体", "白酒", "煤炭", "银行", "房地产"],
-            "行业-涨跌幅": [4.07, 3.2, -0.5, -1.1, -0.3, -2.0],
-            "净额": [16.19, 10.0, -2.0, -3.0, -1.0, -5.0],
-            "公司家数": [43, 120, 20, 30, 42, 90],
+            "板块": ["电子化学品", "半导体", "白酒", "煤炭", "银行", "房地产"],
+            "涨跌幅": [4.07, 3.2, -0.5, -1.1, -0.3, -2.0],
+            "上涨家数": [41, 100, 5, 8, 20, 10],
+            "下跌家数": [2, 20, 15, 22, 22, 80],
             "领涨股": ["中石科技", "北方华创", "贵州茅台", "中国神华", "招商银行", "万科A"],
         })
 
@@ -221,7 +221,7 @@ def test_sectors_falls_back_to_ths():
 
     fake.stock_board_industry_name_em = stock_board_industry_name_em
     fake.stock_board_concept_name_em = stock_board_concept_name_em
-    fake.stock_fund_flow_industry = stock_fund_flow_industry
+    fake.stock_board_industry_summary_ths = stock_board_industry_summary_ths
     fake.stock_fund_flow_concept = stock_fund_flow_concept
     sys.modules["akshare"] = fake
 
@@ -235,6 +235,9 @@ def test_sectors_falls_back_to_ths():
         assert result["industryTop5"][0]["name"] == "电子化学品"
         assert result["industryTop5"][0]["changePct"] == 4.07
         assert result["industryTop5"][0]["leader"] == "中石科技"
+        assert result["industryTop5"][0]["riseCount"] == 41
+        assert result["industryTop5"][0]["fallCount"] == 2
+        assert result["conceptTop5"][0]["riseCount"] is None
         assert result["industryBottom5"][0]["name"] == "房地产"
         assert result["conceptTop5"][0]["name"] == "CPO"
     finally:
@@ -264,7 +267,7 @@ def test_fund_flow_falls_back_to_ths():
 
     def stock_fund_flow_individual(symbol=None):
         return pd.DataFrame({
-            "股票代码": ["688485", "688286", "300684"],
+            "股票代码": [831, 725, 2131],
             "股票简称": ["九州一轨", "敏芯股份", "中石科技"],
             "净额": ["4216.11万", "1.35亿", "-2.86亿"],
         })
@@ -288,6 +291,8 @@ def test_fund_flow_falls_back_to_ths():
         assert result["industryOutflowTop10"][0]["name"] == "银行"
         assert result["conceptInflowTop10"][0]["netInflowYi"] == 132.76
         assert result["stockInflowTop10"][0]["name"] == "敏芯股份"
+        assert result["stockInflowTop10"][0]["code"] == "000725"
+        assert result["stockOutflowTop10"][0]["code"] == "002131"
         assert result["stockInflowTop10"][0]["netInflowYi"] == 1.35
         assert result["stockOutflowTop10"][0]["name"] == "中石科技"
         assert result["stockOutflowTop10"][0]["netInflowYi"] == -2.86

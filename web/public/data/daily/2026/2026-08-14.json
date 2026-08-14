@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-14",
   "generatedAt": "2026-08-14T18:04:47+08:00",
-  "updatedAt": "2026-08-14T19:41:20+08:00",
-  "revision": 3,
+  "updatedAt": "2026-08-14T21:55:28+08:00",
+  "revision": 4,
   "overallStatus": "PARTIAL_PENDING",
   "generationReason": "CLOSE_SNAPSHOT",
   "market": "CN_A",
@@ -133,8 +133,8 @@
           "name": "电子化学品",
           "changePct": 4.07,
           "turnoverRate": null,
-          "riseCount": 43,
-          "fallCount": null,
+          "riseCount": 41,
+          "fallCount": 2,
           "leader": "中石科技"
         },
         {
@@ -142,8 +142,8 @@
           "name": "非金属材料",
           "changePct": 3.84,
           "turnoverRate": null,
-          "riseCount": 16,
-          "fallCount": null,
+          "riseCount": 12,
+          "fallCount": 3,
           "leader": "金戈新材"
         },
         {
@@ -151,8 +151,8 @@
           "name": "元件",
           "changePct": 2.52,
           "turnoverRate": null,
-          "riseCount": 63,
-          "fallCount": null,
+          "riseCount": 51,
+          "fallCount": 12,
           "leader": "中富电路"
         },
         {
@@ -160,8 +160,8 @@
           "name": "通信设备",
           "changePct": 2.33,
           "turnoverRate": null,
-          "riseCount": 91,
-          "fallCount": null,
+          "riseCount": 67,
+          "fallCount": 23,
           "leader": "阿莱德"
         },
         {
@@ -169,8 +169,8 @@
           "name": "金属新材料",
           "changePct": 2.05,
           "turnoverRate": null,
-          "riseCount": 34,
-          "fallCount": null,
+          "riseCount": 27,
+          "fallCount": 6,
           "leader": "龙磁科技"
         }
       ],
@@ -180,8 +180,8 @@
           "name": "电力",
           "changePct": -2.65,
           "turnoverRate": null,
-          "riseCount": 110,
-          "fallCount": null,
+          "riseCount": 9,
+          "fallCount": 98,
           "leader": "华光环能"
         },
         {
@@ -189,8 +189,8 @@
           "name": "影视院线",
           "changePct": -2.56,
           "turnoverRate": null,
-          "riseCount": 20,
-          "fallCount": null,
+          "riseCount": 1,
+          "fallCount": 19,
           "leader": "中视传媒"
         },
         {
@@ -198,8 +198,8 @@
           "name": "白酒",
           "changePct": -1.94,
           "turnoverRate": null,
-          "riseCount": 19,
-          "fallCount": null,
+          "riseCount": 0,
+          "fallCount": 19,
           "leader": "伊力特"
         },
         {
@@ -207,8 +207,8 @@
           "name": "保险",
           "changePct": -1.79,
           "turnoverRate": null,
-          "riseCount": 5,
-          "fallCount": null,
+          "riseCount": 0,
+          "fallCount": 5,
           "leader": "新华保险"
         },
         {
@@ -216,8 +216,8 @@
           "name": "饮料制造",
           "changePct": -1.68,
           "turnoverRate": null,
-          "riseCount": 47,
-          "fallCount": null,
+          "riseCount": 7,
+          "fallCount": 39,
           "leader": "会稽山"
         }
       ],
@@ -227,7 +227,7 @@
           "name": "共封装光学(CPO)",
           "changePct": 2.94,
           "turnoverRate": null,
-          "riseCount": 205,
+          "riseCount": null,
           "fallCount": null,
           "leader": "金戈新材"
         },
@@ -236,7 +236,7 @@
           "name": "F5G概念",
           "changePct": 2.91,
           "turnoverRate": null,
-          "riseCount": 36,
+          "riseCount": null,
           "fallCount": null,
           "leader": "共进股份"
         },
@@ -245,7 +245,7 @@
           "name": "太赫兹",
           "changePct": 2.71,
           "turnoverRate": null,
-          "riseCount": 23,
+          "riseCount": null,
           "fallCount": null,
           "leader": "亨通光电"
         },
@@ -254,7 +254,7 @@
           "name": "光纤概念",
           "changePct": 2.46,
           "turnoverRate": null,
-          "riseCount": 110,
+          "riseCount": null,
           "fallCount": null,
           "leader": "九州一轨"
         },
@@ -263,7 +263,7 @@
           "name": "光刻机",
           "changePct": 2.42,
           "turnoverRate": null,
-          "riseCount": 51,
+          "riseCount": null,
           "fallCount": null,
           "leader": "中瓷电子"
         }
@@ -274,7 +274,7 @@
           "name": "乳业",
           "changePct": -2.29,
           "turnoverRate": null,
-          "riseCount": 35,
+          "riseCount": null,
           "fallCount": null,
           "leader": "南侨食品"
         },
@@ -283,7 +283,7 @@
           "name": "青蒿素",
           "changePct": -2.26,
           "turnoverRate": null,
-          "riseCount": 10,
+          "riseCount": null,
           "fallCount": null,
           "leader": "海正药业"
         },
@@ -292,7 +292,7 @@
           "name": "免税店",
           "changePct": -1.61,
           "turnoverRate": null,
-          "riseCount": 26,
+          "riseCount": null,
           "fallCount": null,
           "leader": "ST华扬"
         },
@@ -301,7 +301,7 @@
           "name": "信托概念",
           "changePct": -1.47,
           "turnoverRate": null,
-          "riseCount": 23,
+          "riseCount": null,
           "fallCount": null,
           "leader": "华光环能"
         },
@@ -310,7 +310,7 @@
           "name": "猪肉",
           "changePct": -1.4,
           "turnoverRate": null,
-          "riseCount": 32,
+          "riseCount": null,
           "fallCount": null,
           "leader": "ST龙大"
         }
@@ -572,7 +572,7 @@
           "netInflowYi": 13.71
         },
         {
-          "code": "831",
+          "code": "000831",
           "name": "中国稀土",
           "netInflowYi": 12.19
         },
@@ -584,7 +584,7 @@
       ],
       "stockOutflowTop10": [
         {
-          "code": "725",
+          "code": "000725",
           "name": "京东方A",
           "netInflowYi": -14.72
         },
@@ -609,7 +609,7 @@
           "netInflowYi": -10.7
         },
         {
-          "code": "2131",
+          "code": "002131",
           "name": "利欧股份",
           "netInflowYi": -10.18
         },
@@ -619,7 +619,7 @@
           "netInflowYi": -9.7
         },
         {
-          "code": "858",
+          "code": "000858",
           "name": "五粮液",
           "netInflowYi": -9.28
         },

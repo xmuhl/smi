@@ -35,8 +35,32 @@ def _to_entries(df, name_col: str, pct_col: str, code_col: str | None) -> list[d
     return entries
 
 
-def _ths_to_entries(df, name_col: str, pct_col: str) -> list[dict[str, Any]]:
-    """同花顺资金流表 → 板块条目（无板块代码/换手率/涨跌家数，有公司家数/领涨股）。"""
+def _ths_summary_entries(df) -> list[dict[str, Any]]:
+    """同花顺行业摘要 → 板块条目（含真实上涨/下跌家数，R7-P2-01 修复）。"""
+    entries = []
+    for _, row in df.iterrows():
+        try:
+            pct = float(row["涨跌幅"])
+        except (TypeError, ValueError):
+            continue
+        if pct != pct:  # NaN
+            continue
+        entries.append(
+            {
+                "code": "",
+                "name": str(row["板块"]),
+                "changePct": round(pct, 2),
+                "turnoverRate": None,
+                "riseCount": _safe_int(row, "上涨家数"),
+                "fallCount": _safe_int(row, "下跌家数"),
+                "leader": str(row.get("领涨股", "") or ""),
+            }
+        )
+    return entries
+
+
+def _ths_flow_entries(df, name_col: str, pct_col: str) -> list[dict[str, Any]]:
+    """同花顺概念资金流表 → 板块条目（无真实涨跌家数，置 None 而非公司家数）。"""
     entries = []
     for _, row in df.iterrows():
         try:
@@ -51,7 +75,7 @@ def _ths_to_entries(df, name_col: str, pct_col: str) -> list[dict[str, Any]]:
                 "name": str(row[name_col]),
                 "changePct": round(pct, 2),
                 "turnoverRate": None,
-                "riseCount": _safe_int(row, "公司家数"),
+                "riseCount": None,
                 "fallCount": None,
                 "leader": str(row.get("领涨股", "") or ""),
             }
@@ -153,10 +177,8 @@ def _rank_from_ths(
     if industry is None or industry.empty:
         raise ValueError("empty ths industry data")
 
-    entries = _ths_to_entries(
+    entries = _ths_summary_entries(
         industry,
-        "行业",
-        "行业-涨跌幅",
     )
 
     if not entries:
@@ -178,7 +200,7 @@ def _rank_from_ths(
     if concept is None or concept.empty:
         raise ValueError("empty ths concept data")
 
-    entries = _ths_to_entries(
+    entries = _ths_flow_entries(
         concept,
         "行业",
         "行业-涨跌幅",
@@ -215,7 +237,7 @@ def _fetch_board_rank(
 
     if source == "ths":
         return _rank_from_ths(
-            ak.stock_fund_flow_industry(symbol="即时"),
+            ak.stock_board_industry_summary_ths(),
             ak.stock_fund_flow_concept(symbol="即时"),
         )
 

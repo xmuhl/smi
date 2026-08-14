@@ -69,6 +69,8 @@ def validate_snapshot(
 
     modules = snapshot.get("modules")
 
+    _validate_stock_codes(modules)
+
     if not isinstance(modules, dict):
         errors.append("modules must be object")
         modules = {}
@@ -406,3 +408,33 @@ def _is_finite_number(
     return math.isfinite(
         float(value)
     )
+
+
+def _validate_stock_codes(modules) -> None:
+    """R7-P2-02：fundFlow 个股代码必须是标准 6 位数字。"""
+    if not isinstance(modules, dict):
+        return
+
+    import re
+
+    flow = modules.get("fundFlow", {})
+    if not isinstance(flow, dict):
+        return
+
+    bad: list[str] = []
+
+    for group in (
+        "stockInflowTop10",
+        "stockOutflowTop10",
+    ):
+        for item in flow.get(group, []) or []:
+            code = item.get("code") if isinstance(item, dict) else None
+            if code is None or code == "":
+                continue
+            if not re.fullmatch(r"\d{6}", str(code)):
+                bad.append(f"{group}:{code}")
+
+    if bad:
+        raise ValueError(
+            "invalid fundFlow stock codes: " + ", ".join(bad[:5])
+        )
