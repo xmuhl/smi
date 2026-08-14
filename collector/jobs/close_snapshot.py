@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-import time
+import time as _time
 from datetime import date, datetime, time
 
 from collector.calendar import is_trading_day
@@ -190,7 +190,7 @@ def main() -> int:
             f"RETRY_SCHEDULED {target} attempt={attempt + 1} "
             f"delay={delay}s errors={",".join(validation_errors)}"
         )
-        time.sleep(delay)
+        _time.sleep(delay)
 
     changed, _ = write_if_changed(
         snapshot,
@@ -211,3 +211,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
