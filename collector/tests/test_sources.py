@@ -190,3 +190,126 @@ def test_is_retryable_classifies_errors():
     assert not _is_retryable(["CALENDAR_NOT_TRADING_DAY"])
     assert not _is_retryable([])
     assert not _is_retryable(["REQUIRED_INDEX_MISSING", "CALENDAR_NOT_TRADING_DAY"])
+
+
+def test_sectors_falls_back_to_ths():
+    fake = ModuleType("akshare")
+
+    def stock_board_industry_name_em(*args, **kwargs):
+        raise ConnectionError("17.push2 blocked")
+
+    def stock_board_concept_name_em(*args, **kwargs):
+        raise ConnectionError("push2 blocked")
+
+    def stock_fund_flow_industry(symbol=None):
+        return pd.DataFrame({
+            "行业": ["电子化学品", "半导体", "白酒", "煤炭", "银行", "房地产"],
+            "行业-涨跌幅": [4.07, 3.2, -0.5, -1.1, -0.3, -2.0],
+            "净额": [16.19, 10.0, -2.0, -3.0, -1.0, -5.0],
+            "公司家数": [43, 120, 20, 30, 42, 90],
+            "领涨股": ["中石科技", "北方华创", "贵州茅台", "中国神华", "招商银行", "万科A"],
+        })
+
+    def stock_fund_flow_concept(symbol=None):
+        return pd.DataFrame({
+            "行业": ["CPO", "F5G", "AI", "光伏"],
+            "行业-涨跌幅": [2.94, 2.91, -0.8, -1.5],
+            "净额": [132.76, 77.44, -5.0, -8.0],
+            "公司家数": [205, 36, 300, 150],
+            "领涨股": ["金戈新材", "共进股份", "寒武纪", "隆基绿能"],
+        })
+
+    fake.stock_board_industry_name_em = stock_board_industry_name_em
+    fake.stock_board_concept_name_em = stock_board_concept_name_em
+    fake.stock_fund_flow_industry = stock_fund_flow_industry
+    fake.stock_fund_flow_concept = stock_fund_flow_concept
+    sys.modules["akshare"] = fake
+
+    try:
+        from collector.modules.sectors import collect_sectors
+
+        result = collect_sectors("2026-08-14")
+
+        assert result["status"] == "FINAL"
+        assert result["method"] == "THS"
+        assert result["industryTop5"][0]["name"] == "电子化学品"
+        assert result["industryTop5"][0]["changePct"] == 4.07
+        assert result["industryTop5"][0]["leader"] == "中石科技"
+        assert result["industryBottom5"][0]["name"] == "房地产"
+        assert result["conceptTop5"][0]["name"] == "CPO"
+    finally:
+        sys.modules.pop("akshare", None)
+
+
+def test_fund_flow_falls_back_to_ths():
+    fake = ModuleType("akshare")
+
+    def stock_sector_fund_flow_rank(*args, **kwargs):
+        raise ConnectionError("push2 blocked")
+
+    def stock_individual_fund_flow_rank(*args, **kwargs):
+        raise ConnectionError("push2 blocked")
+
+    def stock_fund_flow_industry(symbol=None):
+        return pd.DataFrame({
+            "行业": ["电子化学品", "银行", "煤炭"],
+            "净额": [16.19, -3.5, -1.0],
+        })
+
+    def stock_fund_flow_concept(symbol=None):
+        return pd.DataFrame({
+            "行业": ["CPO", "光伏"],
+            "净额": [132.76, -8.0],
+        })
+
+    def stock_fund_flow_individual(symbol=None):
+        return pd.DataFrame({
+            "股票代码": ["688485", "688286", "300684"],
+            "股票简称": ["九州一轨", "敏芯股份", "中石科技"],
+            "净额": ["4216.11万", "1.35亿", "-2.86亿"],
+        })
+
+    fake.stock_sector_fund_flow_rank = stock_sector_fund_flow_rank
+    fake.stock_individual_fund_flow_rank = stock_individual_fund_flow_rank
+    fake.stock_fund_flow_industry = stock_fund_flow_industry
+    fake.stock_fund_flow_concept = stock_fund_flow_concept
+    fake.stock_fund_flow_individual = stock_fund_flow_individual
+    sys.modules["akshare"] = fake
+
+    try:
+        from collector.modules.fund_flow import collect_fund_flow
+
+        result = collect_fund_flow("2026-08-14")
+
+        assert result["status"] == "FINAL"
+        assert result["method"] == "THS_MAIN_FORCE"
+        assert result["industryInflowTop10"][0]["name"] == "电子化学品"
+        assert result["industryInflowTop10"][0]["netInflowYi"] == 16.19
+        assert result["industryOutflowTop10"][0]["name"] == "银行"
+        assert result["conceptInflowTop10"][0]["netInflowYi"] == 132.76
+        assert result["stockInflowTop10"][0]["name"] == "敏芯股份"
+        assert result["stockInflowTop10"][0]["netInflowYi"] == 1.35
+        assert result["stockOutflowTop10"][0]["name"] == "中石科技"
+        assert result["stockOutflowTop10"][0]["netInflowYi"] == -2.86
+    finally:
+        sys.modules.pop("akshare", None)
+
+
+def test_parse_yi_amount_units():
+    from collector.modules.fund_flow import _parse_yi_amount
+
+    # string_mode=True：个股带单位字符串
+    assert _parse_yi_amount("1.35亿", string_mode=True) == 1.35
+    assert abs(_parse_yi_amount("4216.11万", string_mode=True) - 0.421611) < 1e-9
+    assert _parse_yi_amount("0.00", string_mode=True) == 0.0
+    assert _parse_yi_amount("-2.86亿", string_mode=True) == -2.86
+    # 无单位按元计：THS 小额净额 "9542.00" = 9542 元
+    assert abs(_parse_yi_amount("9542.00", string_mode=True) - 0.00009542) < 1e-9
+    # 异常大值拒绝
+    assert _parse_yi_amount("9542.00亿", string_mode=True) is None
+    assert _parse_yi_amount(None, string_mode=True) is None
+    assert _parse_yi_amount("--", string_mode=True) is None
+    # string_mode=False：行业/概念已是亿元数字
+    assert _parse_yi_amount(16.19) == 16.19
+    assert _parse_yi_amount("16.19") == 16.19
+    assert _parse_yi_amount(None) is None

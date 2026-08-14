@@ -13,6 +13,18 @@ spot:
   fallback:
     - sina
 
+# 板块行情：东财 → 同花顺 THS（口径以 method 字段区分，不混装历史）
+sector:
+  primary: eastmoney
+  fallback:
+    - ths
+
+# 主力资金流：东财 → 同花顺 THS（仅当日快照，无免费历史）
+fundflow:
+  primary: eastmoney
+  fallback:
+    - ths
+
 northbound:
   primary: hkex
 
