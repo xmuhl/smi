@@ -188,7 +188,7 @@ def main() -> int:
         delay = retry_delays[attempt - 1]
         print(
             f"RETRY_SCHEDULED {target} attempt={attempt + 1} "
-            f"delay={delay}s errors={",".join(validation_errors)}"
+            f"delay={delay}s errors=" + ",".join(validation_errors)
         )
         _time.sleep(delay)
 
