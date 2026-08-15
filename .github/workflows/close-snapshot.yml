@@ -10,6 +10,11 @@ on:
         required: false
         default: "auto"
         type: string
+      deploy:
+        description: "无数据变化也强制构建并部署（deploy 失败恢复用）"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -71,7 +76,7 @@ jobs:
 
       # ===== 方案 A：数据变化才构建并发布到 Cloudflare Pages =====
       - name: Setup Node
-        if: steps.commit.outputs.changed == 'true'
+        if: steps.commit.outputs.changed == 'true' || inputs.deploy == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -79,22 +84,22 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install web dependencies
-        if: steps.commit.outputs.changed == 'true'
+        if: steps.commit.outputs.changed == 'true' || inputs.deploy == 'true'
         working-directory: web
         run: npm ci
 
       - name: Type check
-        if: steps.commit.outputs.changed == 'true'
+        if: steps.commit.outputs.changed == 'true' || inputs.deploy == 'true'
         working-directory: web
         run: npm run typecheck
 
       - name: Build
-        if: steps.commit.outputs.changed == 'true'
+        if: steps.commit.outputs.changed == 'true' || inputs.deploy == 'true'
         working-directory: web
         run: npm run build
 
       - name: Deploy to Cloudflare Pages
-        if: steps.commit.outputs.changed == 'true'
+        if: steps.commit.outputs.changed == 'true' || inputs.deploy == 'true'
         working-directory: web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

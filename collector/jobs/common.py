@@ -378,22 +378,28 @@ def _list_available_dates() -> list[str]:
 def _collect_errors(
     snapshot: dict[str, Any],
 ) -> list[dict[str, Any]]:
+    """收集所有模块的真实错误；PARTIAL 中的子源失败也要进入健康信息（R6-P2-03）。"""
     output: list[dict[str, Any]] = []
 
     for name, module in snapshot.get(
         "modules",
         {},
     ).items():
-        if module.get("status") == ModuleStatus.ERROR.value:
-            output.append(
-                {
-                    "module": name,
-                    "errors": module.get(
-                        "errors",
-                        [],
-                    ),
-                }
-            )
+        module_errors = module.get(
+            "errors",
+            [],
+        )
+
+        if not module_errors:
+            continue
+
+        output.append(
+            {
+                "module": name,
+                "status": module.get("status"),
+                "errors": module_errors,
+            }
+        )
 
     return output
 

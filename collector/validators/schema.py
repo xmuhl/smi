@@ -101,6 +101,14 @@ def validate_snapshot(
             )
             continue
 
+        if status == ModuleStatus.PARTIAL.value:
+            _validate_partial_module(
+                name,
+                module,
+                trade_date,
+                errors,
+            )
+
         data_date = module.get("dataDate")
 
         if (
@@ -340,6 +348,92 @@ def validate_snapshot(
             "snapshot validation failed: "
             + "; ".join(errors)
         )
+
+def _is_nonnegative_int(
+    value: Any,
+) -> bool:
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and value >= 0
+    )
+
+
+def _validate_partial_module(
+    name: str,
+    module: dict[str, Any],
+    trade_date: str,
+    errors: list[str],
+) -> None:
+    """V1 的 PARTIAL 当前只允许历史 sentiment 涨跌停池子集（R8-P2-01）。"""
+    if name != "sentiment":
+        errors.append(
+            f"{name}: PARTIAL is not supported"
+        )
+        return
+
+    if module.get("dataDate") != trade_date:
+        errors.append(
+            "sentiment: PARTIAL dataDate "
+            f"{module.get('dataDate')} != tradeDate "
+            f"{trade_date}"
+        )
+
+    if (
+        module.get("reason")
+        != "HISTORICAL_LIMIT_POOL_ONLY"
+    ):
+        errors.append(
+            "sentiment: invalid PARTIAL reason"
+        )
+
+    for field in (
+        "riseCount",
+        "fallCount",
+        "flatCount",
+        "suspendedCount",
+    ):
+        if module.get(field) is not None:
+            errors.append(
+                f"sentiment.{field} must be null "
+                "for historical PARTIAL"
+            )
+
+    up_values = (
+        module.get("nonStLimitUpCount"),
+        module.get("stLimitUpCount"),
+    )
+
+    if not all(
+        _is_nonnegative_int(value)
+        for value in up_values
+    ):
+        errors.append(
+            "sentiment: PARTIAL limit-up counts "
+            "must be non-negative integers"
+        )
+    elif sum(up_values) <= 0:
+        errors.append(
+            "sentiment: PARTIAL must contain "
+            "at least one limit-up record"
+        )
+
+    for field in (
+        "nonStLimitDownCount",
+        "stLimitDownCount",
+        "brokenLimitCount",
+    ):
+        value = module.get(field)
+
+        if (
+            value is not None
+            and not _is_nonnegative_int(value)
+        ):
+            errors.append(
+                f"sentiment.{field} must be "
+                "null or non-negative integer"
+            )
+
 
 def _validate_finite(
     value: Any,

@@ -102,6 +102,7 @@ def _fetch_historical_limit_pools(
         "stLimitDownCount": None,
         "brokenLimitCount": None,
         "errors": [],
+        "warnings": [],
     }
 
     try:
@@ -109,10 +110,14 @@ def _fetch_historical_limit_pools(
             date=yyyymmdd
         )
 
-        non_st, st = _split_st_pool(pool)
-
-        result["nonStLimitDownCount"] = non_st
-        result["stLimitDownCount"] = st
+        if pool is None or pool.empty:
+            result["warnings"].append(
+                "dt_pool: EMPTY_OR_UNAVAILABLE"
+            )
+        else:
+            non_st, st = _split_st_pool(pool)
+            result["nonStLimitDownCount"] = non_st
+            result["stLimitDownCount"] = st
 
     except Exception as exc:  # noqa: BLE001
         result["errors"].append(
@@ -125,7 +130,9 @@ def _fetch_historical_limit_pools(
         )
 
         if pool is None or pool.empty:
-            result["brokenLimitCount"] = 0
+            result["warnings"].append(
+                "zbgc: EMPTY_OR_UNAVAILABLE"
+            )
         else:
             result["brokenLimitCount"] = int(
                 len(pool)
@@ -201,6 +208,7 @@ def collect_sentiment(
                 "brokenLimitCount"
             ],
             "errors": pools["errors"],
+            "warnings": pools["warnings"],
         }
 
     yyyymmdd = trade_date.replace("-", "")

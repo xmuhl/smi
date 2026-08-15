@@ -203,8 +203,10 @@ def _rule_sentiment(
 def _partial_sentiment_text(
     sentiment: dict[str, Any],
 ) -> str:
-    """历史回补日：仅涨停池数据可得，如实呈现，不编造涨跌家数。"""
+    """历史回补日仅呈现确实取得的计数，不把未知值格式化成 0（R8-P2-02）。"""
     parts: list[str] = []
+    up_parts: list[str] = []
+    down_parts: list[str] = []
 
     limit_up = sentiment.get(
         "nonStLimitUpCount"
@@ -222,20 +224,31 @@ def _partial_sentiment_text(
         "brokenLimitCount"
     )
 
-    if limit_up is not None or st_limit_up is not None:
-        parts.append(
-            f"非ST涨停 {limit_up or 0} 家、"
-            f"ST涨停 {st_limit_up or 0} 家"
+    if limit_up is not None:
+        up_parts.append(
+            f"非ST涨停 {limit_up} 家"
         )
 
-    if (
-        limit_down is not None
-        or st_limit_down is not None
-    ):
-        parts.append(
-            f"非ST跌停 {limit_down or 0} 家、"
-            f"ST跌停 {st_limit_down or 0} 家"
+    if st_limit_up is not None:
+        up_parts.append(
+            f"ST涨停 {st_limit_up} 家"
         )
+
+    if up_parts:
+        parts.append("、".join(up_parts))
+
+    if limit_down is not None:
+        down_parts.append(
+            f"非ST跌停 {limit_down} 家"
+        )
+
+    if st_limit_down is not None:
+        down_parts.append(
+            f"ST跌停 {st_limit_down} 家"
+        )
+
+    if down_parts:
+        parts.append("、".join(down_parts))
 
     if broken is not None:
         parts.append(

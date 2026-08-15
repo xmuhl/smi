@@ -25,13 +25,49 @@ STATUS_UI = {
 
 
 def available_transitions(status: ModuleStatus) -> list[ModuleStatus]:
-    """返回可迁移到的目标状态集合。"""
+    """返回采集态允许迁移到的目标状态集合（R8-P3-02）。
+
+    这是描述性采集状态机；持久化质量单调性由 backfill merge 单独保证。
+    """
     table = {
-        ModuleStatus.PENDING: [ModuleStatus.FINAL, ModuleStatus.STALE, ModuleStatus.ERROR],
-        ModuleStatus.FINAL: [ModuleStatus.FINAL, ModuleStatus.STALE],
-        ModuleStatus.STALE: [ModuleStatus.FINAL, ModuleStatus.ERROR],
-        ModuleStatus.PARTIAL: [ModuleStatus.FINAL, ModuleStatus.ERROR],
-        ModuleStatus.UNAVAILABLE: [ModuleStatus.UNAVAILABLE],
-        ModuleStatus.ERROR: [ModuleStatus.FINAL, ModuleStatus.STALE, ModuleStatus.ERROR],
+        ModuleStatus.PENDING: [
+            ModuleStatus.PENDING,
+            ModuleStatus.PARTIAL,
+            ModuleStatus.FINAL,
+            ModuleStatus.STALE,
+            ModuleStatus.UNAVAILABLE,
+            ModuleStatus.ERROR,
+        ],
+        ModuleStatus.PARTIAL: [
+            ModuleStatus.PARTIAL,
+            ModuleStatus.FINAL,
+            ModuleStatus.STALE,
+            ModuleStatus.UNAVAILABLE,
+            ModuleStatus.ERROR,
+        ],
+        ModuleStatus.FINAL: [
+            ModuleStatus.FINAL,
+            ModuleStatus.STALE,
+            ModuleStatus.ERROR,
+        ],
+        ModuleStatus.STALE: [
+            ModuleStatus.STALE,
+            ModuleStatus.PARTIAL,
+            ModuleStatus.FINAL,
+            ModuleStatus.ERROR,
+        ],
+        ModuleStatus.UNAVAILABLE: [
+            ModuleStatus.UNAVAILABLE,
+            ModuleStatus.PARTIAL,
+            ModuleStatus.FINAL,
+            ModuleStatus.ERROR,
+        ],
+        ModuleStatus.ERROR: [
+            ModuleStatus.ERROR,
+            ModuleStatus.PARTIAL,
+            ModuleStatus.FINAL,
+            ModuleStatus.STALE,
+            ModuleStatus.UNAVAILABLE,
+        ],
     }
     return table.get(status, [])

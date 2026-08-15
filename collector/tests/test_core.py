@@ -652,3 +652,322 @@ def test_sentiment_historical_partial_keeps_pools_on_zbgc_failure(
     assert result["nonStLimitUpCount"] == 1
     assert result["brokenLimitCount"] is None
     assert result["errors"] == ["zbgc: zbgc down"]
+
+def test_backfill_merge_keeps_final_against_partial():
+    from collector.jobs.manual_backfill import (
+        _merge_preserving_valid_history,
+    )
+
+    old = {
+        "modules": {
+            "sentiment": {
+                "status": "FINAL",
+                "riseCount": 100,
+                "dataDate": "2026-08-01",
+            }
+        }
+    }
+    new = {
+        "modules": {
+            "sentiment": {
+                "status": "PARTIAL",
+                "nonStLimitUpCount": 5,
+                "dataDate": "2026-08-01",
+            }
+        }
+    }
+
+    merged = _merge_preserving_valid_history(old, new)
+
+    assert (
+        merged["modules"]["sentiment"]["status"]
+        == "FINAL"
+    )
+    assert (
+        merged["modules"]["sentiment"]["riseCount"]
+        == 100
+    )
+
+def test_backfill_merge_keeps_partial_against_unavailable():
+    from collector.jobs.manual_backfill import (
+        _merge_preserving_valid_history,
+    )
+
+    old = {
+        "modules": {
+            "sentiment": {
+                "status": "PARTIAL",
+                "nonStLimitUpCount": 42,
+                "dataDate": "2026-08-01",
+            }
+        }
+    }
+    new = {
+        "modules": {
+            "sentiment": {
+                "status": "UNAVAILABLE",
+                "dataDate": "2026-08-01",
+            }
+        }
+    }
+
+    merged = _merge_preserving_valid_history(old, new)
+
+    assert (
+        merged["modules"]["sentiment"]["status"]
+        == "PARTIAL"
+    )
+    assert (
+        merged["modules"]["sentiment"][
+            "nonStLimitUpCount"
+        ]
+        == 42
+    )
+
+def test_backfill_merge_partial_field_union_never_loses_data():
+    from collector.jobs.manual_backfill import (
+        _merge_preserving_valid_history,
+    )
+
+    old = {
+        "modules": {
+            "sentiment": {
+                "status": "PARTIAL",
+                "nonStLimitUpCount": 42,
+                "stLimitUpCount": 1,
+                "brokenLimitCount": 7,
+                "dataDate": "2026-08-01",
+            }
+        }
+    }
+    new = {
+        "modules": {
+            "sentiment": {
+                "status": "PARTIAL",
+                "nonStLimitUpCount": 43,
+                "stLimitUpCount": None,
+                "brokenLimitCount": None,
+                "dataDate": "2026-08-01",
+            }
+        }
+    }
+
+    merged = _merge_preserving_valid_history(old, new)
+
+    module = merged["modules"]["sentiment"]
+
+    assert module["status"] == "PARTIAL"
+    # 新值优先
+    assert module["nonStLimitUpCount"] == 43
+    # 旧的非空字段不得被抹成 None
+    assert module["stLimitUpCount"] == 1
+    assert module["brokenLimitCount"] == 7
+
+def test_backfill_merge_partial_upgraded_by_final():
+    from collector.jobs.manual_backfill import (
+        _merge_preserving_valid_history,
+    )
+
+    old = {
+        "modules": {
+            "sentiment": {
+                "status": "PARTIAL",
+                "nonStLimitUpCount": 42,
+                "dataDate": "2026-08-01",
+            }
+        }
+    }
+    new = {
+        "modules": {
+            "sentiment": {
+                "status": "FINAL",
+                "riseCount": 100,
+                "dataDate": "2026-08-01",
+            }
+        }
+    }
+
+    merged = _merge_preserving_valid_history(old, new)
+
+    assert (
+        merged["modules"]["sentiment"]["status"]
+        == "FINAL"
+    )
+
+def _load_legacy_baseline():
+    import json
+
+    with open(
+        "web/public/data/daily/2026/2026-07-17.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        return json.load(f)
+
+def _partial_sentiment(**overrides):
+    module = {
+        "status": "PARTIAL",
+        "dataDate": "2026-07-17",
+        "source": ["EASTMONEY"],
+        "reason": "HISTORICAL_LIMIT_POOL_ONLY",
+        "riseCount": None,
+        "fallCount": None,
+        "flatCount": None,
+        "suspendedCount": None,
+        "nonStLimitUpCount": 5,
+        "stLimitUpCount": 1,
+        "nonStLimitDownCount": 2,
+        "stLimitDownCount": 0,
+        "brokenLimitCount": 3,
+        "errors": [],
+        "warnings": [],
+    }
+    module.update(overrides)
+    return module
+
+def test_validator_accepts_valid_historical_sentiment_partial():
+    import copy
+
+    from collector.validators.schema import validate_snapshot
+
+    snapshot = _load_legacy_baseline()
+    snapshot["modules"]["sentiment"] = (
+        _partial_sentiment()
+    )
+    snapshot["overallStatus"] = "PARTIAL"
+
+    validate_snapshot(snapshot)
+
+def test_validator_rejects_partial_for_non_sentiment():
+    import copy
+
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    snapshot = _load_legacy_baseline()
+    snapshot["modules"]["fundFlow"] = {
+        "status": "PARTIAL",
+        "dataDate": "2026-07-17",
+        "method": "EASTMONEY_MAIN_FORCE",
+        "unit": "亿元",
+    }
+    snapshot["overallStatus"] = "PARTIAL"
+
+    with pytest.raises(ValueError):
+        validate_snapshot(snapshot)
+
+def test_validator_rejects_partial_without_limit_up_counts():
+    import copy
+
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    snapshot = _load_legacy_baseline()
+    snapshot["modules"]["sentiment"] = (
+        _partial_sentiment(
+            nonStLimitUpCount=None,
+            stLimitUpCount=None,
+        )
+    )
+    snapshot["overallStatus"] = "PARTIAL"
+
+    with pytest.raises(ValueError):
+        validate_snapshot(snapshot)
+
+def test_validator_rejects_partial_wrong_reason():
+    import copy
+
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    snapshot = _load_legacy_baseline()
+    snapshot["modules"]["sentiment"] = (
+        _partial_sentiment(
+            reason="HISTORICAL_LIMIT_POOL_UNAVAILABLE",
+        )
+    )
+    snapshot["overallStatus"] = "PARTIAL"
+
+    with pytest.raises(ValueError):
+        validate_snapshot(snapshot)
+
+def test_validator_rejects_partial_date_mismatch():
+    import copy
+
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    snapshot = _load_legacy_baseline()
+    snapshot["modules"]["sentiment"] = (
+        _partial_sentiment(
+            dataDate="2026-07-16",
+        )
+    )
+    snapshot["overallStatus"] = "PARTIAL"
+
+    with pytest.raises(ValueError):
+        validate_snapshot(snapshot)
+
+def test_sentiment_historical_aux_empty_stays_null(
+    monkeypatch,
+):
+    import akshare
+
+    import collector.modules.sentiment as sentiment
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_em",
+        lambda date: pd.DataFrame(
+            {"名称": ["甲股份"]}
+        ),
+    )
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_dtgc_em",
+        lambda date: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_zbgc_em",
+        lambda date: pd.DataFrame(),
+    )
+
+    result = sentiment.collect_sentiment(
+        "2020-01-02"
+    )
+
+    assert result["status"] == "PARTIAL"
+    assert result["nonStLimitUpCount"] == 1
+    # 空辅助池不得伪装成真实 0（R8-P2-02）
+    assert result["nonStLimitDownCount"] is None
+    assert result["brokenLimitCount"] is None
+    assert result["warnings"] == [
+        "dt_pool: EMPTY_OR_UNAVAILABLE",
+        "zbgc: EMPTY_OR_UNAVAILABLE",
+    ]
+
+def test_summary_partial_text_never_fabricates_zero():
+    from collector.calculators.summary import (
+        _partial_sentiment_text,
+    )
+
+    text = _partial_sentiment_text(
+        {
+            "status": "PARTIAL",
+            "nonStLimitUpCount": 42,
+            "stLimitUpCount": None,
+            "nonStLimitDownCount": None,
+            "stLimitDownCount": None,
+            "brokenLimitCount": None,
+        }
+    )
+
+    assert "非ST涨停 42 家" in text
+    assert "跌停" not in text
+    assert "炸板" not in text
+

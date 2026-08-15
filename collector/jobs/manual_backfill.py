@@ -29,11 +29,39 @@ def _load_existing(target: str) -> dict | None:
     except (OSError, ValueError):
         return None
 
+def _merge_partial_sentiment(
+    old_module: dict,
+    new_module: dict,
+) -> dict:
+    """合并历史情绪 PARTIAL：已取得的字段只增不减（R8-P1-01）。"""
+    merged = dict(new_module)
+
+    for field in (
+        "nonStLimitUpCount",
+        "stLimitUpCount",
+        "nonStLimitDownCount",
+        "stLimitDownCount",
+        "brokenLimitCount",
+    ):
+        if (
+            merged.get(field) is None
+            and old_module.get(field) is not None
+        ):
+            merged[field] = old_module[field]
+
+    merged["status"] = ModuleStatus.PARTIAL.value
+    return merged
+
+
 def _merge_preserving_valid_history(
     existing: dict,
     rebuilt: dict,
 ) -> dict:
-    """新采集无法历史重建时，不允许空值/ERROR 覆盖已有 FINAL。"""
+    """历史回补合并：禁止已持久化的高质量事实被较低状态降级覆盖。
+
+    R8-P1-01：保护集必须覆盖 PARTIAL——已有 FINAL 只能被新的 FINAL 修订；
+    已有 PARTIAL 是已取得的历史事实，非 FINAL 的重建不得把非空字段抹掉。
+    """
     existing_modules = existing.get("modules", {})
     rebuilt_modules = rebuilt.get("modules", {})
 
@@ -47,16 +75,32 @@ def _merge_preserving_valid_history(
         old_status = old_module.get("status")
         new_status = new_module.get("status")
 
+        # 已有 FINAL 只能被新的 FINAL 修订；任何非 FINAL 都不得降级覆盖。
         if (
             old_status == ModuleStatus.FINAL.value
-            and new_status
-            in {
-                ModuleStatus.PENDING.value,
-                ModuleStatus.STALE.value,
-                ModuleStatus.UNAVAILABLE.value,
-                ModuleStatus.ERROR.value,
-            }
+            and new_status != ModuleStatus.FINAL.value
         ):
+            rebuilt_modules[name] = old_module
+            continue
+
+        # 已有 PARTIAL 是已取得的历史事实：
+        # 1) 新 FINAL 可以升级；
+        # 2) 新 PARTIAL 只允许补充，不允许把已有非空字段抹成 None；
+        # 3) PENDING/STALE/UNAVAILABLE/ERROR 不得降级覆盖。
+        if old_status == ModuleStatus.PARTIAL.value:
+            if new_status == ModuleStatus.FINAL.value:
+                continue
+
+            if (
+                new_status == ModuleStatus.PARTIAL.value
+                and name == "sentiment"
+            ):
+                rebuilt_modules[name] = _merge_partial_sentiment(
+                    old_module,
+                    new_module,
+                )
+                continue
+
             rebuilt_modules[name] = old_module
 
     return rebuilt

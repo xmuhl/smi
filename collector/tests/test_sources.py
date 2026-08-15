@@ -13,7 +13,31 @@ from collector.schema import TZ_SHANGHAI
 
 # 降级路径只在"当日"分支生效；用运行日而非固定历史日期，
 # 避免测试在次日变成时间炸弹（历史日模块返回 UNAVAILABLE）。
-TODAY = datetime.now(TZ_SHANGHAI).date().isoformat()
+# R8-P3-01：不在模块级缓存 TODAY，极小概率跨上海午夜时自动重跑。
+
+def _run_for_stable_shanghai_today(
+    collector,
+):
+    """在极小概率跨午夜时自动重跑，避免模块级 TODAY 常量造成时间炸弹。"""
+    for _ in range(2):
+        before = (
+            datetime.now(TZ_SHANGHAI)
+            .date()
+            .isoformat()
+        )
+        result = collector(before)
+        after = (
+            datetime.now(TZ_SHANGHAI)
+            .date()
+            .isoformat()
+        )
+
+        if before == after:
+            return result
+
+    raise AssertionError(
+        "Asia/Shanghai date changed repeatedly during test"
+    )
 
 
 def test_source_order_merges_primary_fallback_and_defaults():
@@ -130,9 +154,11 @@ def test_turnover_falls_back_to_sina_spot():
     try:
         from collector.modules.turnover import collect_turnover
 
-        result = collect_turnover(
-            TODAY,
-            market_rules={},
+        result = _run_for_stable_shanghai_today(
+            lambda date: collect_turnover(
+                date,
+                market_rules={},
+            )
         )
 
         assert result["status"] == "FINAL"
@@ -174,7 +200,9 @@ def test_sentiment_falls_back_to_sina_spot():
     try:
         from collector.modules.sentiment import collect_sentiment
 
-        result = collect_sentiment(TODAY)
+        result = _run_for_stable_shanghai_today(
+            lambda date: collect_sentiment(date)
+        )
 
         assert result["riseCount"] == 1
         assert result["fallCount"] == 1
@@ -234,7 +262,9 @@ def test_sectors_falls_back_to_ths():
     try:
         from collector.modules.sectors import collect_sectors
 
-        result = collect_sectors(TODAY)
+        result = _run_for_stable_shanghai_today(
+            lambda date: collect_sectors(date)
+        )
 
         assert result["status"] == "FINAL"
         assert result["method"] == "THS"
@@ -288,7 +318,9 @@ def test_fund_flow_falls_back_to_ths():
     try:
         from collector.modules.fund_flow import collect_fund_flow
 
-        result = collect_fund_flow(TODAY)
+        result = _run_for_stable_shanghai_today(
+            lambda date: collect_fund_flow(date)
+        )
 
         assert result["status"] == "FINAL"
         assert result["method"] == "THS_MAIN_FORCE"

@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-07-24",
   "generatedAt": "2026-08-15T12:28:37+08:00",
-  "updatedAt": "2026-08-15T12:32:09+08:00",
-  "revision": 1,
+  "updatedAt": "2026-08-15T17:30:59+08:00",
+  "revision": 2,
   "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -349,7 +349,7 @@
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。",
       "marketEnvironment": "两市成交额模块暂未取得有效数据，本项不作判断。",
       "northbound": "北向季度持仓本次暂未取得。",
-      "riskWarning": "待披露：summary。 当前不可用：turnover、sentiment、sectorPerformance、fundFlow、northbound、tracks。 本数据仅供市场信息参考，不构成投资建议。"
+      "riskWarning": "当前不可用：turnover、sentiment、sectorPerformance、fundFlow、northbound、tracks。 本数据仅供市场信息参考，不构成投资建议。"
     }
   },
   "validation": {
