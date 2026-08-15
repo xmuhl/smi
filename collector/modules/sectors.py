@@ -270,6 +270,7 @@ def collect_sectors(
     result: dict[str, Any] = {
         "status": ModuleStatus.FINAL.value,
         "dataDate": trade_date,
+        "source": ["EASTMONEY", "THS"],
         "method": "EASTMONEY",
         "industryTop5": [],
         "industryBottom5": [],
@@ -295,6 +296,10 @@ def collect_sectors(
         result["method"] = (
             "THS" if used == "ths" else "EASTMONEY"
         )
+
+        if source_errors:
+            # R9-P3-02：前序源失败只作运维观测，不影响 health
+            result["sourceWarnings"] = source_errors
 
     except Exception as exc:  # noqa: BLE001
         result["errors"].append(str(exc))

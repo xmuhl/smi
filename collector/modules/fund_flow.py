@@ -149,6 +149,7 @@ def collect_fund_flow(
     result: dict[str, Any] = {
         "status": ModuleStatus.FINAL.value,
         "dataDate": trade_date,
+        "source": ["EASTMONEY", "THS"],
         "method": "EASTMONEY_MAIN_FORCE",
         "unit": "亿元",
         "industryInflowTop10": [],
@@ -179,6 +180,10 @@ def collect_fund_flow(
             if used == "ths"
             else "EASTMONEY_MAIN_FORCE"
         )
+
+        if source_errors:
+            # R9-P3-02：前序源失败只作运维观测，不影响 health
+            result["sourceWarnings"] = source_errors
 
     except Exception as exc:  # noqa: BLE001
         result["errors"].append(str(exc))

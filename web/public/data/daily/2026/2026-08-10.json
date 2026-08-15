@@ -2,10 +2,10 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-10",
   "generatedAt": "2026-08-15T13:08:00+08:00",
-  "updatedAt": "2026-08-15T21:31:50+08:00",
-  "revision": 5,
+  "updatedAt": "2026-08-15T22:51:36+08:00",
+  "revision": 6,
   "overallStatus": "PARTIAL",
-  "generationReason": "TURNOVER_CHAIN_RECONCILE",
+  "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -32,7 +32,11 @@
           "close": 3966.59,
           "previousClose": 3940.04,
           "changePct": 0.67,
-          "source": "TENCENT"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=20260711&end=20260810 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-10 != today"
+          ]
         },
         {
           "code": "399001",
@@ -40,7 +44,11 @@
           "close": 14316.96,
           "previousClose": 14311.01,
           "changePct": 0.04,
-          "source": "TENCENT"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=20260711&end=20260810 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-10 != today"
+          ]
         },
         {
           "code": "399006",
@@ -48,7 +56,11 @@
           "close": 3537.21,
           "previousClose": 3563.12,
           "changePct": -0.73,
-          "source": "TENCENT"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399006&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=20260711&end=20260810 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-10 != today"
+          ]
         },
         {
           "code": "000688",
@@ -56,7 +68,11 @@
           "close": 1737.77,
           "previousClose": 1744.02,
           "changePct": -0.36,
-          "source": "TENCENT"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000688&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=20260711&end=20260810 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-10 != today"
+          ]
         },
         {
           "code": "000300",
@@ -64,7 +80,11 @@
           "close": 4702.02,
           "previousClose": 4694.44,
           "changePct": 0.16,
-          "source": "TENCENT"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000300&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=20260711&end=20260810 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-10 != today"
+          ]
         },
         {
           "code": "899050",
@@ -72,7 +92,11 @@
           "close": 1122.88,
           "previousClose": 1134.24,
           "changePct": -1.0,
-          "source": "TENCENT"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.899050&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=20260711&end=20260810 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-10 != today"
+          ]
         },
         {
           "code": "399311",
@@ -99,6 +123,7 @@
         "EXCHANGE"
       ],
       "unit": "亿元",
+      "method": "SH_SZ_A_NO_B_NO_BJ_V1",
       "turnoverToday": 25257.81,
       "turnoverPrevious": 26670.15,
       "turnoverDelta": -1412.34,
@@ -106,7 +131,9 @@
       "volumeState": "CONTRACTION",
       "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
       "comparisonStatus": "COMPARABLE",
-      "method": "SH_SZ_A_NO_B_NO_BJ_V1"
+      "sourceWarnings": [
+        "eastmoney: eastmoney spot has no history"
+      ]
     },
     "sentiment": {
       "status": "PARTIAL",

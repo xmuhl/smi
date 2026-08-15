@@ -1248,10 +1248,23 @@ def test_turnover_method_inference():
         "SH_SZ_A_NO_B_NO_BJ_V1"
     )
 
-def test_manual_backfill_rejects_today():
-    """R9-P2-04：manual_backfill 仅允许历史日。"""
+def test_manual_backfill_rejects_non_past_date():
+    """R9-P2-04：manual_backfill 仅允许历史日（R9.2：动态明日，跨午夜稳定）。"""
     import subprocess
     import sys
+    from datetime import date, timedelta
+
+    from collector.schema import TZ_SHANGHAI
+
+    target = (
+        date.fromisoformat(
+            __import__("datetime")
+            .datetime.now(TZ_SHANGHAI)
+            .date()
+            .isoformat()
+        )
+        + timedelta(days=1)
+    ).isoformat()
 
     result = subprocess.run(
         [
@@ -1259,7 +1272,7 @@ def test_manual_backfill_rejects_today():
             "-m",
             "collector.jobs.manual_backfill",
             "--date",
-            "2026-08-15",
+            target,
         ],
         capture_output=True,
         text=True,
@@ -1273,6 +1286,244 @@ def test_manual_backfill_rejects_today():
         "BACKFILL_REQUIRES_PAST_DATE"
         in (result.stdout or "")
     )
+
+
+def test_turnover_comparison_state_machine():
+    """R9.2：统一比较函数状态机（COMPARABLE/UNAVAILABLE/MISMATCH/前值无效）。"""
+    from collector.modules.turnover import (
+        TURNOVER_METHOD,
+        _turnover_comparison,
+    )
+
+    rules = {"volume_state": {"expansion_threshold_pct": 5, "contraction_threshold_pct": -5}}
+
+    # 1) 无前值 -> UNAVAILABLE + previousMethod null
+    r1 = _turnover_comparison(100.0, None, rules)
+    assert r1["comparisonStatus"] == "PREVIOUS_UNAVAILABLE"
+    assert r1["previousMethod"] is None
+    assert r1["turnoverPrevious"] is None
+    assert r1["volumeState"] == "UNKNOWN"
+
+    # 2) 前值口径不可证明 -> UNAVAILABLE（不得误标 MISMATCH）
+    r2 = _turnover_comparison(100.0, {"value": 90.0, "method": None}, rules)
+    assert r2["comparisonStatus"] == "PREVIOUS_UNAVAILABLE"
+    assert r2["previousMethod"] is None
+
+    # 3) 前值口径不同 -> MISMATCH + previousMethod 保留
+    r3 = _turnover_comparison(100.0, {"value": 90.0, "method": "LEGACY_UNKNOWN"}, rules)
+    assert r3["comparisonStatus"] == "PREVIOUS_METHOD_MISMATCH"
+    assert r3["previousMethod"] == "LEGACY_UNKNOWN"
+    assert r3["turnoverDelta"] is None
+
+    # 4) 前值无效（0/负/NaN）-> UNAVAILABLE + previousMethod null
+    for bad in (0.0, -5.0, float("nan")):
+        r4 = _turnover_comparison(100.0, {"value": bad, "method": TURNOVER_METHOD}, rules)
+        assert r4["comparisonStatus"] == "PREVIOUS_UNAVAILABLE"
+        assert r4["previousMethod"] is None
+
+    # 5) 正常可比 -> COMPARABLE + 数值
+    r5 = _turnover_comparison(110.0, {"value": 100.0, "method": TURNOVER_METHOD}, rules)
+    assert r5["comparisonStatus"] == "COMPARABLE"
+    assert r5["turnoverPrevious"] == 100.0
+    assert r5["turnoverDelta"] == 10.0
+    assert r5["turnoverChangePct"] == 10.0
+    assert r5["volumeState"] == "EXPANSION"
+
+def test_reconcile_day_idempotent_when_unchanged():
+    """R9.2-N2：派生字段无变化时 reconcile 不得 bump revision。"""
+    from collector.jobs.reconcile_turnover_chain import (
+        _reconcile_day,
+    )
+
+    snapshot = {
+        "tradeDate": "2026-08-13",
+        "modules": {
+            "turnover": {
+                "status": "FINAL",
+                "dataDate": "2026-08-13",
+                "method": "SH_SZ_A_NO_B_NO_BJ_V1",
+                "turnoverToday": 25538.20,
+                "turnoverPrevious": 27037.72,
+                "turnoverDelta": -1499.52,
+                "turnoverChangePct": -5.55,
+                "volumeState": "CONTRACTION",
+                "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+                "comparisonStatus": "COMPARABLE",
+                "source": ["EXCHANGE"],
+                "unit": "亿元",
+            },
+        },
+    }
+
+    from collector.calculators.summary import generate_summary
+
+    # summary 用真实生成结果填充，保证幂等比较命中
+    snapshot["modules"]["summary"] = generate_summary(snapshot)
+
+    prev = {
+        "modules": {
+            "turnover": {
+                "status": "FINAL",
+                "turnoverToday": 27037.72,
+                "method": "SH_SZ_A_NO_B_NO_BJ_V1",
+                "source": ["EXCHANGE"],
+            }
+        }
+    }
+
+    rules = {"volume_state": {"expansion_threshold_pct": 5, "contraction_threshold_pct": -5}}
+
+    # 首次：派生字段已与比较结果一致（含 summary 一致）→ 不得变更
+    changed = _reconcile_day(snapshot, prev, rules)
+    assert changed is False
+
+    # 修改一个字段后：必须检测到变化并纠正
+    snapshot["modules"]["turnover"]["turnoverDelta"] = 999.0
+    changed2 = _reconcile_day(snapshot, prev, rules)
+    assert changed2 is True
+    assert snapshot["modules"]["turnover"]["turnoverDelta"] == -1499.52
+
+def test_reconcile_previous_missing_is_unavailable():
+    """R9.2-N1：真实上一交易日缺失 -> PREVIOUS_UNAVAILABLE，绝不跨日误比。"""
+    from collector.jobs.reconcile_turnover_chain import (
+        _reconcile_day,
+    )
+
+    snapshot = {
+        "tradeDate": "2026-08-13",
+        "modules": {
+            "turnover": {
+                "status": "FINAL",
+                "dataDate": "2026-08-13",
+                "turnoverToday": 25538.20,
+                "method": "SH_SZ_A_NO_B_NO_BJ_V1",
+                "source": ["EXCHANGE"],
+                "unit": "亿元",
+                # 旧值（此前与某个早前日期比较过）必须被纠正
+                "turnoverPrevious": 100.0,
+                "turnoverDelta": 1.0,
+                "turnoverChangePct": 1.0,
+                "volumeState": "FLAT",
+                "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+                "comparisonStatus": "COMPARABLE",
+            },
+        },
+    }
+
+    from collector.calculators.summary import generate_summary
+
+    snapshot["modules"]["summary"] = generate_summary(snapshot)
+
+    rules = {"volume_state": {"expansion_threshold_pct": 5, "contraction_threshold_pct": -5}}
+
+    changed = _reconcile_day(snapshot, None, rules)
+
+    assert changed is True
+    module = snapshot["modules"]["turnover"]
+    assert module["comparisonStatus"] == "PREVIOUS_UNAVAILABLE"
+    assert module["previousMethod"] is None
+    assert module["turnoverPrevious"] is None
+    assert module["volumeState"] == "UNKNOWN"
+
+def test_exchange_rejects_before_lower_bound(
+    monkeypatch,
+):
+    """R9.2-N5：2021-12-27 之前必须直接失败（不发起网络请求）。"""
+    import sys
+    from types import ModuleType
+
+    import pytest
+
+    from collector.modules.turnover import (
+        _turnover_yuan_from_exchange,
+    )
+
+    called = []
+
+    fake = ModuleType("akshare")
+
+    def stock_sse_deal_daily(date=None):
+        called.append(date)
+        raise AssertionError("must not call network")
+
+    fake.stock_sse_deal_daily = stock_sse_deal_daily
+    sys.modules["akshare"] = fake
+
+    try:
+        with pytest.raises(ValueError):
+            _turnover_yuan_from_exchange("2021-12-26")
+        assert called == []
+    finally:
+        sys.modules.pop("akshare", None)
+
+def test_validator_turnover_lineage_negative_cases():
+    """R9.2-N4：validator 深度契约负向 + legacy 豁免。"""
+    import copy
+
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    base = _load_legacy_baseline()
+    base["meta"]["legacy"] = False
+    base["modules"]["turnover"]["method"] = "SH_SZ_A_NO_B_NO_BJ_V1"
+
+    # COMPARABLE 但 previous 为 null -> REJECT
+    broken = copy.deepcopy(base)
+    broken["modules"]["turnover"].update({
+        "comparisonStatus": "COMPARABLE",
+        "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+        "turnoverPrevious": None,
+        "turnoverDelta": None,
+        "turnoverChangePct": None,
+        "volumeState": "UNKNOWN",
+    })
+    with pytest.raises(ValueError):
+        validate_snapshot(broken)
+
+    # UNAVAILABLE 但 previousMethod 非 null -> REJECT
+    broken2 = copy.deepcopy(base)
+    broken2["modules"]["turnover"].update({
+        "comparisonStatus": "PREVIOUS_UNAVAILABLE",
+        "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+        "turnoverPrevious": None,
+        "turnoverDelta": None,
+        "turnoverChangePct": None,
+        "volumeState": "UNKNOWN",
+    })
+    with pytest.raises(ValueError):
+        validate_snapshot(broken2)
+
+    # MISMATCH 但 delta 非 null -> REJECT
+    broken3 = copy.deepcopy(base)
+    broken3["modules"]["turnover"].update({
+        "comparisonStatus": "PREVIOUS_METHOD_MISMATCH",
+        "previousMethod": "LEGACY_UNKNOWN",
+        "turnoverPrevious": None,
+        "turnoverDelta": 1.0,
+        "turnoverChangePct": None,
+        "volumeState": "UNKNOWN",
+    })
+    with pytest.raises(ValueError):
+        validate_snapshot(broken3)
+
+    # 合法 COMPARABLE -> PASS
+    ok = copy.deepcopy(base)
+    ok["modules"]["turnover"].update({
+        "comparisonStatus": "COMPARABLE",
+        "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+        "turnoverPrevious": 100.0,
+        "turnoverDelta": 5.0,
+        "turnoverChangePct": 5.26,
+        "volumeState": "EXPANSION",
+    })
+    validate_snapshot(ok)
+
+    # Legacy 豁免：meta.legacy=true 且无 lineage 字段 -> PASS
+    legacy_ok = _load_legacy_baseline()
+    legacy_ok["modules"]["turnover"].pop("method", None)
+    legacy_ok["modules"]["turnover"].pop("comparisonStatus", None)
+    validate_snapshot(legacy_ok)
 
 
 

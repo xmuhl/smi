@@ -4,6 +4,12 @@
 
 多源降级（R5-P2-01）：东财 spot 失败时降级到新浪全市场 spot，
 新浪返回的代码带市场前缀（sh/sz/bj），求和时按口径过滤。
+
+R9：新增 exchange 官方源（SSE 单日概况 + SZSE 市场总貌）。
+Exchange 历史成交额有效范围：受 SSE 官方 stock_sse_deal_daily 接口
+共同可用范围约束（文档化起始日期 2021-12-27），V1 不承诺该日期之前的
+Exchange 回补；超出有效范围时接口返回空 → fail-closed，按降级链继续，
+无真实历史源则模块 UNAVAILABLE/ERROR，不得用当日 spot 倒灌历史。
 """
 
 from __future__ import annotations
@@ -80,6 +86,15 @@ def _turnover_yuan_from_exchange(
     import math
 
     import akshare as ak
+
+    # R9.2-N5：SSE stock_sse_deal_daily 文档化仅支持 2021-12-27（含）之后。
+    # 更早日期直接失败，不依赖远端接口对越界日期的未定义行为，
+    # fail-closed 并按降级链继续。
+    if trade_date < "2021-12-27":
+        raise ValueError(
+            "exchange history not supported before "
+            f"2021-12-27: {trade_date}"
+        )
 
     yyyymmdd = trade_date.replace("-", "")
 
@@ -234,26 +249,6 @@ def collect_turnover(
     trade_date: str,
     market_rules: dict | None = None,
 ) -> dict[str, Any]:
-    rules = market_rules or {}
-    volume_rules = rules.get(
-        "volume_state",
-        {},
-    )
-
-    expand_pct = float(
-        volume_rules.get(
-            "expansion_threshold_pct",
-            5,
-        )
-    )
-
-    contract_pct = float(
-        volume_rules.get(
-            "contraction_threshold_pct",
-            -5,
-        )
-    )
-
     total_yuan, used, source_errors = try_sources(
         "turnover",
         ["eastmoney"],
@@ -275,80 +270,13 @@ def collect_turnover(
         2,
     )
 
-    from datetime import date
-
-    from collector.calendar import previous_trading_day
-
-    previous_info: dict[str, Any] | None = None
-
-    try:
-        previous = previous_trading_day(
-            date.fromisoformat(trade_date),
-            fallback_weekday=True,
-        )
-
-        previous_info = _load_previous_turnover(
-            previous.isoformat()
-        )
-    except ValueError:
-        previous_info = None
-
-    # R9-P2-01：只有前后口径可证明一致时才计算环比
-    previous_method = (
-        previous_info.get("method")
-        if previous_info
-        else None
+    comparison = _turnover_comparison(
+        turnover_today_yi,
+        _load_previous_turnover_for_date(
+            trade_date
+        ),
+        market_rules,
     )
-    comparable = (
-        previous_info is not None
-        and previous_method == TURNOVER_METHOD
-    )
-
-    if comparable:
-        turnover_previous_yi = (
-            previous_info["value"]
-        )
-        comparison_status = "COMPARABLE"
-    elif previous_info is not None:
-        turnover_previous_yi = None
-        comparison_status = (
-            "PREVIOUS_METHOD_MISMATCH"
-        )
-    else:
-        turnover_previous_yi = None
-        comparison_status = (
-            "PREVIOUS_UNAVAILABLE"
-        )
-
-    if comparable:
-        delta = round(
-            turnover_today_yi
-            - turnover_previous_yi,
-            2,
-        )
-
-        if turnover_previous_yi > 0:
-            change_pct = round(
-                delta
-                / turnover_previous_yi
-                * 100,
-                2,
-            )
-        else:
-            change_pct = None
-    else:
-        delta = None
-        change_pct = None
-
-    volume_state = "UNKNOWN"
-
-    if change_pct is not None:
-        if change_pct >= expand_pct:
-            volume_state = "EXPANSION"
-        elif change_pct <= contract_pct:
-            volume_state = "CONTRACTION"
-        else:
-            volume_state = "FLAT"
 
     result: dict[str, Any] = {
         "status": ModuleStatus.FINAL.value,
@@ -357,12 +285,24 @@ def collect_turnover(
         "unit": "亿元",
         "method": TURNOVER_METHOD,
         "turnoverToday": turnover_today_yi,
-        "turnoverPrevious": turnover_previous_yi,
-        "turnoverDelta": delta,
-        "turnoverChangePct": change_pct,
-        "volumeState": volume_state,
-        "previousMethod": previous_method,
-        "comparisonStatus": comparison_status,
+        "turnoverPrevious": comparison[
+            "turnoverPrevious"
+        ],
+        "turnoverDelta": comparison[
+            "turnoverDelta"
+        ],
+        "turnoverChangePct": comparison[
+            "turnoverChangePct"
+        ],
+        "volumeState": comparison[
+            "volumeState"
+        ],
+        "previousMethod": comparison[
+            "previousMethod"
+        ],
+        "comparisonStatus": comparison[
+            "comparisonStatus"
+        ],
     }
 
     if source_errors:
@@ -399,6 +339,99 @@ TURNOVER_METHOD = (
 )
 
 
+def _turnover_comparison(
+    turnover_today_yi: float,
+    previous_info: dict[str, Any] | None,
+    market_rules: dict | None = None,
+) -> dict[str, Any]:
+    """统一生成成交额跨日比较字段（R9-P2-01 / R9.2-N3 收敛）。
+
+    collect 与 reconcile 唯一共用实现。turnover_today_yi 必须已 round(,2)。
+    仅当前日与上一交易日口径均可证明为 SH_SZ_A_NO_B_NO_BJ_V1、
+    且前值有限为正时才允许比较。状态机（与 validator 契约严格配对）：
+    - previous_info 缺失 / 前值无效 / 前日口径不可证明
+        -> PREVIOUS_UNAVAILABLE, previousMethod=None
+    - previous_method 非 None 且 != V1
+        -> PREVIOUS_METHOD_MISMATCH, previousMethod=原值
+    - 其余 -> COMPARABLE
+    """
+    import math
+
+    rules = market_rules or {}
+    volume_rules = rules.get("volume_state", {})
+
+    expand_pct = float(
+        volume_rules.get("expansion_threshold_pct", 5)
+    )
+    contract_pct = float(
+        volume_rules.get("contraction_threshold_pct", -5)
+    )
+
+    unavailable = {
+        "turnoverPrevious": None,
+        "turnoverDelta": None,
+        "turnoverChangePct": None,
+        "volumeState": "UNKNOWN",
+    }
+
+    if previous_info is None:
+        return {
+            **unavailable,
+            "previousMethod": None,
+            "comparisonStatus": "PREVIOUS_UNAVAILABLE",
+        }
+
+    previous_method = previous_info.get("method")
+
+    if previous_method is None:
+        # 前日文件存在但口径不可证明：不可比，且不得误标 MISMATCH
+        return {
+            **unavailable,
+            "previousMethod": None,
+            "comparisonStatus": "PREVIOUS_UNAVAILABLE",
+        }
+
+    if previous_method != TURNOVER_METHOD:
+        return {
+            **unavailable,
+            "previousMethod": previous_method,
+            "comparisonStatus": "PREVIOUS_METHOD_MISMATCH",
+        }
+
+    try:
+        previous_value = float(previous_info["value"])
+    except (KeyError, TypeError, ValueError):
+        previous_value = float("nan")
+
+    if not math.isfinite(previous_value) or previous_value <= 0:
+        # 前值无效：previousMethod 置空，与 UNAVAILABLE->null 契约一致
+        return {
+            **unavailable,
+            "previousMethod": None,
+            "comparisonStatus": "PREVIOUS_UNAVAILABLE",
+        }
+
+    previous_value = round(previous_value, 2)
+    delta = round(turnover_today_yi - previous_value, 2)
+    change_pct = round(delta / previous_value * 100, 2)
+
+    if change_pct >= expand_pct:
+        volume_state = "EXPANSION"
+    elif change_pct <= contract_pct:
+        volume_state = "CONTRACTION"
+    else:
+        volume_state = "FLAT"
+
+    return {
+        "turnoverPrevious": previous_value,
+        "turnoverDelta": delta,
+        "turnoverChangePct": change_pct,
+        "volumeState": volume_state,
+        "previousMethod": previous_method,
+        "comparisonStatus": "COMPARABLE",
+    }
+
+
 def _infer_turnover_method(
     module: dict[str, Any],
 ) -> str | None:
@@ -429,14 +462,36 @@ def _infer_turnover_method(
     return None
 
 
+def _load_previous_turnover_for_date(
+    trade_date: str,
+) -> dict[str, Any] | None:
+    """定位真实上一交易日并读取其成交额血缘（R9-P2-01）。"""
+    from datetime import date
+
+    from collector.calendar import previous_trading_day
+
+    try:
+        previous = previous_trading_day(
+            date.fromisoformat(trade_date),
+            fallback_weekday=True,
+        )
+    except ValueError:
+        return None
+
+    return _load_previous_turnover(previous.isoformat())
+
+
 def _load_previous_turnover(
     previous_date: str,
 ) -> dict[str, Any] | None:
-    """读取上一交易日成交额及其口径血缘（R9-P2-01）。
+    """读取上一交易日成交额及其口径血缘（R9-P2-01 / R9.2 防御收紧）。
 
-    返回 {value, method, source}；无法证明口径时 method 为
-    LEGACY_UNKNOWN / None，调用方不得直接做环比。
+    返回 {value, method, source}；文件缺失/损坏/tradeDate 与文件名
+    不符/非 FINAL/无成交额/数值非有限时返回 None，
+    调用方不得直接做环比。
     """
+    import math
+
     from collector.config import daily_path
 
     path = daily_path(previous_date)
@@ -452,16 +507,26 @@ def _load_previous_turnover(
         ) as f:
             data = json.load(f)
 
+        if data.get("tradeDate") != previous_date:
+            return None
+
         module = data["modules"]["turnover"]
-        value = module.get(
-            "turnoverToday"
-        )
+
+        if module.get("status") != ModuleStatus.FINAL.value:
+            return None
+
+        value = module.get("turnoverToday")
 
         if value is None:
             return None
 
+        value_f = float(value)
+
+        if not math.isfinite(value_f):
+            return None
+
         return {
-            "value": float(value),
+            "value": value_f,
             "method": _infer_turnover_method(
                 module
             ),
@@ -470,6 +535,7 @@ def _load_previous_turnover(
                     "source",
                     [],
                 )
+                or []
             ),
         }
 
@@ -489,7 +555,11 @@ def _error(
     return {
         "status": ModuleStatus.ERROR.value,
         "dataDate": trade_date,
-        "source": ["EASTMONEY", "SINA"],
+        "source": [
+            "EASTMONEY",
+            "EXCHANGE",
+            "SINA",
+        ],
         "unit": "亿元",
         "errors": [message],
         "turnoverToday": None,

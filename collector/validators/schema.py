@@ -181,6 +181,21 @@ def validate_snapshot(
                 "must be finite number > 0"
             )
 
+        legacy = snapshot.get(
+            "meta",
+            {},
+        ).get(
+            "legacy",
+            False,
+        )
+
+        # R9.2：非 Legacy 的 FINAL turnover 必须满足口径血缘深度契约
+        if not legacy:
+            _validate_turnover_lineage(
+                turnover,
+                errors,
+            )
+
     northbound = modules.get(
         "northbound",
         {},
@@ -432,6 +447,125 @@ def _validate_partial_module(
             errors.append(
                 f"sentiment.{field} must be "
                 "null or non-negative integer"
+            )
+
+
+def _validate_turnover_lineage(
+    turnover: dict[str, Any],
+    errors: list[str],
+) -> None:
+    """非 Legacy FINAL turnover 的口径与比较状态深度一致性（R9.2-N4）。
+
+    状态机契约（与 turnover._turnover_comparison 严格配对）：
+    - COMPARABLE: method 与 previousMethod 均为 V1，
+      环比三字段有限且 previous>0，volumeState 为三态之一；
+    - PREVIOUS_UNAVAILABLE: previousMethod 为 null，
+      环比字段全 null，volumeState=UNKNOWN；
+    - PREVIOUS_METHOD_MISMATCH: previousMethod 非 null 且 != V1，
+      环比字段全 null，volumeState=UNKNOWN。
+    """
+    method = turnover.get("method")
+
+    if method != "SH_SZ_A_NO_B_NO_BJ_V1":
+        errors.append(
+            "turnover.method must be "
+            "SH_SZ_A_NO_B_NO_BJ_V1"
+        )
+        return
+
+    comparison_status = turnover.get("comparisonStatus")
+
+    if comparison_status not in {
+        "COMPARABLE",
+        "PREVIOUS_METHOD_MISMATCH",
+        "PREVIOUS_UNAVAILABLE",
+    }:
+        errors.append(
+            "turnover.comparisonStatus "
+            f"invalid: {comparison_status}"
+        )
+        return
+
+    previous_method = turnover.get("previousMethod")
+    previous = turnover.get("turnoverPrevious")
+    delta = turnover.get("turnoverDelta")
+    change_pct = turnover.get("turnoverChangePct")
+    volume_state = turnover.get("volumeState")
+
+    if comparison_status == "COMPARABLE":
+        if previous_method != "SH_SZ_A_NO_B_NO_BJ_V1":
+            errors.append(
+                "turnover COMPARABLE requires "
+                "previousMethod SH_SZ_A_NO_B_NO_BJ_V1"
+            )
+
+        if (
+            not _is_finite_number(previous)
+            or float(previous) <= 0
+        ):
+            errors.append(
+                "turnoverPrevious must be finite > 0 "
+                "when COMPARABLE"
+            )
+
+        if not _is_finite_number(delta):
+            errors.append(
+                "turnoverDelta must be finite "
+                "when COMPARABLE"
+            )
+
+        if not _is_finite_number(change_pct):
+            errors.append(
+                "turnoverChangePct must be finite "
+                "when COMPARABLE"
+            )
+
+        if volume_state not in {
+            "EXPANSION",
+            "CONTRACTION",
+            "FLAT",
+        }:
+            errors.append(
+                "turnover.volumeState invalid "
+                "when COMPARABLE"
+            )
+
+        return
+
+    if (
+        previous is not None
+        or delta is not None
+        or change_pct is not None
+    ):
+        errors.append(
+            "non-COMPARABLE turnover must not "
+            "expose comparison numbers"
+        )
+
+    if volume_state != "UNKNOWN":
+        errors.append(
+            "non-COMPARABLE turnover volumeState "
+            "must be UNKNOWN"
+        )
+
+    if (
+        comparison_status
+        == "PREVIOUS_UNAVAILABLE"
+        and previous_method is not None
+    ):
+        errors.append(
+            "PREVIOUS_UNAVAILABLE requires "
+            "previousMethod null"
+        )
+
+    if comparison_status == "PREVIOUS_METHOD_MISMATCH":
+        if (
+            previous_method is None
+            or previous_method == method
+        ):
+            errors.append(
+                "PREVIOUS_METHOD_MISMATCH requires "
+                "different previousMethod"
             )
 
 
