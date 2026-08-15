@@ -63,6 +63,12 @@ jobs:
           python -m collector.jobs.manual_backfill \
             "${args[@]}"
 
+      - name: Reconcile turnover dependency chain
+        env:
+          SMI_WORKFLOW: manual-backfill
+        run: |
+          python -m collector.jobs.reconcile_turnover_chain
+
       - name: Commit data if changed
         id: commit
         env:

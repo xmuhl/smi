@@ -126,6 +126,23 @@ def main() -> int:
 
     target = date.fromisoformat(args.date).isoformat()
 
+    # R9-P2-04：manual_backfill 定位为"仅历史日工具"；
+    # 当前交易日的人工重跑统一走 close_snapshot --date TODAY --force，
+    # 以受 16:00 收盘安全门禁保护。
+    from datetime import datetime
+
+    from collector.schema import TZ_SHANGHAI
+
+    today = datetime.now(
+        TZ_SHANGHAI
+    ).date().isoformat()
+
+    if target >= today:
+        print(
+            f"BACKFILL_REQUIRES_PAST_DATE {target}"
+        )
+        return 2
+
     if not is_trading_day(
         date.fromisoformat(target),
         fallback_weekday=True,

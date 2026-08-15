@@ -250,6 +250,9 @@ def collect_sentiment(
         result["suspendedCount"] = counts["suspendedCount"]
         result["spotSource"] = used.upper() if used else None
 
+        if source_errors:
+            result["sourceWarnings"] = source_errors
+
     import akshare as ak
 
     try:

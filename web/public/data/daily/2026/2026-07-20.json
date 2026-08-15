@@ -2,10 +2,10 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-07-20",
   "generatedAt": "2026-08-15T12:05:30+08:00",
-  "updatedAt": "2026-08-15T19:56:16+08:00",
-  "revision": 3,
+  "updatedAt": "2026-08-15T21:31:50+08:00",
+  "revision": 5,
   "overallStatus": "PARTIAL",
-  "generationReason": "MANUAL_BACKFILL",
+  "generationReason": "TURNOVER_CHAIN_RECONCILE",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -100,10 +100,13 @@
       ],
       "unit": "亿元",
       "turnoverToday": 27037.72,
-      "turnoverPrevious": 26549.58,
-      "turnoverDelta": 488.14,
-      "turnoverChangePct": 1.84,
-      "volumeState": "FLAT"
+      "turnoverPrevious": null,
+      "turnoverDelta": null,
+      "turnoverChangePct": null,
+      "volumeState": "UNKNOWN",
+      "previousMethod": "LEGACY_UNKNOWN",
+      "comparisonStatus": "PREVIOUS_METHOD_MISMATCH",
+      "method": "SH_SZ_A_NO_B_NO_BJ_V1"
     },
     "sentiment": {
       "status": "UNAVAILABLE",
@@ -346,7 +349,7 @@
       "fundFlow": "主力资金模块暂未取得完整有效数据，本项不作判断。",
       "margin": "两融总余额 27092.61 亿元，较前一交易日减少 1046.40 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。",
-      "marketEnvironment": "沪深两市成交额 27037.72 亿元，较前一交易日 +1.84%，量能基本平稳。",
+      "marketEnvironment": "沪深两市成交额 27037.72 亿元；暂无可比较的前一交易日快照。",
       "northbound": "北向季度持仓本次暂未取得。",
       "riskWarning": "当前不可用：sentiment、sectorPerformance、fundFlow、northbound、tracks。 本数据仅供市场信息参考，不构成投资建议。"
     }

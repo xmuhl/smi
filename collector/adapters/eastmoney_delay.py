@@ -47,20 +47,31 @@ INDEX_NAMES = {
 
 
 def _get_json(url: str) -> dict[str, Any]:
-    # 国内数据源必须直连：requests 在 Windows 上会继承系统代理
-    # （v2rayN 等），经代理访问东财主机会挂起/失败（2026-08-15 实测）。
-    response = requests.get(
-        url,
-        timeout=15,
-        headers=HEADERS,
-        proxies={"http": None, "https": None},
-    )
-    response.raise_for_status()
-    data = response.json()
+    """直连东财 delay 主机，不继承系统/环境代理（R9-P2-03）。
+
+    国内数据源必须直连：requests 在 Windows 上会继承系统代理（v2rayN 等），
+    经代理访问东财主机会挂起/失败（2026-08-15 实测）。
+    trust_env=False 同时禁用环境变量代理与 netrc。
+    """
+    session = requests.Session()
+    session.trust_env = False
+
+    try:
+        response = session.get(
+            url,
+            timeout=15,
+            headers=HEADERS,
+        )
+        response.raise_for_status()
+        data = response.json()
+    finally:
+        session.close()
+
     if data.get("rc") != 0:
         raise ValueError(
             f"eastmoney_delay rc={data.get('rc')}"
         )
+
     return data
 
 
@@ -87,8 +98,11 @@ def fetch_index_quotes(
     """返回 {secid: (close, previous_close)}；非当日直接失败。
 
     close 取延迟主机最新价（收盘采集=当日最终值）；
-    previous_close 由涨跌幅反推：close / (1 + pct/100)。
+    previous_close 优先取直接昨收字段 f18，缺失时用 close - 涨跌额 f4
+    （R9-P2-05：不再用两位涨跌幅反推，万点级指数误差可达 ±0.5 点）。
     """
+    import math
+
     if not is_today(trade_date):
         raise ValueError(
             "eastmoney_delay has no history; "
@@ -99,7 +113,7 @@ def fetch_index_quotes(
         f"{DELAY_HOST}/api/qt/ulist.np/get"
         "?secids=1.000001,0.399001,0.399006,1.000688,"
         "1.000300,0.899050,0.399311,0.399303"
-        "&fields=f2,f3,f4,f6,f12,f14&fltt=2&invt=2"
+        "&fields=f2,f3,f4,f18,f12,f14&fltt=2&invt=2"
         f"&ut={UT}"
     )
     data = _get_json(url)
@@ -108,26 +122,42 @@ def fetch_index_quotes(
     result: dict[str, tuple[float, float]] = {}
     for row in diff:
         code = str(row.get("f12") or "")
-        close = row.get("f2")
-        pct = row.get("f3")
+        close_raw = row.get("f2")
+        previous_raw = row.get("f18")
+        change_raw = row.get("f4")
 
         if (
             code not in INDEX_NAMES
-            or not isinstance(close, (int, float))
-            or not isinstance(pct, (int, float))
+            or not isinstance(close_raw, (int, float))
         ):
             continue
 
-        close = float(close)
-        pct = float(pct)
+        close = float(close_raw)
 
-        if close <= 0 or pct <= -100:
+        if not math.isfinite(close) or close <= 0:
             continue
 
-        result[code] = (
-            close,
-            close / (1 + pct / 100),
-        )
+        previous: float | None = None
+
+        if isinstance(previous_raw, (int, float)):
+            candidate = float(previous_raw)
+            if math.isfinite(candidate) and candidate > 0:
+                previous = candidate
+
+        if previous is None and isinstance(
+            change_raw,
+            (int, float),
+        ):
+            change = float(change_raw)
+            if math.isfinite(change):
+                candidate = close - change
+                if candidate > 0:
+                    previous = candidate
+
+        if previous is None:
+            continue
+
+        result[code] = (close, previous)
 
     if len(result) < 8:
         raise ValueError(

@@ -91,7 +91,8 @@ def test_try_sources_falls_back_on_failure():
 
     assert value == "ok-sina"
     assert used == "sina"
-    assert errors == []
+    # R9-P3-02：成功时前序源失败记录保留（sourceWarnings 观测）
+    assert errors == ["eastmoney: blocked"]
     assert calls == ["eastmoney", "sina"]
 
 

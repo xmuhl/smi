@@ -58,9 +58,9 @@ def try_sources(
 ) -> tuple[T | None, str | None, list[str]]:
     """按优先级调用 call(source)。
 
-    返回 (结果, 成功源名, 错误列表)：
-    - 任一源成功：返回其值与该源名，错误列表为空；
-    - 全部失败：结果为 None、源名为 None，错误列表按源记录。
+    第三个返回值始终保留前序源失败记录（R9-P3-02）：
+    - 成功：返回成功值、成功源、此前失败列表（供 sourceWarnings 观测）；
+    - 全失败：返回 None、None、完整失败列表。
     """
     errors: list[str] = []
 
@@ -71,6 +71,6 @@ def try_sources(
             errors.append(f"{source}: {exc}")
             continue
 
-        return value, source, []
+        return value, source, errors
 
     return None, None, errors

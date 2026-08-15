@@ -1063,14 +1063,14 @@ def test_eastmoney_delay_adapter_parsing(
         "rc": 0,
         "data": {
             "diff": [
-                {"f12": "1.000001", "f14": "上证指数", "f2": 3927.18, "f3": 0.01},
-                {"f12": "0.399001", "f14": "深证成指", "f2": 14354.31, "f3": 0.45},
-                {"f12": "0.399006", "f14": "创业板指", "f2": 3626.3, "f3": 1.12},
-                {"f12": "1.000688", "f14": "科创50", "f2": 1717.68, "f3": 0.0},
-                {"f12": "1.000300", "f14": "沪深300", "f2": 4665.88, "f3": 0.04},
-                {"f12": "0.899050", "f14": "北证50", "f2": 1087.52, "f3": -0.94},
-                {"f12": "0.399311", "f14": "国证1000", "f2": 5065.96, "f3": 0.18},
-                {"f12": "0.399303", "f14": "国证2000", "f2": 10115.47, "f3": 0.79},
+                {"f12": "1.000001", "f14": "上证指数", "f2": 3927.18, "f3": 0.01, "f18": 3926.79, "f4": 0.39},
+                {"f12": "0.399001", "f14": "深证成指", "f2": 14354.31, "f3": 0.45, "f18": 14290.0, "f4": 64.31},
+                {"f12": "0.399006", "f14": "创业板指", "f2": 3626.3, "f3": 1.12, "f18": 3586.1, "f4": 40.2},
+                {"f12": "1.000688", "f14": "科创50", "f2": 1717.68, "f3": 0.0, "f18": 1717.68, "f4": 0.0},
+                {"f12": "1.000300", "f14": "沪深300", "f2": 4665.88, "f3": 0.04, "f18": 4664.01, "f4": 1.87},
+                {"f12": "0.899050", "f14": "北证50", "f2": 1087.52, "f3": -0.94, "f18": 1097.84, "f4": -10.32},
+                {"f12": "0.399311", "f14": "国证1000", "f2": 5065.96, "f3": 0.18, "f18": 5056.86, "f4": 9.1},
+                {"f12": "0.399303", "f14": "国证2000", "f2": 10115.47, "f3": 0.79, "f18": 10036.19, "f4": 79.28},
             ]
         },
     }
@@ -1095,10 +1095,184 @@ def test_eastmoney_delay_adapter_parsing(
     assert len(quotes) == 8
     close, previous = quotes["1.000001"]
     assert close == 3927.18
-    assert abs(previous - 3927.18 / 1.0001) < 1e-6
+    # R9-P2-05：昨收直接取 f18 字段，不再由涨跌幅反推
+    assert previous == 3926.79
 
     # 非当日必须失败（历史走 tencent/cni/exchange）
     with pytest.raises(ValueError):
         emd.fetch_index_quotes("2026-07-20")
+
+
+def test_exchange_turnover_fails_closed_on_missing_szse_category(
+    monkeypatch,
+):
+    """R9-P1-01：SZSE 缺少任一必需分类必须失败，不得返回部分总额。"""
+    import sys
+    from types import ModuleType
+
+    import pytest
+
+    from collector.modules.turnover import (
+        _turnover_yuan_from_exchange,
+    )
+
+    fake = ModuleType("akshare")
+
+    def stock_sse_deal_daily(date=None):
+        return pd.DataFrame(
+            {
+                "单日情况": ["成交金额"],
+                "股票": [9917.63],
+                "主板A": [6737.09],
+                "主板B": [0.81],
+                "科创板": [3179.72],
+                "股票回购": [0.30],
+            }
+        )
+
+    def stock_szse_summary(date=None):
+        # 缺创业板A股
+        return pd.DataFrame(
+            {
+                "证券类别": ["主板A股"],
+                "数量": [1494],
+                "成交金额": [5.964477e11],
+                "总市值": [1.0e13],
+                "流通市值": [1.0e13],
+            }
+        )
+
+    fake.stock_sse_deal_daily = stock_sse_deal_daily
+    fake.stock_szse_summary = stock_szse_summary
+    sys.modules["akshare"] = fake
+
+    try:
+        with pytest.raises(ValueError):
+            _turnover_yuan_from_exchange("2026-07-20")
+    finally:
+        sys.modules.pop("akshare", None)
+
+def test_exchange_turnover_fails_closed_on_missing_sse_column(
+    monkeypatch,
+):
+    """R9-P1-01：SSE 缺必需列必须失败。"""
+    import sys
+    from types import ModuleType
+
+    import pytest
+
+    from collector.modules.turnover import (
+        _turnover_yuan_from_exchange,
+    )
+
+    fake = ModuleType("akshare")
+
+    def stock_sse_deal_daily(date=None):
+        return pd.DataFrame(
+            {
+                "单日情况": ["成交金额"],
+                "股票": [9917.63],
+                "主板A": [6737.09],
+                # 缺科创板列
+            }
+        )
+
+    fake.stock_sse_deal_daily = stock_sse_deal_daily
+    sys.modules["akshare"] = fake
+
+    try:
+        with pytest.raises(ValueError):
+            _turnover_yuan_from_exchange("2026-07-20")
+    finally:
+        sys.modules.pop("akshare", None)
+
+def test_delay_cache_fetch_failure_does_not_poison_cache(
+    monkeypatch,
+):
+    """R9-P2-02：新日期抓取失败不得把旧日期 quotes 复用为新日期。"""
+    import collector.modules.market_index as mi
+
+    mi._DELAY_CACHE["date"] = "2026-08-14"
+    mi._DELAY_CACHE["quotes"] = {"stale": (1.0, 1.0)}
+
+    calls = []
+
+    def good_fetcher(trade_date: str):
+        calls.append(("good", trade_date))
+        return {"fresh": (2.0, 2.0)}
+
+    def bad_fetcher(trade_date: str):
+        calls.append(("bad", trade_date))
+        raise RuntimeError("network down")
+
+    try:
+        with __import__("pytest").raises(RuntimeError):
+            mi._delay_index_quotes("2026-08-15", bad_fetcher)
+
+        # 失败后 cache 不得被标记为新日期+旧数据
+        assert mi._DELAY_CACHE["quotes"] == {"stale": (1.0, 1.0)}
+
+        # 下一次同日调用必须重新抓取，而不是复用旧 quotes
+        quotes = mi._delay_index_quotes(
+            "2026-08-15",
+            good_fetcher,
+        )
+        assert quotes == {"fresh": (2.0, 2.0)}
+        assert calls == [
+            ("bad", "2026-08-15"),
+            ("good", "2026-08-15"),
+        ]
+    finally:
+        mi._DELAY_CACHE["date"] = None
+        mi._DELAY_CACHE["quotes"] = None
+
+def test_turnover_method_inference():
+    """R9-P2-01：口径血缘推断（Legacy 未知 / spot 统一口径）。"""
+    from collector.modules.turnover import (
+        _infer_turnover_method,
+    )
+
+    legacy = {
+        "source": ["TONGDAXIN_LEGACY"],
+        "turnoverToday": 26549.58,
+    }
+    assert _infer_turnover_method(legacy) == (
+        "LEGACY_UNKNOWN"
+    )
+
+    sina = {
+        "source": ["SINA"],
+        "turnoverToday": 21422.77,
+    }
+    assert _infer_turnover_method(sina) == (
+        "SH_SZ_A_NO_B_NO_BJ_V1"
+    )
+
+def test_manual_backfill_rejects_today():
+    """R9-P2-04：manual_backfill 仅允许历史日。"""
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "collector.jobs.manual_backfill",
+            "--date",
+            "2026-08-15",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=".",
+    )
+
+    assert result.returncode == 2
+    assert (
+        "BACKFILL_REQUIRES_PAST_DATE"
+        in (result.stdout or "")
+    )
+
 
 

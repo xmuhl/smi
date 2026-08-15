@@ -205,8 +205,14 @@ def collect_market_index(
                     end,
                     list(idx["sources"]),
                 )
+                source_warnings: list[str] = []
             else:
-                close, previous_close, used = _with_source_order(
+                (
+                    close,
+                    previous_close,
+                    used,
+                    source_warnings,
+                ) = _with_source_order(
                     idx,
                     trade_date,
                     start,
@@ -235,6 +241,9 @@ def collect_market_index(
                 2,
             )
             entry["source"] = used.upper() if used else None
+
+            if source_warnings:
+                entry["sourceWarnings"] = source_warnings
 
         except Exception as exc:  # noqa: BLE001
             errors.append(
@@ -275,9 +284,13 @@ def _with_source_order(
     end: str,
     kind: str,
     defaults: list[str],
-) -> tuple[float | None, float | None, str | None]:
-    """按 sources.yaml 优先级取 (close, previous_close, used_source)。"""
-    value, used, _ = try_sources(
+) -> tuple[float | None, float | None, str | None, list[str]]:
+    """按 sources.yaml 优先级取 (close, previous_close, used_source, prior_errors)。
+
+    R9-P3-02：try_sources 成功时也保留前序源失败记录（运维观测），
+    不放入业务 errors（不影响 health）。
+    """
+    value, used, source_errors = try_sources(
         kind,
         defaults,
         lambda source: _fetch_index_close(
@@ -290,7 +303,7 @@ def _with_source_order(
     )
     if value is None:
         raise ValueError("all market sources failed")
-    return value[0], value[1], used
+    return value[0], value[1], used, source_errors
 
 
 def _with_source_list(
@@ -325,13 +338,18 @@ def _delay_index_quotes(
     trade_date: str,
     fetcher,
 ) -> dict[str, tuple[float, float]]:
-    """东财 delay 指数行情按交易日缓存，避免每个指数重复拉取。"""
+    """东财 delay 指数行情按交易日缓存，避免每个指数重复拉取。
+
+    R9-P2-02：先抓取成功再原子更新 cache——新日期抓取失败时不得把
+    旧日期 quotes 重新标成新日期（否则下一次同日调用会误用旧数据）。
+    """
     if (
         _DELAY_CACHE["date"] != trade_date
         or _DELAY_CACHE["quotes"] is None
     ):
+        quotes = fetcher(trade_date)
         _DELAY_CACHE["date"] = trade_date
-        _DELAY_CACHE["quotes"] = fetcher(trade_date)
+        _DELAY_CACHE["quotes"] = quotes
 
     return _DELAY_CACHE["quotes"]
 

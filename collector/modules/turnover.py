@@ -68,12 +68,17 @@ def _fetch_turnover_yuan(
 def _turnover_yuan_from_exchange(
     trade_date: str,
 ) -> float:
-    """交易所官方口径两市 A 股成交额（元）。
+    """交易所官方口径两市 A 股成交额（元）（R9-P1-01 fail-closed）。
 
-    沪市：SSE 单日概况 成交金额[主板A]+[科创板]（亿元）；
-    深市：SZSE 市场总貌 成交金额[主板A股]+[创业板A股]（元）。
-    交易所官网文件支持历史日期回查。
+    沪市：SSE 主板A + 科创板（SSE 返回单位：亿元）；
+    深市：SZSE 主板A股 + 创业板A股（SZSE 返回单位：元）。
+
+    任一必需分类缺失、重复、非有限或为负时必须失败，
+    不能把部分市场金额当作完整 FINAL。
+    交易所官网文件支持历史日期回查（有效范围见模块 docstring）。
     """
+    import math
+
     import akshare as ak
 
     yyyymmdd = trade_date.replace("-", "")
@@ -85,16 +90,56 @@ def _turnover_yuan_from_exchange(
     if sse is None or sse.empty:
         raise ValueError("empty SSE deal daily")
 
-    sse_row = sse[
+    required_sse_columns = {
+        "单日情况",
+        "主板A",
+        "科创板",
+    }
+
+    if not required_sse_columns.issubset(
+        set(sse.columns)
+    ):
+        raise ValueError(
+            "SSE required columns missing: "
+            f"{sorted(required_sse_columns - set(sse.columns))}"
+        )
+
+    sse_rows = sse[
         sse["单日情况"] == "成交金额"
     ]
 
-    if sse_row.empty:
-        raise ValueError("SSE 成交金额 row missing")
+    if len(sse_rows) != 1:
+        raise ValueError(
+            f"SSE 成交金额 row count invalid: {len(sse_rows)}"
+        )
 
-    sh_a_yi = (
-        float(sse_row.iloc[0]["主板A"])
-        + float(sse_row.iloc[0]["科创板"])
+    def _finite_nonnegative(
+        value,
+        label: str,
+    ) -> float:
+        try:
+            number = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"{label} invalid: {value!r}"
+            ) from exc
+
+        if not math.isfinite(number) or number < 0:
+            raise ValueError(
+                f"{label} invalid: {number}"
+            )
+
+        return number
+
+    sse_row = sse_rows.iloc[0]
+
+    sh_main_yi = _finite_nonnegative(
+        sse_row["主板A"],
+        "SSE 主板A",
+    )
+    sh_star_yi = _finite_nonnegative(
+        sse_row["科创板"],
+        "SSE 科创板",
     )
 
     szse = ak.stock_szse_summary(
@@ -104,19 +149,47 @@ def _turnover_yuan_from_exchange(
     if szse is None or szse.empty:
         raise ValueError("empty SZSE summary")
 
+    required_szse_columns = {
+        "证券类别",
+        "成交金额",
+    }
+
+    if not required_szse_columns.issubset(
+        set(szse.columns)
+    ):
+        raise ValueError(
+            "SZSE required columns missing: "
+            f"{sorted(required_szse_columns - set(szse.columns))}"
+        )
+
     sz_a_yuan = 0.0
 
     for category in ("主板A股", "创业板A股"):
-        row = szse[
+        rows = szse[
             szse["证券类别"] == category
         ]
 
-        if not row.empty:
-            sz_a_yuan += float(
-                row.iloc[0]["成交金额"]
+        if len(rows) != 1:
+            raise ValueError(
+                f"SZSE category row count invalid: {category}={len(rows)}"
             )
 
-    return (sh_a_yi + sz_a_yuan / 1e8) * 1e8
+        sz_a_yuan += _finite_nonnegative(
+            rows.iloc[0]["成交金额"],
+            f"SZSE {category}",
+        )
+
+    total_yuan = (
+        (sh_main_yi + sh_star_yi) * 1e8
+        + sz_a_yuan
+    )
+
+    if not math.isfinite(total_yuan) or total_yuan <= 0:
+        raise ValueError(
+            f"exchange turnover total invalid: {total_yuan}"
+        )
+
+    return total_yuan
 
 
 def _sum_amount_sh_sz(df) -> float:
@@ -206,21 +279,48 @@ def collect_turnover(
 
     from collector.calendar import previous_trading_day
 
+    previous_info: dict[str, Any] | None = None
+
     try:
         previous = previous_trading_day(
             date.fromisoformat(trade_date),
             fallback_weekday=True,
         )
 
-        turnover_previous_yi = (
-            _load_previous_turnover(
-                previous.isoformat()
-            )
+        previous_info = _load_previous_turnover(
+            previous.isoformat()
         )
     except ValueError:
-        turnover_previous_yi = None
+        previous_info = None
 
-    if turnover_previous_yi is not None:
+    # R9-P2-01：只有前后口径可证明一致时才计算环比
+    previous_method = (
+        previous_info.get("method")
+        if previous_info
+        else None
+    )
+    comparable = (
+        previous_info is not None
+        and previous_method == TURNOVER_METHOD
+    )
+
+    if comparable:
+        turnover_previous_yi = (
+            previous_info["value"]
+        )
+        comparison_status = "COMPARABLE"
+    elif previous_info is not None:
+        turnover_previous_yi = None
+        comparison_status = (
+            "PREVIOUS_METHOD_MISMATCH"
+        )
+    else:
+        turnover_previous_yi = None
+        comparison_status = (
+            "PREVIOUS_UNAVAILABLE"
+        )
+
+    if comparable:
         delta = round(
             turnover_today_yi
             - turnover_previous_yi,
@@ -250,17 +350,26 @@ def collect_turnover(
         else:
             volume_state = "FLAT"
 
-    return {
+    result: dict[str, Any] = {
         "status": ModuleStatus.FINAL.value,
         "dataDate": trade_date,
         "source": sources,
         "unit": "亿元",
+        "method": TURNOVER_METHOD,
         "turnoverToday": turnover_today_yi,
         "turnoverPrevious": turnover_previous_yi,
         "turnoverDelta": delta,
         "turnoverChangePct": change_pct,
         "volumeState": volume_state,
+        "previousMethod": previous_method,
+        "comparisonStatus": comparison_status,
     }
+
+    if source_errors:
+        # R9-P3-02：前序源失败只作运维观测，不影响 health
+        result["sourceWarnings"] = source_errors
+
+    return result
 
 
 def _sum_amount(df) -> float:
@@ -285,9 +394,49 @@ def _sum_amount(df) -> float:
     )
 
 
+TURNOVER_METHOD = (
+    "SH_SZ_A_NO_B_NO_BJ_V1"
+)
+
+
+def _infer_turnover_method(
+    module: dict[str, Any],
+) -> str | None:
+    """从显式 method 或已知 source 推断成交额统计口径（R9-P2-01）。"""
+    explicit = module.get("method")
+
+    if isinstance(explicit, str) and explicit:
+        return explicit
+
+    sources = {
+        str(item).upper()
+        for item in module.get(
+            "source",
+            [],
+        )
+    }
+
+    if "TONGDAXIN_LEGACY" in sources:
+        return "LEGACY_UNKNOWN"
+
+    if sources & {
+        "EASTMONEY",
+        "SINA",
+        "EXCHANGE",
+    }:
+        return TURNOVER_METHOD
+
+    return None
+
+
 def _load_previous_turnover(
     previous_date: str,
-) -> float | None:
+) -> dict[str, Any] | None:
+    """读取上一交易日成交额及其口径血缘（R9-P2-01）。
+
+    返回 {value, method, source}；无法证明口径时 method 为
+    LEGACY_UNKNOWN / None，调用方不得直接做环比。
+    """
     from collector.config import daily_path
 
     path = daily_path(previous_date)
@@ -303,16 +452,26 @@ def _load_previous_turnover(
         ) as f:
             data = json.load(f)
 
-        value = (
-            data["modules"]["turnover"]
-            .get("turnoverToday")
+        module = data["modules"]["turnover"]
+        value = module.get(
+            "turnoverToday"
         )
 
-        return (
-            float(value)
-            if value is not None
-            else None
-        )
+        if value is None:
+            return None
+
+        return {
+            "value": float(value),
+            "method": _infer_turnover_method(
+                module
+            ),
+            "source": list(
+                module.get(
+                    "source",
+                    [],
+                )
+            ),
+        }
 
     except (
         OSError,

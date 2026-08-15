@@ -2,10 +2,10 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-07-28",
   "generatedAt": "2026-08-15T12:35:45+08:00",
-  "updatedAt": "2026-08-15T20:19:58+08:00",
-  "revision": 3,
+  "updatedAt": "2026-08-15T21:31:50+08:00",
+  "revision": 5,
   "overallStatus": "PARTIAL",
-  "generationReason": "MANUAL_BACKFILL",
+  "generationReason": "TURNOVER_CHAIN_RECONCILE",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -103,7 +103,10 @@
       "turnoverPrevious": 20793.49,
       "turnoverDelta": -517.04,
       "turnoverChangePct": -2.49,
-      "volumeState": "FLAT"
+      "volumeState": "FLAT",
+      "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+      "comparisonStatus": "COMPARABLE",
+      "method": "SH_SZ_A_NO_B_NO_BJ_V1"
     },
     "sentiment": {
       "status": "PARTIAL",
