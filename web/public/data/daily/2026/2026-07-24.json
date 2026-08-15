@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-07-24",
   "generatedAt": "2026-08-15T12:28:37+08:00",
-  "updatedAt": "2026-08-15T17:30:59+08:00",
-  "revision": 2,
+  "updatedAt": "2026-08-15T20:12:06+08:00",
+  "revision": 3,
   "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -20,6 +20,7 @@
       "dataDate": "2026-07-24",
       "source": [
         "EASTMONEY",
+        "EASTMONEY_DELAY",
         "TENCENT",
         "SINA",
         "CNINDEX"
@@ -92,19 +93,17 @@
       ]
     },
     "turnover": {
-      "status": "UNAVAILABLE",
+      "status": "FINAL",
       "dataDate": "2026-07-24",
       "source": [
-        "EASTMONEY",
-        "SINA"
+        "EXCHANGE"
       ],
       "unit": "亿元",
-      "reason": "HISTORICAL_SPOT_NOT_SUPPORTED",
-      "turnoverToday": null,
-      "turnoverPrevious": null,
-      "turnoverDelta": null,
-      "turnoverChangePct": null,
-      "volumeState": "UNKNOWN"
+      "turnoverToday": 19329.64,
+      "turnoverPrevious": 21977.82,
+      "turnoverDelta": -2648.18,
+      "turnoverChangePct": -12.05,
+      "volumeState": "CONTRACTION"
     },
     "sentiment": {
       "status": "UNAVAILABLE",
@@ -347,9 +346,9 @@
       "fundFlow": "主力资金模块暂未取得完整有效数据，本项不作判断。",
       "margin": "两融总余额 26795.84 亿元，较前一交易日减少 223.13 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。",
-      "marketEnvironment": "两市成交额模块暂未取得有效数据，本项不作判断。",
+      "marketEnvironment": "沪深两市成交额 19329.64 亿元，较前一交易日 -12.05%，缩量。",
       "northbound": "北向季度持仓本次暂未取得。",
-      "riskWarning": "当前不可用：turnover、sentiment、sectorPerformance、fundFlow、northbound、tracks。 本数据仅供市场信息参考，不构成投资建议。"
+      "riskWarning": "当前不可用：sentiment、sectorPerformance、fundFlow、northbound、tracks。 本数据仅供市场信息参考，不构成投资建议。"
     }
   },
   "validation": {

@@ -116,6 +116,30 @@ def _fetch_index_close(
             _num(previous_row.get("close")),
         )
 
+    if source == "eastmoney_delay":
+        # R9：东财延迟主机（push2delay）当日收盘行情，ulist 一次取全。
+        # 该主机无历史，非当日调用在适配器内直接失败，由降级链兜底。
+        from collector.adapters.eastmoney_delay import (
+            fetch_index_quotes,
+            secid_from_symbol,
+        )
+
+        quotes = _delay_index_quotes(
+            trade_date,
+            fetch_index_quotes,
+        )
+        secid = secid_from_symbol(
+            index["symbol_em"]
+        )
+
+        if secid not in quotes:
+            raise ValueError(
+                f"eastmoney_delay missing {secid}"
+            )
+
+        close, previous = quotes[secid]
+        return close, previous
+
     if source == "sina":
         df = ak.stock_zh_index_daily(
             symbol=index["symbol_sina"],
@@ -228,7 +252,13 @@ def collect_market_index(
     result: dict[str, Any] = {
         "status": status,
         "dataDate": trade_date,
-        "source": ["EASTMONEY", "TENCENT", "SINA", "CNINDEX"],
+        "source": [
+            "EASTMONEY",
+            "EASTMONEY_DELAY",
+            "TENCENT",
+            "SINA",
+            "CNINDEX",
+        ],
         "items": items,
     }
 
@@ -289,6 +319,27 @@ def _with_source_list(
     raise ValueError(
         "all sources failed: " + "; ".join(errors)
     )
+
+
+def _delay_index_quotes(
+    trade_date: str,
+    fetcher,
+) -> dict[str, tuple[float, float]]:
+    """东财 delay 指数行情按交易日缓存，避免每个指数重复拉取。"""
+    if (
+        _DELAY_CACHE["date"] != trade_date
+        or _DELAY_CACHE["quotes"] is None
+    ):
+        _DELAY_CACHE["date"] = trade_date
+        _DELAY_CACHE["quotes"] = fetcher(trade_date)
+
+    return _DELAY_CACHE["quotes"]
+
+
+_DELAY_CACHE: dict[str, Any] = {
+    "date": None,
+    "quotes": None,
+}
 
 
 def _target_and_previous(

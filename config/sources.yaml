@@ -4,13 +4,22 @@
 market:
   primary: eastmoney
   fallback:
+    - eastmoney_delay
     - tencent
     - sina
 
-# 全市场 spot（涨跌家数 / 两市成交额）：东财独有涨停池等接口不参与降级
+# 全市场 spot（涨跌家数）：东财 push2 主机被封时降级新浪（delay 主机 clist
+# 实测后端节点数据不一致，total 在 1640~59070 间漂移，不可用于全市场统计）
 spot:
   primary: eastmoney
   fallback:
+    - sina
+
+# 两市成交额：spot 源仅当日；exchange 为交易所官方文件源，支持历史回查
+turnover:
+  primary: eastmoney
+  fallback:
+    - exchange
     - sina
 
 # 板块行情：东财 → 同花顺 THS（口径以 method 字段区分，不混装历史）

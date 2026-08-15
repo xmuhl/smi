@@ -54,7 +54,24 @@ def test_source_order_deduplicates():
         ["eastmoney", "tencent", "sina"],
     )
 
-    assert order == ["eastmoney", "tencent", "sina"]
+    assert order == [
+        "eastmoney",
+        "eastmoney_delay",
+        "tencent",
+        "sina",
+    ]
+
+def test_turnover_order_includes_exchange_for_history():
+    order = source_order(
+        "turnover",
+        ["eastmoney"],
+    )
+
+    assert order == [
+        "eastmoney",
+        "exchange",
+        "sina",
+    ]
 
 
 def test_try_sources_falls_back_on_failure():
@@ -95,7 +112,22 @@ def test_try_sources_all_fail_returns_errors():
     assert "sina" in errors[1]
 
 
-def test_market_index_falls_back_to_tencent():
+def test_market_index_falls_back_to_tencent(
+    monkeypatch,
+):
+    import collector.adapters.eastmoney_delay as emd
+
+    def delay_blocked(trade_date: str):
+        raise RuntimeError(
+            "network blocked in test"
+        )
+
+    monkeypatch.setattr(
+        emd,
+        "fetch_index_quotes",
+        delay_blocked,
+    )
+
     fake = ModuleType("akshare")
 
     def stock_zh_index_daily_em(*args, **kwargs):
@@ -146,9 +178,17 @@ def test_turnover_falls_back_to_sina_spot():
             "成交额": [5.0e9, 3.0e9, 1.0e8],
         })
 
+    def stock_sse_deal_daily(*args, **kwargs):
+        raise ConnectionError("sse blocked")
+
+    def stock_szse_summary(*args, **kwargs):
+        raise ConnectionError("szse blocked")
+
     fake.stock_sh_a_spot_em = stock_sh_a_spot_em
     fake.stock_sz_a_spot_em = stock_sz_a_spot_em
     fake.stock_zh_a_spot = stock_zh_a_spot
+    fake.stock_sse_deal_daily = stock_sse_deal_daily
+    fake.stock_szse_summary = stock_szse_summary
     sys.modules["akshare"] = fake
 
     try:

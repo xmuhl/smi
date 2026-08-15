@@ -971,3 +971,134 @@ def test_summary_partial_text_never_fabricates_zero():
     assert "跌停" not in text
     assert "炸板" not in text
 
+def test_turnover_historical_via_exchange(
+    monkeypatch,
+):
+    """R9：交易所官方文件源支持历史日期（官方口径，历史回补可补成交额）。"""
+    import sys
+    from types import ModuleType
+
+    fake = ModuleType("akshare")
+
+    def stock_sh_a_spot_em(*args, **kwargs):
+        raise ConnectionError("push2 blocked")
+
+    def stock_sz_a_spot_em(*args, **kwargs):
+        raise ConnectionError("push2 blocked")
+
+    def stock_zh_a_spot(*args, **kwargs):
+        raise ConnectionError("sina blocked")
+
+    def stock_sse_deal_daily(date=None):
+        return pd.DataFrame(
+            {
+                "单日情况": ["挂牌数", "成交金额"],
+                "股票": [2353.0, 9917.63],
+                "主板A": [1699.0, 6737.09],
+                "主板B": [41.0, 0.81],
+                "科创板": [613.0, 3179.72],
+                "股票回购": [0.0, 0.30],
+            }
+        )
+
+    def stock_szse_summary(date=None):
+        return pd.DataFrame(
+            {
+                "证券类别": ["股票", "主板A股", "创业板A股"],
+                "数量": [2934, 1494, 1402],
+                "成交金额": [
+                    1.153380e12,
+                    5.964477e11,
+                    5.568948e11,
+                ],
+                "总市值": [1.0e13, 1.0e13, 1.0e13],
+                "流通市值": [1.0e13, 1.0e13, 1.0e13],
+            }
+        )
+
+    fake.stock_sh_a_spot_em = stock_sh_a_spot_em
+    fake.stock_sz_a_spot_em = stock_sz_a_spot_em
+    fake.stock_zh_a_spot = stock_zh_a_spot
+    fake.stock_sse_deal_daily = stock_sse_deal_daily
+    fake.stock_szse_summary = stock_szse_summary
+    sys.modules["akshare"] = fake
+
+    try:
+        from collector.modules.turnover import (
+            collect_turnover,
+        )
+
+        result = collect_turnover(
+            "2026-07-20",
+            market_rules={},
+        )
+
+        assert result["status"] == "FINAL"
+        assert result["dataDate"] == "2026-07-20"
+        assert result["source"] == ["EXCHANGE"]
+        # 沪：(6737.09+3179.72) + 深：(5.964477e11+5.568948e11)/1e8
+        import pytest
+
+        assert result["turnoverToday"] == pytest.approx(
+            9916.81 + 11533.425,
+            abs=0.01,
+        )
+    finally:
+        sys.modules.pop("akshare", None)
+
+def test_eastmoney_delay_adapter_parsing(
+    monkeypatch,
+):
+    """R9：适配器 secid 映射 + 指数解析 + 非当日拒绝。"""
+    import pytest
+
+    import collector.adapters.eastmoney_delay as emd
+
+    assert emd.secid_from_symbol("sh000001") == "1.000001"
+    assert emd.secid_from_symbol("sz399001") == "0.399001"
+    assert emd.secid_from_symbol("bj899050") == "0.899050"
+    assert emd.secid_from_symbol("sz399311") == "0.399311"
+
+    index_payload = {
+        "rc": 0,
+        "data": {
+            "diff": [
+                {"f12": "1.000001", "f14": "上证指数", "f2": 3927.18, "f3": 0.01},
+                {"f12": "0.399001", "f14": "深证成指", "f2": 14354.31, "f3": 0.45},
+                {"f12": "0.399006", "f14": "创业板指", "f2": 3626.3, "f3": 1.12},
+                {"f12": "1.000688", "f14": "科创50", "f2": 1717.68, "f3": 0.0},
+                {"f12": "1.000300", "f14": "沪深300", "f2": 4665.88, "f3": 0.04},
+                {"f12": "0.899050", "f14": "北证50", "f2": 1087.52, "f3": -0.94},
+                {"f12": "0.399311", "f14": "国证1000", "f2": 5065.96, "f3": 0.18},
+                {"f12": "0.399303", "f14": "国证2000", "f2": 10115.47, "f3": 0.79},
+            ]
+        },
+    }
+
+    from collector.schema import TZ_SHANGHAI
+
+    today = (
+        __import__("datetime")
+        .datetime.now(TZ_SHANGHAI)
+        .date()
+        .isoformat()
+    )
+
+    monkeypatch.setattr(
+        emd,
+        "_get_json",
+        lambda url: index_payload,
+    )
+
+    quotes = emd.fetch_index_quotes(today)
+
+    assert len(quotes) == 8
+    close, previous = quotes["1.000001"]
+    assert close == 3927.18
+    assert abs(previous - 3927.18 / 1.0001) < 1e-6
+
+    # 非当日必须失败（历史走 tencent/cni/exchange）
+    with pytest.raises(ValueError):
+        emd.fetch_index_quotes("2026-07-20")
+
+

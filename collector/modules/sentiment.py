@@ -32,6 +32,7 @@ def is_st(
 
 def _fetch_spot_counts(
     source: str,
+    trade_date: str,
 ) -> dict[str, int]:
     """按指定源返回全市场涨跌统计。"""
     import akshare as ak
@@ -232,7 +233,10 @@ def collect_sentiment(
     counts, used, source_errors = try_sources(
         "spot",
         ["eastmoney"],
-        _fetch_spot_counts,
+        lambda source: _fetch_spot_counts(
+            source,
+            trade_date,
+        ),
     )
 
     if counts is None:
