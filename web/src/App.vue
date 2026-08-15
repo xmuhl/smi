@@ -86,7 +86,7 @@ const statusSummary = computed(() => {
 
   const values = Object.values(snapshot.value.modules);
 
-  const statuses = ["FINAL", "PENDING", "STALE", "UNAVAILABLE", "ERROR"] as const;
+  const statuses = ["FINAL", "PENDING", "STALE", "PARTIAL", "UNAVAILABLE", "ERROR"] as const;
 
   return statuses
     .map((status) => {

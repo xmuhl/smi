@@ -13,6 +13,7 @@ export function moduleStatusCounts(
   final: number;
   pending: number;
   stale: number;
+  partial: number;
   unavailable: number;
   error: number;
   total: number;
@@ -21,6 +22,7 @@ export function moduleStatusCounts(
     final: 0,
     pending: 0,
     stale: 0,
+    partial: 0,
     unavailable: 0,
     error: 0,
     total: 0,
@@ -35,6 +37,8 @@ export function moduleStatusCounts(
       counts.pending += 1;
     } else if (module.status === "STALE") {
       counts.stale += 1;
+    } else if (module.status === "PARTIAL") {
+      counts.partial += 1;
     } else if (module.status === "UNAVAILABLE") {
       counts.unavailable += 1;
     } else if (module.status === "ERROR") {

@@ -9,6 +9,7 @@ class ModuleStatus(str, Enum):
     FINAL = "FINAL"
     PENDING = "PENDING"
     STALE = "STALE"
+    PARTIAL = "PARTIAL"
     UNAVAILABLE = "UNAVAILABLE"
     ERROR = "ERROR"
 
@@ -17,6 +18,7 @@ STATUS_UI = {
     ModuleStatus.FINAL: ("已更新", "ok"),
     ModuleStatus.PENDING: ("待披露", "info"),
     ModuleStatus.STALE: ("数据延迟", "warn"),
+    ModuleStatus.PARTIAL: ("部分数据", "info"),
     ModuleStatus.UNAVAILABLE: ("不再披露", "neutral"),
     ModuleStatus.ERROR: ("获取失败", "error"),
 }
@@ -28,6 +30,7 @@ def available_transitions(status: ModuleStatus) -> list[ModuleStatus]:
         ModuleStatus.PENDING: [ModuleStatus.FINAL, ModuleStatus.STALE, ModuleStatus.ERROR],
         ModuleStatus.FINAL: [ModuleStatus.FINAL, ModuleStatus.STALE],
         ModuleStatus.STALE: [ModuleStatus.FINAL, ModuleStatus.ERROR],
+        ModuleStatus.PARTIAL: [ModuleStatus.FINAL, ModuleStatus.ERROR],
         ModuleStatus.UNAVAILABLE: [ModuleStatus.UNAVAILABLE],
         ModuleStatus.ERROR: [ModuleStatus.FINAL, ModuleStatus.STALE, ModuleStatus.ERROR],
     }

@@ -480,3 +480,175 @@ def test_validator_accepts_exact_absolute_margin_balance_tolerance():
     margin["marginBalance"] = 100000.05
 
     validate_snapshot(exact)
+
+def test_sentiment_historical_partial_with_limit_pools(
+    monkeypatch,
+):
+    import akshare
+
+    import collector.modules.sentiment as sentiment
+
+    calls: list[str] = []
+
+    def fake_zt_pool(date: str):
+        calls.append(("zt", date))
+        return pd.DataFrame(
+            {
+                "名称": [
+                    "甲股份",
+                    "*ST 乙",
+                    "丙股份",
+                    "丁股份",
+                ]
+            }
+        )
+
+    def fake_dt_pool(date: str):
+        calls.append(("dt", date))
+        return pd.DataFrame(
+            {
+                "名称": ["戊股份"]
+            }
+        )
+
+    def fake_zbgc(date: str):
+        calls.append(("zb", date))
+        return pd.DataFrame(
+            {
+                "名称": ["己股份", "庚股份"]
+            }
+        )
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_em",
+        fake_zt_pool,
+    )
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_dtgc_em",
+        fake_dt_pool,
+    )
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_zbgc_em",
+        fake_zbgc,
+    )
+
+    # 用远期历史日期，避免与"今天"路径冲突。
+    result = sentiment.collect_sentiment(
+        "2020-01-02"
+    )
+
+    assert result["status"] == "PARTIAL"
+    assert result["reason"] == (
+        "HISTORICAL_LIMIT_POOL_ONLY"
+    )
+    assert result["riseCount"] is None
+    assert result["fallCount"] is None
+    assert result["nonStLimitUpCount"] == 3
+    assert result["stLimitUpCount"] == 1
+    assert result["nonStLimitDownCount"] == 1
+    assert result["stLimitDownCount"] == 0
+    assert result["brokenLimitCount"] == 2
+    assert result["errors"] == []
+    assert calls == [
+        ("zt", "20200102"),
+        ("dt", "20200102"),
+        ("zb", "20200102"),
+    ]
+
+def test_sentiment_historical_no_pool_data_unavailable(
+    monkeypatch,
+):
+    import akshare
+
+    import collector.modules.sentiment as sentiment
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_em",
+        lambda date: pd.DataFrame(),
+    )
+
+    result = sentiment.collect_sentiment(
+        "2020-01-02"
+    )
+
+    assert (
+        result["status"]
+        == "UNAVAILABLE"
+    )
+    assert result["reason"] == (
+        "HISTORICAL_LIMIT_POOL_UNAVAILABLE"
+    )
+    assert result["nonStLimitUpCount"] is None
+
+def test_sentiment_historical_pool_error_fails_closed(
+    monkeypatch,
+):
+    import akshare
+
+    import collector.modules.sentiment as sentiment
+
+    def boom(date: str):
+        del date
+        raise RuntimeError(
+            "push2ex unreachable"
+        )
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_em",
+        boom,
+    )
+
+    result = sentiment.collect_sentiment(
+        "2020-01-02"
+    )
+
+    assert result["status"] == "ERROR"
+    assert result["errors"] == [
+        "push2ex unreachable"
+    ]
+
+def test_sentiment_historical_partial_keeps_pools_on_zbgc_failure(
+    monkeypatch,
+):
+    import akshare
+
+    import collector.modules.sentiment as sentiment
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_em",
+        lambda date: pd.DataFrame(
+            {"名称": ["甲股份"]}
+        ),
+    )
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_dtgc_em",
+        lambda date: pd.DataFrame(
+            {"名称": ["乙股份"]}
+        ),
+    )
+
+    def boom(date: str):
+        del date
+        raise RuntimeError("zbgc down")
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_zt_pool_zbgc_em",
+        boom,
+    )
+
+    result = sentiment.collect_sentiment(
+        "2020-01-02"
+    )
+
+    assert result["status"] == "PARTIAL"
+    assert result["nonStLimitUpCount"] == 1
+    assert result["brokenLimitCount"] is None
+    assert result["errors"] == ["zbgc: zbgc down"]

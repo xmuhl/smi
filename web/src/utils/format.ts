@@ -27,6 +27,11 @@ export const STATUS_TEXT: Record<
     cls: "warn",
     icon: "!",
   },
+  PARTIAL: {
+    text: "部分数据",
+    cls: "info",
+    icon: "◐",
+  },
   UNAVAILABLE: {
     text: "不可用",
     cls: "neutral",

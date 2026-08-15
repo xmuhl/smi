@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from types import ModuleType
 
 import pandas as pd
 
 from collector.adapters.sources import source_order, try_sources
+from collector.schema import TZ_SHANGHAI
+
+# 降级路径只在"当日"分支生效；用运行日而非固定历史日期，
+# 避免测试在次日变成时间炸弹（历史日模块返回 UNAVAILABLE）。
+TODAY = datetime.now(TZ_SHANGHAI).date().isoformat()
 
 
 def test_source_order_merges_primary_fallback_and_defaults():
@@ -125,7 +131,7 @@ def test_turnover_falls_back_to_sina_spot():
         from collector.modules.turnover import collect_turnover
 
         result = collect_turnover(
-            "2026-08-14",
+            TODAY,
             market_rules={},
         )
 
@@ -168,7 +174,7 @@ def test_sentiment_falls_back_to_sina_spot():
     try:
         from collector.modules.sentiment import collect_sentiment
 
-        result = collect_sentiment("2026-08-14")
+        result = collect_sentiment(TODAY)
 
         assert result["riseCount"] == 1
         assert result["fallCount"] == 1
@@ -228,7 +234,7 @@ def test_sectors_falls_back_to_ths():
     try:
         from collector.modules.sectors import collect_sectors
 
-        result = collect_sectors("2026-08-14")
+        result = collect_sectors(TODAY)
 
         assert result["status"] == "FINAL"
         assert result["method"] == "THS"
@@ -282,7 +288,7 @@ def test_fund_flow_falls_back_to_ths():
     try:
         from collector.modules.fund_flow import collect_fund_flow
 
-        result = collect_fund_flow("2026-08-14")
+        result = collect_fund_flow(TODAY)
 
         assert result["status"] == "FINAL"
         assert result["method"] == "THS_MAIN_FORCE"

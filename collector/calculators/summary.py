@@ -153,9 +153,17 @@ def _rule_turnover(
 def _rule_sentiment(
     sentiment: dict[str, Any] | None,
 ) -> str:
+    if not sentiment:
+        return "市场情绪模块暂未取得完整有效数据，本项不作判断。"
+
     if (
-        not sentiment
-        or sentiment.get("status")
+        sentiment.get("status")
+        == ModuleStatus.PARTIAL.value
+    ):
+        return _partial_sentiment_text(sentiment)
+
+    if (
+        sentiment.get("status")
         != ModuleStatus.FINAL.value
     ):
         return "市场情绪模块暂未取得完整有效数据，本项不作判断。"
@@ -191,6 +199,57 @@ def _rule_sentiment(
         f"上涨 {rise} 家、下跌 {fall} 家，"
         "涨跌家数基本持平。"
     )
+
+def _partial_sentiment_text(
+    sentiment: dict[str, Any],
+) -> str:
+    """历史回补日：仅涨停池数据可得，如实呈现，不编造涨跌家数。"""
+    parts: list[str] = []
+
+    limit_up = sentiment.get(
+        "nonStLimitUpCount"
+    )
+    st_limit_up = sentiment.get(
+        "stLimitUpCount"
+    )
+    limit_down = sentiment.get(
+        "nonStLimitDownCount"
+    )
+    st_limit_down = sentiment.get(
+        "stLimitDownCount"
+    )
+    broken = sentiment.get(
+        "brokenLimitCount"
+    )
+
+    if limit_up is not None or st_limit_up is not None:
+        parts.append(
+            f"非ST涨停 {limit_up or 0} 家、"
+            f"ST涨停 {st_limit_up or 0} 家"
+        )
+
+    if (
+        limit_down is not None
+        or st_limit_down is not None
+    ):
+        parts.append(
+            f"非ST跌停 {limit_down or 0} 家、"
+            f"ST跌停 {st_limit_down or 0} 家"
+        )
+
+    if broken is not None:
+        parts.append(
+            f"炸板 {broken} 家"
+        )
+
+    if parts:
+        return (
+            "历史回补日涨跌家数不可得；"
+            + "；".join(parts)
+            + "。"
+        )
+
+    return "市场情绪数据不完整，本项不作判断。"
 
 def _rule_fund_flow(
     fund_flow: dict[str, Any] | None,
@@ -396,6 +455,13 @@ def _rule_risk(
         == ModuleStatus.UNAVAILABLE.value
     ]
 
+    partial = [
+        name
+        for name, module in modules.items()
+        if module.get("status")
+        == ModuleStatus.PARTIAL.value
+    ]
+
     parts: list[str] = []
 
     if errors:
@@ -423,6 +489,13 @@ def _rule_risk(
         parts.append(
             "当前不可用："
             + "、".join(unavailable)
+            + "。"
+        )
+
+    if partial:
+        parts.append(
+            "部分数据："
+            + "、".join(partial)
             + "。"
         )
 

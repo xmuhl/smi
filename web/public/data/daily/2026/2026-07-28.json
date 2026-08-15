@@ -1,0 +1,364 @@
+{
+  "schemaVersion": "1.1",
+  "tradeDate": "2026-07-28",
+  "generatedAt": "2026-08-15T12:35:45+08:00",
+  "updatedAt": "2026-08-15T12:39:17+08:00",
+  "revision": 1,
+  "overallStatus": "PARTIAL",
+  "generationReason": "MANUAL_BACKFILL",
+  "market": "CN_A",
+  "timezone": "Asia/Shanghai",
+  "meta": {
+    "sourceSystem": "SMI_V1",
+    "legacy": false,
+    "importedFromExcel": false,
+    "officialDisclosureCompatibility": true
+  },
+  "modules": {
+    "marketIndex": {
+      "status": "FINAL",
+      "dataDate": "2026-07-28",
+      "source": [
+        "EASTMONEY",
+        "TENCENT",
+        "SINA",
+        "CNINDEX"
+      ],
+      "items": [
+        {
+          "code": "000001",
+          "name": "上证指数",
+          "close": 3813.31,
+          "previousClose": 3858.25,
+          "changePct": -1.16,
+          "source": "TENCENT"
+        },
+        {
+          "code": "399001",
+          "name": "深证成指",
+          "close": 13509.68,
+          "previousClose": 14148.73,
+          "changePct": -4.52,
+          "source": "TENCENT"
+        },
+        {
+          "code": "399006",
+          "name": "创业板指",
+          "close": 3327.03,
+          "previousClose": 3590.79,
+          "changePct": -7.35,
+          "source": "TENCENT"
+        },
+        {
+          "code": "000688",
+          "name": "科创50",
+          "close": 1693.48,
+          "previousClose": 1807.95,
+          "changePct": -6.33,
+          "source": "TENCENT"
+        },
+        {
+          "code": "000300",
+          "name": "沪深300",
+          "close": 4569.52,
+          "previousClose": 4702.43,
+          "changePct": -2.83,
+          "source": "TENCENT"
+        },
+        {
+          "code": "899050",
+          "name": "北证50",
+          "close": 1055.27,
+          "previousClose": 1055.92,
+          "changePct": -0.06,
+          "source": "TENCENT"
+        },
+        {
+          "code": "399311",
+          "name": "国证1000",
+          "close": 4869.5485,
+          "previousClose": 5020.6269,
+          "changePct": -3.01,
+          "source": "CNI"
+        },
+        {
+          "code": "399303",
+          "name": "国证2000",
+          "close": 9085.6587,
+          "previousClose": 9306.2513,
+          "changePct": -2.37,
+          "source": "CNI"
+        }
+      ]
+    },
+    "turnover": {
+      "status": "UNAVAILABLE",
+      "dataDate": "2026-07-28",
+      "source": [
+        "EASTMONEY",
+        "SINA"
+      ],
+      "unit": "亿元",
+      "reason": "HISTORICAL_SPOT_NOT_SUPPORTED",
+      "turnoverToday": null,
+      "turnoverPrevious": null,
+      "turnoverDelta": null,
+      "turnoverChangePct": null,
+      "volumeState": "UNKNOWN"
+    },
+    "sentiment": {
+      "status": "PARTIAL",
+      "dataDate": "2026-07-28",
+      "source": [
+        "EASTMONEY"
+      ],
+      "riseCount": null,
+      "fallCount": null,
+      "flatCount": null,
+      "suspendedCount": null,
+      "nonStLimitUpCount": 61,
+      "stLimitUpCount": 0,
+      "nonStLimitDownCount": 49,
+      "stLimitDownCount": 0,
+      "brokenLimitCount": 20,
+      "reason": "HISTORICAL_LIMIT_POOL_ONLY",
+      "errors": []
+    },
+    "sectorPerformance": {
+      "status": "UNAVAILABLE",
+      "dataDate": "2026-07-28",
+      "method": "EASTMONEY",
+      "reason": "HISTORICAL_BOARD_RANK_NOT_SUPPORTED",
+      "industryTop5": [],
+      "industryBottom5": [],
+      "conceptTop5": [],
+      "conceptBottom5": []
+    },
+    "fundFlow": {
+      "status": "UNAVAILABLE",
+      "dataDate": "2026-07-28",
+      "method": "EASTMONEY_MAIN_FORCE",
+      "unit": "亿元",
+      "reason": "HISTORICAL_TODAY_RANK_NOT_SUPPORTED",
+      "industryInflowTop10": [],
+      "industryOutflowTop10": [],
+      "conceptInflowTop10": [],
+      "conceptOutflowTop10": [],
+      "stockInflowTop10": [],
+      "stockOutflowTop10": []
+    },
+    "northbound": {
+      "status": "UNAVAILABLE",
+      "dataDate": "2026-07-28",
+      "mode": "POST_20240819_QUARTERLY_ONLY",
+      "source": [
+        "HKEX"
+      ],
+      "dailyTurnover": {
+        "status": "UNAVAILABLE",
+        "value": null,
+        "reason": "V1_NO_STABLE_AUTOMATION"
+      },
+      "activeSecurities": {
+        "status": "UNAVAILABLE",
+        "items": [],
+        "reason": "V1_NO_STABLE_AUTOMATION"
+      },
+      "legacyNetFlow": {
+        "status": "UNAVAILABLE",
+        "reason": "DISCLOSURE_RULE_CHANGED"
+      },
+      "overlap": {
+        "status": "UNAVAILABLE",
+        "items": [],
+        "reason": "DEPENDENCY_UNAVAILABLE"
+      },
+      "quarterlyHolding": {
+        "status": "UNAVAILABLE",
+        "asOf": "2026-06-30",
+        "publishedAt": null,
+        "items": [],
+        "reason": "HISTORICAL_PUBLICATION_DATE_NOT_VERIFIED"
+      },
+      "errors": []
+    },
+    "margin": {
+      "status": "FINAL",
+      "dataDate": "2026-07-28",
+      "source": [
+        "SSE",
+        "SZSE"
+      ],
+      "unit": "亿元",
+      "errors": [],
+      "warnings": [],
+      "financingBalance": 26385.18,
+      "securitiesLendingBalance": 222.06,
+      "marginBalance": 26607.24,
+      "marginBalanceChange": -294.44,
+      "financingBuyAmount": 1690.47,
+      "financingNetBuyAmount": {
+        "value": -297.41,
+        "quality": "DERIVED"
+      },
+      "securitiesLendingNetSellVolume": {
+        "value": 1.2558,
+        "unit": "亿股/亿份",
+        "quality": "DERIVED"
+      },
+      "marginTradeAmount": {
+        "value": null,
+        "quality": "UNAVAILABLE"
+      },
+      "marginTradeSharePct": {
+        "value": null,
+        "quality": "UNAVAILABLE"
+      }
+    },
+    "tracks": {
+      "status": "UNAVAILABLE",
+      "dataDate": "2026-07-28",
+      "configVersion": "1.0",
+      "reason": "TRACK_METRICS_COLLECTOR_NOT_IMPLEMENTED",
+      "items": [
+        {
+          "trackId": "dividend_cnsoe",
+          "trackName": "高股息中特估",
+          "positioning": "高股息/央国企价值",
+          "turnoverRank": null,
+          "turnoverUniverseSize": null,
+          "turnoverPercentile": null,
+          "mainNetInflow": null,
+          "mainNetInflowPercentile": null,
+          "continuousInflowDays": null,
+          "maAlignment": null,
+          "rps60": null,
+          "excessReturn20d": null,
+          "limitUpCount": null,
+          "limitUpRate": null,
+          "ladderCompleteness": null,
+          "redStockRatio": null,
+          "coreCatalyst": {
+            "state": "UNKNOWN",
+            "text": ""
+          },
+          "earningsRealization": {
+            "state": "UNKNOWN",
+            "text": ""
+          },
+          "score": null,
+          "coveragePct": 0.0,
+          "decision": "INSUFFICIENT"
+        },
+        {
+          "trackId": "power",
+          "trackName": "电力",
+          "positioning": "公用事业/高股息",
+          "turnoverRank": null,
+          "turnoverUniverseSize": null,
+          "turnoverPercentile": null,
+          "mainNetInflow": null,
+          "mainNetInflowPercentile": null,
+          "continuousInflowDays": null,
+          "maAlignment": null,
+          "rps60": null,
+          "excessReturn20d": null,
+          "limitUpCount": null,
+          "limitUpRate": null,
+          "ladderCompleteness": null,
+          "redStockRatio": null,
+          "coreCatalyst": {
+            "state": "UNKNOWN",
+            "text": ""
+          },
+          "earningsRealization": {
+            "state": "UNKNOWN",
+            "text": ""
+          },
+          "score": null,
+          "coveragePct": 0.0,
+          "decision": "INSUFFICIENT"
+        },
+        {
+          "trackId": "healthcare",
+          "trackName": "医药生物",
+          "positioning": "防御+成长",
+          "turnoverRank": null,
+          "turnoverUniverseSize": null,
+          "turnoverPercentile": null,
+          "mainNetInflow": null,
+          "mainNetInflowPercentile": null,
+          "continuousInflowDays": null,
+          "maAlignment": null,
+          "rps60": null,
+          "excessReturn20d": null,
+          "limitUpCount": null,
+          "limitUpRate": null,
+          "ladderCompleteness": null,
+          "redStockRatio": null,
+          "coreCatalyst": {
+            "state": "UNKNOWN",
+            "text": ""
+          },
+          "earningsRealization": {
+            "state": "UNKNOWN",
+            "text": ""
+          },
+          "score": null,
+          "coveragePct": 0.0,
+          "decision": "INSUFFICIENT"
+        },
+        {
+          "trackId": "semiconductor_ai",
+          "trackName": "半导体/AI算力",
+          "positioning": "科技成长",
+          "turnoverRank": null,
+          "turnoverUniverseSize": null,
+          "turnoverPercentile": null,
+          "mainNetInflow": null,
+          "mainNetInflowPercentile": null,
+          "continuousInflowDays": null,
+          "maAlignment": null,
+          "rps60": null,
+          "excessReturn20d": null,
+          "limitUpCount": null,
+          "limitUpRate": null,
+          "ladderCompleteness": null,
+          "redStockRatio": null,
+          "coreCatalyst": {
+            "state": "UNKNOWN",
+            "text": ""
+          },
+          "earningsRealization": {
+            "state": "UNKNOWN",
+            "text": ""
+          },
+          "score": null,
+          "coveragePct": 0.0,
+          "decision": "INSUFFICIENT"
+        }
+      ]
+    },
+    "summary": {
+      "status": "FINAL",
+      "dataDate": "2026-07-28",
+      "generator": "RULE_ENGINE_V1",
+      "indexAndTurnover": "上证指数收跌 -1.16%；沪深300表现强于创业板。",
+      "sentiment": "历史回补日涨跌家数不可得；非ST涨停 61 家、ST涨停 0 家；非ST跌停 49 家、ST跌停 0 家；炸板 20 家。",
+      "fundFlow": "主力资金模块暂未取得完整有效数据，本项不作判断。",
+      "margin": "两融总余额 26607.24 亿元，较前一交易日减少 294.44 亿元。",
+      "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。",
+      "marketEnvironment": "两市成交额模块暂未取得有效数据，本项不作判断。",
+      "northbound": "北向季度持仓本次暂未取得。",
+      "riskWarning": "待披露：summary。 当前不可用：turnover、sectorPerformance、fundFlow、northbound、tracks。 部分数据：sentiment。 本数据仅供市场信息参考，不构成投资建议。"
+    }
+  },
+  "validation": {
+    "calendarExpectedTradingDay": false,
+    "marketDateVerified": false,
+    "requiredIndicesPresent": false,
+    "stockUniverseCheckPassed": false,
+    "criticalErrors": [],
+    "warnings": []
+  }
+}

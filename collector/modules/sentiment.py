@@ -73,6 +73,72 @@ def _fetch_spot_counts(
     }
 
 
+def _fetch_historical_limit_pools(
+    trade_date: str,
+) -> dict[str, Any] | None:
+    """历史交易日：东财涨停池（保留窗口内可用）。
+
+    返回 None 表示该日无任何涨停池数据（超出东财保留窗口）；
+    返回 dict 含涨停/跌停/炸板计数；跌停/炸板失败仅记入 errors，
+    不吞掉已取得的涨停计数（宁缺勿错，不用 0 伪装缺失）。
+    """
+    import akshare as ak
+
+    yyyymmdd = trade_date.replace("-", "")
+
+    pool = ak.stock_zt_pool_em(
+        date=yyyymmdd
+    )
+
+    if pool is None or pool.empty:
+        return None
+
+    non_st, st = _split_st_pool(pool)
+
+    result: dict[str, Any] = {
+        "nonStLimitUpCount": non_st,
+        "stLimitUpCount": st,
+        "nonStLimitDownCount": None,
+        "stLimitDownCount": None,
+        "brokenLimitCount": None,
+        "errors": [],
+    }
+
+    try:
+        pool = ak.stock_zt_pool_dtgc_em(
+            date=yyyymmdd
+        )
+
+        non_st, st = _split_st_pool(pool)
+
+        result["nonStLimitDownCount"] = non_st
+        result["stLimitDownCount"] = st
+
+    except Exception as exc:  # noqa: BLE001
+        result["errors"].append(
+            f"dt_pool: {exc}"
+        )
+
+    try:
+        pool = ak.stock_zt_pool_zbgc_em(
+            date=yyyymmdd
+        )
+
+        if pool is None or pool.empty:
+            result["brokenLimitCount"] = 0
+        else:
+            result["brokenLimitCount"] = int(
+                len(pool)
+            )
+
+    except Exception as exc:  # noqa: BLE001
+        result["errors"].append(
+            f"zbgc: {exc}"
+        )
+
+    return result
+
+
 def collect_sentiment(
     trade_date: str,
 ) -> dict[str, Any]:
@@ -81,11 +147,10 @@ def collect_sentiment(
     ).date().isoformat()
 
     if trade_date != today:
-        return {
+        base: dict[str, Any] = {
             "status": ModuleStatus.UNAVAILABLE.value,
             "dataDate": trade_date,
-            "source": ["EASTMONEY", "SINA"],
-            "reason": "HISTORICAL_FULL_SENTIMENT_NOT_SUPPORTED",
+            "source": ["EASTMONEY"],
             "riseCount": None,
             "fallCount": None,
             "flatCount": None,
@@ -95,6 +160,47 @@ def collect_sentiment(
             "nonStLimitDownCount": None,
             "stLimitDownCount": None,
             "brokenLimitCount": None,
+        }
+
+        try:
+            pools = _fetch_historical_limit_pools(
+                trade_date
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {
+                **base,
+                "status": ModuleStatus.ERROR.value,
+                "errors": [str(exc)],
+            }
+
+        if pools is None:
+            return {
+                **base,
+                "reason": (
+                    "HISTORICAL_LIMIT_POOL_UNAVAILABLE"
+                ),
+            }
+
+        return {
+            **base,
+            "status": ModuleStatus.PARTIAL.value,
+            "reason": "HISTORICAL_LIMIT_POOL_ONLY",
+            "nonStLimitUpCount": (
+                pools["nonStLimitUpCount"]
+            ),
+            "stLimitUpCount": pools[
+                "stLimitUpCount"
+            ],
+            "nonStLimitDownCount": (
+                pools["nonStLimitDownCount"]
+            ),
+            "stLimitDownCount": pools[
+                "stLimitDownCount"
+            ],
+            "brokenLimitCount": pools[
+                "brokenLimitCount"
+            ],
+            "errors": pools["errors"],
         }
 
     yyyymmdd = trade_date.replace("-", "")

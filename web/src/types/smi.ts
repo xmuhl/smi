@@ -2,6 +2,7 @@ export type ModuleStatus =
   | "FINAL"
   | "PENDING"
   | "STALE"
+  | "PARTIAL"
   | "UNAVAILABLE"
   | "ERROR";
 
