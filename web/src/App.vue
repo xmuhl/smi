@@ -13,6 +13,11 @@
       <div class="status-line" v-if="snapshot">
         {{ statusSummary }} · 更新于 {{ snapshot.updatedAt || snapshot.generatedAt || "—" }}
       </div>
+      <div class="completeness-line" v-if="manifest">
+        采集 {{ manifest.latestCapturedDate || manifest.latestDate || "—" }}
+        · 收盘完整 {{ manifest.latestCloseCompleteDate || "—" }}
+        · 全量最终 {{ manifest.latestFinalDate || "—" }}
+      </div>
     </div>
 
     <div v-if="error" class="empty-tip">加载失败：{{ error }}</div>
@@ -75,7 +80,7 @@ const currentDate = ref("");
 const error = ref("");
 
 const dates = computed(() => manifest.value?.availableDates ?? []);
-const latestDate = computed(() => manifest.value?.latestDate ?? "");
+const latestDate = computed(() => manifest.value?.latestCapturedDate || manifest.value?.latestDate || "");
 
 const idx = computed(() => dates.value.indexOf(currentDate.value));
 const prevDate = computed(() => (idx.value > 0 ? dates.value[idx.value - 1] : null));
@@ -138,6 +143,11 @@ watch(latestDate, (d) => {
 </script>
 
 <style scoped>
+.completeness-line {
+  font-size: 12px;
+  color: var(--muted, #999);
+  margin-top: 4px;
+}
 .legacy-banner {
   background: rgba(255, 202, 40, 0.08);
   border: 1px solid rgba(255, 202, 40, 0.3);

@@ -307,6 +307,30 @@ def validate_snapshot(
                     f"expected={expected})"
                 )
 
+    margin_reference = margin.get(
+        "latestPublishedReference"
+    )
+
+    if (
+        margin_reference is not None
+        and margin.get("status")
+        != ModuleStatus.FINAL.value
+    ):
+        _validate_margin_reference(
+            margin_reference,
+            trade_date,
+            errors,
+        )
+    elif (
+        margin_reference is not None
+        and margin.get("status")
+        == ModuleStatus.FINAL.value
+    ):
+        errors.append(
+            "margin: FINAL must not carry "
+            "latestPublishedReference"
+        )
+
     summary = modules.get(
         "summary",
         {},
@@ -380,7 +404,32 @@ def _validate_partial_module(
     trade_date: str,
     errors: list[str],
 ) -> None:
-    """V1 的 PARTIAL 当前只允许历史 sentiment 涨跌停池子集（R8-P2-01）。"""
+    """V1 PARTIAL：历史 sentiment（R8-P2-01）；R10 起允许受约束 tracks sufficient。"""
+    if name == "tracks":
+        if module.get("dataDate") != trade_date:
+            errors.append(
+                "tracks: PARTIAL dataDate "
+                f"{module.get('dataDate')} != tradeDate {trade_date}"
+            )
+
+        if module.get("decision") != "TRACKS_SUFFICIENT":
+            errors.append(
+                "tracks: PARTIAL decision must be TRACKS_SUFFICIENT"
+            )
+
+        coverage = module.get("coveragePct")
+
+        if (
+            not _is_finite_number(coverage)
+            or float(coverage) < 80.0
+            or float(coverage) > 100.0
+        ):
+            errors.append(
+                "tracks: PARTIAL coveragePct must be finite within [80, 100]"
+            )
+
+        return
+
     if name != "sentiment":
         errors.append(
             f"{name}: PARTIAL is not supported"
@@ -447,6 +496,118 @@ def _validate_partial_module(
             errors.append(
                 f"sentiment.{field} must be "
                 "null or non-negative integer"
+            )
+
+
+def _validate_margin_reference(
+    reference: dict[str, Any],
+    trade_date: str,
+    errors: list[str],
+) -> None:
+    """D0 两融参考值深度契约（R7-P1 / R6-P1-04）。
+
+    状态机契约（与 modules/margin._latest_published_reference 严格配对）：
+    - 仅允许在 margin.status != FINAL 时出现（FINAL 本身即 T 日真实值）；
+    - dataDate 必须是严格早于 tradeDate 的合法规范 ISO 日期；
+    - 三项余额必须是有限数值（排除 bool）且 >= 0；
+    - marginBalance ≈ financingBalance + securitiesLendingBalance
+      （绝对容差 0.05 亿元，与 collector 端同口径，R10.2-N04）。
+
+    边界说明：本函数保持纯函数、不读磁盘。参考值与所属快照的身份
+    一致性（dataDate 确实取自该日已落盘 FINAL margin）由采集端
+    _latest_published_reference 的"只读已落盘 FINAL 快照、倒序首个命中、
+    找不到即 None"查找保证（fail-closed），validator 不重复校验。
+    """
+    if not isinstance(reference, dict):
+        errors.append(
+            "margin.latestPublishedReference "
+            "must be object"
+        )
+        return
+
+    data_date = reference.get("dataDate")
+
+    try:
+        parsed = date.fromisoformat(
+            str(data_date)
+        ).isoformat()
+    except (KeyError, ValueError, TypeError):
+        errors.append(
+            "margin reference: invalid dataDate"
+        )
+        return
+
+    if data_date != parsed:
+        errors.append(
+            "margin reference: non-canonical dataDate"
+        )
+        return
+
+    try:
+        trade = date.fromisoformat(
+            str(trade_date)
+        )
+    except ValueError:
+        trade = None
+
+    if (
+        trade is not None
+        and date.fromisoformat(data_date) >= trade
+    ):
+        errors.append(
+            "margin reference dataDate must be "
+            "strictly before tradeDate"
+        )
+        return
+
+    for field in (
+        "financingBalance",
+        "securitiesLendingBalance",
+        "marginBalance",
+    ):
+        value = reference.get(field)
+
+        if (
+            isinstance(value, bool)
+            or not _is_finite_number(value)
+        ):
+            errors.append(
+                f"margin reference.{field} "
+                "must be finite number"
+            )
+            continue
+
+        if float(value) < 0:
+            errors.append(
+                f"margin reference.{field} "
+                "must be >= 0"
+            )
+
+    financing = reference.get(
+        "financingBalance"
+    )
+    lending = reference.get(
+        "securitiesLendingBalance"
+    )
+    total = reference.get("marginBalance")
+
+    if (
+        _is_finite_number(financing)
+        and not isinstance(financing, bool)
+        and _is_finite_number(lending)
+        and not isinstance(lending, bool)
+        and _is_finite_number(total)
+        and not isinstance(total, bool)
+    ):
+        expected = Decimal(str(financing)) + Decimal(str(lending))
+        actual = Decimal(str(total))
+
+        if abs(actual - expected) > Decimal("0.05"):
+            errors.append(
+                "margin reference: marginBalance must "
+                "equal financingBalance + "
+                "securitiesLendingBalance "
+                "(tolerance 0.05)"
             )
 
 

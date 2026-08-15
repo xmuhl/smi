@@ -1636,3 +1636,1317 @@ def test_market_index_explicit_chain_keeps_prior_errors(
 
 
 
+
+
+# ---------------------------------------------------------------------------
+# ④ D0/D+1 两阶段完整性模型（R7-P1 / R6-P1-04）
+# ---------------------------------------------------------------------------
+
+def _phase_snapshot(module_statuses):
+    """构造一个只带 status 的快照骨架，供 snapshot_phase 测试。"""
+    from collector.schema import new_snapshot
+    snap = new_snapshot("2026-08-14")
+    for name, status in module_statuses.items():
+        snap["modules"][name]["status"] = status
+    return snap
+
+
+def test_phase_all_final_is_final():
+    from collector.completeness import PHASE_FINAL, snapshot_phase
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "margin", "tracks", "summary",
+    )}
+    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_FINAL
+
+
+def test_phase_margin_pending_with_tracks_final_is_close_complete():
+    from collector.completeness import (
+        PHASE_CLOSE_COMPLETE,
+        snapshot_phase,
+    )
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "tracks", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_CLOSE_COMPLETE
+
+
+def test_phase_tracks_unavailable_is_captured_not_close_complete():
+    """当前 tracks 占位 UNAVAILABLE -> 无 CLOSE_COMPLETE 日（R7 原文语义）。"""
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    statuses["tracks"] = "UNAVAILABLE"
+    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_CAPTURED
+
+
+def test_phase_tracks_sufficient_with_coverage_is_close_complete():
+    from collector.completeness import (
+        PHASE_CLOSE_COMPLETE,
+        snapshot_phase,
+    )
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    statuses["tracks"] = "FINAL"
+    snap = _phase_snapshot(statuses)
+    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+    snap["modules"]["tracks"]["coveragePct"] = 85.0
+    assert snapshot_phase(snap) == PHASE_CLOSE_COMPLETE
+
+
+def test_phase_margin_error_is_captured():
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "tracks", "summary",
+    )}
+    statuses["margin"] = "ERROR"
+    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_CAPTURED
+
+
+def test_phase_any_module_missing_is_captured():
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "tracks", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    statuses["sentiment"] = "PARTIAL"
+    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_CAPTURED
+
+
+def test_margin_d0_reference_attached_when_pending(
+    tmp_path,
+    monkeypatch,
+):
+    """D0 时 margin=PENDING 必须附加最近已披露 T-1 参考值。"""
+    import json
+
+    import collector.config as config
+    from collector.modules.margin import (
+        _latest_published_reference,
+    )
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+
+    # 前一日（08-13）已披露 FINAL 两融
+    prev_dir = test_daily / "2026"
+    prev_dir.mkdir(parents=True, exist_ok=True)
+
+    prev_snapshot = {
+        "tradeDate": "2026-08-13",
+        "modules": {
+            "margin": {
+                "status": "FINAL",
+                "dataDate": "2026-08-13",
+                "financingBalance": 100.0,
+                "securitiesLendingBalance": 5.0,
+                "marginBalance": 105.0,
+            }
+        },
+    }
+
+    (prev_dir / "2026-08-13.json").write_text(
+        json.dumps(prev_snapshot),
+        encoding="utf-8",
+    )
+
+    ref = _latest_published_reference("2026-08-14")
+
+    assert ref is not None
+    assert ref["dataDate"] == "2026-08-13"
+    assert ref["marginBalance"] == 105.0
+
+
+def test_margin_d0_reference_none_without_prior_final(
+    tmp_path,
+    monkeypatch,
+):
+    import collector.config as config
+    from collector.modules.margin import (
+        _latest_published_reference,
+    )
+
+    test_root = tmp_path / "repo"
+    test_daily = test_root / "data" / "daily"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+
+    assert (
+        _latest_published_reference("2026-08-14")
+        is None
+    )
+
+
+def test_margin_reference_skips_pending_previous_day(
+    tmp_path,
+    monkeypatch,
+):
+    """前一日 margin 仍 PENDING 时必须继续回退找更早 FINAL 日。"""
+    import json
+
+    import collector.config as config
+    from collector.modules.margin import (
+        _latest_published_reference,
+    )
+
+    test_root = tmp_path / "repo"
+    test_daily = test_root / "data" / "daily"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+
+    prev_dir = test_daily / "2026"
+    prev_dir.mkdir(parents=True, exist_ok=True)
+
+    (prev_dir / "2026-08-13.json").write_text(
+        json.dumps({
+            "tradeDate": "2026-08-13",
+            "modules": {"margin": {"status": "PENDING"}},
+        }),
+        encoding="utf-8",
+    )
+
+    (prev_dir / "2026-08-12.json").write_text(
+        json.dumps({
+            "tradeDate": "2026-08-12",
+            "modules": {
+                "margin": {
+                    "status": "FINAL",
+                    "dataDate": "2026-08-12",
+                    "financingBalance": 90.0,
+                    "securitiesLendingBalance": 4.0,
+                    "marginBalance": 94.0,
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    ref = _latest_published_reference("2026-08-14")
+
+    assert ref is not None
+    assert ref["dataDate"] == "2026-08-12"
+    assert ref["marginBalance"] == 94.0
+
+
+def test_validator_accepts_margin_reference_on_pending():
+    import copy
+    import json
+
+    from collector.validators.schema import validate_snapshot
+
+    with open(
+        "web/public/data/daily/2026/2026-07-17.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snapshot = json.load(f)
+
+    mutated = copy.deepcopy(snapshot)
+    margin = mutated["modules"]["margin"]
+    margin["status"] = "PENDING"
+    margin["dataDate"] = None
+    margin["latestPublishedReference"] = {
+        "dataDate": "2026-07-16",
+        "financingBalance": 100.0,
+        "securitiesLendingBalance": 5.0,
+        "marginBalance": 105.0,
+    }
+    mutated["overallStatus"] = "PARTIAL_PENDING"
+
+    validate_snapshot(mutated)
+
+
+def test_validator_rejects_final_margin_with_reference():
+    import copy
+    import json
+
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    with open(
+        "web/public/data/daily/2026/2026-07-17.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snapshot = json.load(f)
+
+    mutated = copy.deepcopy(snapshot)
+    mutated["modules"]["margin"]["latestPublishedReference"] = {
+        "dataDate": "2026-07-16",
+        "financingBalance": 100.0,
+        "securitiesLendingBalance": 5.0,
+        "marginBalance": 105.0,
+    }
+
+    with pytest.raises(ValueError):
+        validate_snapshot(mutated)
+
+
+def test_validator_rejects_reference_date_not_before_trade_date():
+    import copy
+    import json
+
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    with open(
+        "web/public/data/daily/2026/2026-07-17.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snapshot = json.load(f)
+
+    mutated = copy.deepcopy(snapshot)
+    margin = mutated["modules"]["margin"]
+    margin["status"] = "PENDING"
+    margin["dataDate"] = None
+    margin["latestPublishedReference"] = {
+        "dataDate": "2026-07-17",
+        "financingBalance": 100.0,
+        "securitiesLendingBalance": 5.0,
+        "marginBalance": 105.0,
+    }
+    mutated["overallStatus"] = "PARTIAL_PENDING"
+
+    with pytest.raises(ValueError):
+        validate_snapshot(mutated)
+
+
+def test_summary_margin_pending_with_reference_text():
+    from collector.calculators.summary import _rule_margin
+
+    text = _rule_margin({
+        "status": "PENDING",
+        "latestPublishedReference": {
+            "dataDate": "2026-08-13",
+            "marginBalance": 105.0,
+        },
+    })
+
+    assert "2026-08-13" in text
+    assert "105.00" in text
+
+
+def test_manifest_three_pointers_computed(
+    tmp_path,
+    monkeypatch,
+):
+    """manifest 三指针：captured=最新、closeComplete=最新 CLOSE_COMPLETE、final=最新 FINAL。"""
+    import json
+
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import (
+        _write_json_atomic,
+        update_manifest_and_latest,
+    )
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+    test_calendar = test_data / "calendar"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
+    # common 模块在 import 时绑定了 DAILY_DIR，需同步打补丁
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    day_dir = test_daily / "2026"
+    day_dir.mkdir(parents=True, exist_ok=True)
+
+    def build_day(d, margin_status, tracks_status):
+        from collector.schema import new_snapshot
+        snap = new_snapshot(d)
+        for name in (
+            "marketIndex", "turnover", "sentiment",
+            "sectorPerformance", "fundFlow", "northbound",
+            "summary",
+        ):
+            snap["modules"][name]["status"] = "FINAL"
+            snap["modules"][name]["dataDate"] = d
+        snap["modules"]["margin"]["status"] = margin_status
+        if margin_status == "FINAL":
+            snap["modules"]["margin"]["dataDate"] = d
+        snap["modules"]["tracks"]["status"] = tracks_status
+        if tracks_status == "FINAL":
+            snap["modules"]["tracks"]["dataDate"] = d
+        if margin_status == "PENDING" and tracks_status == "FINAL":
+            snap["overallStatus"] = "PARTIAL_PENDING"
+        elif margin_status == "FINAL" and tracks_status == "FINAL":
+            snap["overallStatus"] = "FINAL"
+        else:
+            snap["overallStatus"] = "PARTIAL"
+        return snap
+
+    # 08-12：全 FINAL（D+1）
+    snap_a = build_day("2026-08-12", "FINAL", "FINAL")
+    _write_json_atomic(day_dir / "2026-08-12.json", snap_a)
+
+    # 08-13：margin PENDING + tracks FINAL（D0 CLOSE_COMPLETE）
+    snap_b = build_day("2026-08-13", "PENDING", "FINAL")
+    _write_json_atomic(day_dir / "2026-08-13.json", snap_b)
+
+    # 08-14：tracks UNAVAILABLE（CAPTURED，最新采集日）
+    snap_c = build_day("2026-08-14", "PENDING", "UNAVAILABLE")
+    _write_json_atomic(day_dir / "2026-08-14.json", snap_c)
+
+    manifest = update_manifest_and_latest(
+        "2026-08-14",
+        snap_c,
+    )
+
+    assert manifest["latestCapturedDate"] == "2026-08-14"
+    assert manifest["latestCloseCompleteDate"] == "2026-08-13"
+    assert manifest["latestFinalDate"] == "2026-08-12"
+    assert manifest["latestDate"] == "2026-08-14"
+
+    status = json.loads(
+        (test_data / "status.json").read_text(encoding="utf-8")
+    )
+
+    assert status["latestCapturedDate"] == "2026-08-14"
+    assert status["latestCloseCompleteDate"] == "2026-08-13"
+    assert status["latestFinalDate"] == "2026-08-12"
+
+
+# ---------------------------------------------------------------------------
+# ④ 复核补充：snapshot_phase / validator / manifest 边界用例（GLM-5.3 复核）
+# ---------------------------------------------------------------------------
+
+def test_phase_final_requires_all_nine_modules_by_name():
+    """缺 tracks 模块键的快照不得判 FINAL（按名锚定，防 8/9 FINAL 误抬指针）。"""
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+
+    snap = _phase_snapshot(
+        {name: "FINAL" for name in (
+            "marketIndex", "turnover", "sentiment",
+            "sectorPerformance", "fundFlow", "northbound",
+            "margin", "summary",
+        )}
+    )
+    # 不设置 tracks（模块键缺失）
+    del snap["modules"]["tracks"]
+
+    assert snapshot_phase(snap) == PHASE_CAPTURED
+
+
+def test_phase_tracks_sufficient_boundary_at_80():
+    from collector.completeness import (
+        PHASE_CLOSE_COMPLETE,
+        snapshot_phase,
+    )
+
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    statuses["tracks"] = "PARTIAL"
+    snap = _phase_snapshot(statuses)
+    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+    snap["modules"]["tracks"]["coveragePct"] = 80.0
+    assert snapshot_phase(snap) == PHASE_CLOSE_COMPLETE
+
+
+def test_phase_tracks_sufficient_below_80_is_captured():
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    statuses["tracks"] = "PARTIAL"
+    snap = _phase_snapshot(statuses)
+    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+    snap["modules"]["tracks"]["coveragePct"] = 79.9
+    assert snapshot_phase(snap) == PHASE_CAPTURED
+
+
+def test_phase_tracks_error_with_sufficient_decision_is_captured():
+    """矛盾数据（ERROR + TRACKS_SUFFICIENT + 达标覆盖率）不得点亮 CLOSE_COMPLETE。"""
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    statuses["tracks"] = "ERROR"
+    snap = _phase_snapshot(statuses)
+    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+    snap["modules"]["tracks"]["coveragePct"] = 95.0
+    assert snapshot_phase(snap) == PHASE_CAPTURED
+
+
+def test_phase_legacy_2026_07_17_snapshot_file_is_final():
+    """锚定设计边界：07-17 Legacy 为 9 模块全 FINAL（隐含 CLOSE_COMPLETE）。
+
+    同时守护 FIX-1：若该文件缺任一必需模块键，本用例失败，
+    说明落地 latestFinalDate=07-17 需重新裁决。
+    """
+    import json
+
+    from collector.completeness import (
+        PHASE_FINAL,
+        snapshot_phase,
+    )
+
+    with open(
+        "web/public/data/daily/2026/2026-07-17.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snapshot = json.load(f)
+
+    assert snapshot_phase(snapshot) == PHASE_FINAL
+
+
+def _margin_pending_mutation(reference):
+    import copy
+    import json
+
+    with open(
+        "web/public/data/daily/2026/2026-07-17.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snapshot = json.load(f)
+
+    mutated = copy.deepcopy(snapshot)
+    margin = mutated["modules"]["margin"]
+    margin["status"] = "PENDING"
+    margin["dataDate"] = None
+    margin["latestPublishedReference"] = reference
+    mutated["overallStatus"] = "PARTIAL_PENDING"
+    return mutated
+
+
+def test_validator_rejects_negative_reference_balance():
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    mutated = _margin_pending_mutation({
+        "dataDate": "2026-07-16",
+        "financingBalance": 100.0,
+        "securitiesLendingBalance": 5.0,
+        "marginBalance": -1.0,
+    })
+
+    with pytest.raises(ValueError):
+        validate_snapshot(mutated)
+
+
+def test_validator_rejects_noncanonical_reference_date():
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    mutated = _margin_pending_mutation({
+        "dataDate": "20260716",
+        "financingBalance": 100.0,
+        "securitiesLendingBalance": 5.0,
+        "marginBalance": 105.0,
+    })
+
+    with pytest.raises(ValueError):
+        validate_snapshot(mutated)
+
+
+def test_validator_rejects_reference_missing_balance_field():
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    mutated = _margin_pending_mutation({
+        "dataDate": "2026-07-16",
+    })
+
+    with pytest.raises(ValueError):
+        validate_snapshot(mutated)
+
+
+def test_manifest_final_implies_close_complete(
+    tmp_path,
+    monkeypatch,
+):
+    """唯一一天为 D+1 FINAL 时，CLOSE_COMPLETE 指针应与 FINAL 指针同日
+    （FINAL 隐含 CLOSE_COMPLETE 的直接断言）。"""
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import (
+        _write_json_atomic,
+        update_manifest_and_latest,
+    )
+    from collector.schema import new_snapshot
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+    test_calendar = test_data / "calendar"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    day_dir = test_daily / "2026"
+    day_dir.mkdir(parents=True, exist_ok=True)
+
+    snap = new_snapshot("2026-08-12")
+    for module in snap["modules"].values():
+        module["status"] = "FINAL"
+        module["dataDate"] = "2026-08-12"
+    snap["overallStatus"] = "FINAL"
+    _write_json_atomic(day_dir / "2026-08-12.json", snap)
+
+    manifest = update_manifest_and_latest(
+        "2026-08-12",
+        snap,
+    )
+
+    assert manifest["latestCapturedDate"] == "2026-08-12"
+    assert manifest["latestCloseCompleteDate"] == "2026-08-12"
+    assert manifest["latestFinalDate"] == "2026-08-12"
+
+
+# ---------------------------------------------------------------------------
+# R10.1 评审修复回归（ChatGPT 6 项：P1-01 事务恢复 / P1-02 tracks 状态域 /
+# P2-01 身份校验 / P3-01 文档 / P3-02 TS 形状）
+# ---------------------------------------------------------------------------
+
+def test_phase_tracks_stale_sufficient_is_captured():
+    """STALE + TRACKS_SUFFICIENT + 80 不得点亮 CLOSE_COMPLETE（R10-P1-02）。"""
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    statuses["tracks"] = "STALE"
+    snap = _phase_snapshot(statuses)
+    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+    snap["modules"]["tracks"]["coveragePct"] = 80.0
+    assert snapshot_phase(snap) == PHASE_CAPTURED
+
+
+def test_phase_tracks_pending_sufficient_is_captured():
+    """PENDING + TRACKS_SUFFICIENT + 80 不得点亮 CLOSE_COMPLETE（R10-P1-02）。"""
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+
+    statuses = {name: "FINAL" for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    )}
+    statuses["margin"] = "PENDING"
+    statuses["tracks"] = "PENDING"
+    snap = _phase_snapshot(statuses)
+    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+    snap["modules"]["tracks"]["coveragePct"] = 80.0
+    assert snapshot_phase(snap) == PHASE_CAPTURED
+
+
+def test_phase_tracks_partial_sufficient_80_is_close_complete():
+    """PARTIAL + TRACKS_SUFFICIENT + 80 -> CLOSE_COMPLETE + validator PASS。"""
+    import copy
+    import json
+
+    from collector.completeness import (
+        PHASE_CLOSE_COMPLETE,
+        snapshot_phase,
+    )
+    from collector.validators.schema import validate_snapshot
+
+    with open(
+        "web/public/data/daily/2026/2026-07-17.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snap = json.load(f)
+
+    # 以真实 FINAL 快照为基础，仅把 tracks 降级为受约束 PARTIAL sufficient
+    snap["modules"]["tracks"]["status"] = "PARTIAL"
+    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+    snap["modules"]["tracks"]["coveragePct"] = 80.0
+    snap["modules"]["tracks"]["dataDate"] = "2026-07-17"
+    snap["overallStatus"] = "PARTIAL"
+
+    assert snapshot_phase(snap) == PHASE_CLOSE_COMPLETE
+    validate_snapshot(snap)
+
+
+def test_phase_tracks_partial_invalid_coverage_fails_closed():
+    """PARTIAL sufficient 的 Inf/101/bool/79.9 均不得点亮，validator 拒绝。"""
+    import pytest
+
+    from collector.completeness import (
+        PHASE_CAPTURED,
+        snapshot_phase,
+    )
+    from collector.validators.schema import validate_snapshot
+
+    for coverage in (float("inf"), 101.0, True, 79.9):
+        statuses = {name: "FINAL" for name in (
+            "marketIndex", "turnover", "sentiment", "sectorPerformance",
+            "fundFlow", "northbound", "summary",
+        )}
+        statuses["margin"] = "PENDING"
+        statuses["tracks"] = "PARTIAL"
+        snap = _phase_snapshot(statuses)
+        snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+        snap["modules"]["tracks"]["coveragePct"] = coverage
+        snap["modules"]["tracks"]["dataDate"] = "2026-08-14"
+        snap["overallStatus"] = "PARTIAL"
+
+        assert snapshot_phase(snap) == PHASE_CAPTURED
+
+        with pytest.raises(ValueError):
+            validate_snapshot(snap)
+
+
+def test_margin_reference_rejects_filename_trade_date_mismatch(
+    tmp_path,
+    monkeypatch,
+):
+    """文件名=08-13、snapshot.tradeDate=08-12 -> reference 必须跳过（R10-P2-01）。"""
+    import json
+
+    import collector.config as config
+    from collector.modules.margin import (
+        _latest_published_reference,
+    )
+
+    test_root = tmp_path / "repo"
+    test_daily = test_root / "data" / "daily"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+
+    prev_dir = test_daily / "2026"
+    prev_dir.mkdir(parents=True, exist_ok=True)
+
+    (prev_dir / "2026-08-13.json").write_text(
+        json.dumps({
+            "tradeDate": "2026-08-12",
+            "modules": {
+                "margin": {
+                    "status": "FINAL",
+                    "dataDate": "2026-08-12",
+                    "financingBalance": 100.0,
+                    "securitiesLendingBalance": 5.0,
+                    "marginBalance": 105.0,
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    assert (
+        _latest_published_reference("2026-08-14")
+        is None
+    )
+
+
+def test_margin_reference_rejects_margin_data_date_mismatch(
+    tmp_path,
+    monkeypatch,
+):
+    """snapshot.tradeDate=08-13、margin.dataDate=08-12 -> 跳过（R10-P2-01）。"""
+    import json
+
+    import collector.config as config
+    from collector.modules.margin import (
+        _latest_published_reference,
+    )
+
+    test_root = tmp_path / "repo"
+    test_daily = test_root / "data" / "daily"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+
+    prev_dir = test_daily / "2026"
+    prev_dir.mkdir(parents=True, exist_ok=True)
+
+    (prev_dir / "2026-08-13.json").write_text(
+        json.dumps({
+            "tradeDate": "2026-08-13",
+            "modules": {
+                "margin": {
+                    "status": "FINAL",
+                    "dataDate": "2026-08-12",
+                    "financingBalance": 100.0,
+                    "securitiesLendingBalance": 5.0,
+                    "marginBalance": 105.0,
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    assert (
+        _latest_published_reference("2026-08-14")
+        is None
+    )
+
+
+def test_manifest_rejects_daily_identity_mismatch(
+    tmp_path,
+    monkeypatch,
+):
+    """文件名=08-14、snapshot.tradeDate=08-13 -> manifest 更新必须抛错（R10-P2-01）。"""
+    import pytest
+
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import (
+        _write_json_atomic,
+        update_manifest_and_latest,
+    )
+    from collector.schema import new_snapshot
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+    test_calendar = test_data / "calendar"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    day_dir = test_daily / "2026"
+    day_dir.mkdir(parents=True, exist_ok=True)
+
+    snap = new_snapshot("2026-08-13")
+    for module in snap["modules"].values():
+        module["status"] = "FINAL"
+        module["dataDate"] = "2026-08-13"
+    snap["overallStatus"] = "FINAL"
+
+    # 故意错名：内容 tradeDate=08-13 却写到 08-14 文件名
+    _write_json_atomic(day_dir / "2026-08-14.json", snap)
+
+    with pytest.raises(RuntimeError):
+        update_manifest_and_latest(
+            "2026-08-14",
+            snap,
+        )
+
+
+def test_derived_publish_recovers_after_second_file_failure(
+    tmp_path,
+    monkeypatch,
+):
+    """第二派生文件写失败后，下一次 ensure_derived_state_consistent 必须恢复（R10-P1-01）。"""
+    import json
+
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import (
+        _write_json_atomic,
+        ensure_derived_state_consistent,
+        update_manifest_and_latest,
+    )
+    from collector.schema import new_snapshot
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+    test_calendar = test_data / "calendar"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    day_dir = test_daily / "2026"
+    day_dir.mkdir(parents=True, exist_ok=True)
+
+    snap = new_snapshot("2026-08-14")
+    for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    ):
+        snap["modules"][name]["status"] = "FINAL"
+        snap["modules"][name]["dataDate"] = "2026-08-14"
+    snap["modules"]["margin"]["status"] = "PENDING"
+    snap["modules"]["tracks"]["status"] = "UNAVAILABLE"
+    snap["overallStatus"] = "PARTIAL_PENDING"
+
+    _write_json_atomic(day_dir / "2026-08-14.json", snap)
+
+    # 首次正常更新
+    update_manifest_and_latest("2026-08-14", snap)
+
+    # 故障注入：模拟第二派生文件(latest)失败——把 latest.json 删掉
+    (test_data / "latest.json").unlink()
+
+    # 一致性修复入口必须重建 latest.json
+    repaired = ensure_derived_state_consistent("2026-08-14", snap)
+
+    assert repaired is True
+    assert (test_data / "latest.json").exists()
+
+    restored = json.loads(
+        (test_data / "latest.json").read_text(encoding="utf-8")
+    )
+
+    assert restored["tradeDate"] == "2026-08-14"
+
+    # 再次执行应为 NO_REPAIR（幂等）
+    assert ensure_derived_state_consistent("2026-08-14", snap) is False
+
+
+def test_no_change_path_repairs_interrupted_derived_publish(
+    tmp_path,
+    monkeypatch,
+):
+    """NO_CHANGE 路径也必须修复派生分叉，且不制造无意义时间戳（R10-P1-01）。"""
+    import json
+
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import (
+        _write_json_atomic,
+        ensure_derived_state_consistent,
+        write_if_changed,
+    )
+    from collector.schema import new_snapshot
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+    test_calendar = test_data / "calendar"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    day_dir = test_daily / "2026"
+    day_dir.mkdir(parents=True, exist_ok=True)
+
+    import json
+
+    # 以真实 08-14 快照为基（V1 口径、margin 已 PENDING），仅修正 tracks
+    with open(
+        "web/public/data/daily/2026/2026-08-14.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snap = json.load(f)
+
+    snap["modules"]["tracks"]["status"] = "UNAVAILABLE"
+    snap["modules"]["tracks"]["dataDate"] = "2026-08-14"
+    snap["overallStatus"] = "PARTIAL_PENDING"
+
+    # 首次写入
+    changed, _ = write_if_changed(snap)
+    assert changed
+
+    from collector.jobs.common import update_manifest_and_latest
+
+    update_manifest_and_latest("2026-08-14", snap)
+
+    # 模拟派生分叉：删掉 status.json
+    (test_data / "status.json").unlink()
+
+    # 同语义重跑 -> NO_CHANGE，但 ensure 必须修复 status.json
+    changed, reason = write_if_changed(snap)
+    assert not changed
+    assert reason == "NO_CHANGE"
+
+    repaired = ensure_derived_state_consistent("2026-08-14", snap)
+    assert repaired is True
+    assert (test_data / "status.json").exists()
+
+    # 再次 ensure 幂等
+    assert ensure_derived_state_consistent("2026-08-14", snap) is False
+
+
+def test_validator_rejects_reference_unbalanced_balance():
+    """reference 三项余额不守恒（|total-(fin+lend)|>0.05）必须拒绝（R10.2-N04）。"""
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    mutated = _margin_pending_mutation({
+        "dataDate": "2026-07-16",
+        "financingBalance": 100.0,
+        "securitiesLendingBalance": 5.0,
+        "marginBalance": 110.0,  # 100+5=105，偏差 5 > 0.05
+    })
+
+    with pytest.raises(ValueError):
+        validate_snapshot(mutated)
+
+
+def test_write_if_changed_raises_on_readback_corruption(
+    tmp_path,
+    monkeypatch,
+):
+    """严格回读防线：落盘后读回失败必须 raise，不得静默成功（R10-P1-01 变异敏感度）。"""
+    import json
+
+    import pytest
+
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import write_if_changed
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    with open(
+        "web/public/data/daily/2026/2026-08-14.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snap = json.load(f)
+
+    original_read = common._read_json
+
+    def corrupting_read(path):
+        value = original_read(path)
+        if (
+            value is not None
+            and isinstance(value, dict)
+            and value.get("tradeDate") == "2026-08-14"
+        ):
+            return None  # 模拟回读失败/损坏
+        return value
+
+    monkeypatch.setattr(
+        common,
+        "_read_json",
+        corrupting_read,
+    )
+
+    with pytest.raises(RuntimeError):
+        write_if_changed(snap)
+
+
+def test_write_json_atomic_raises_on_readback_corruption(
+    tmp_path,
+    monkeypatch,
+):
+    """派生文件严格回读防线：读回失败必须 raise（R10-P1-01 变异敏感度）。"""
+    import pytest
+
+    import collector.jobs.common as common
+
+    monkeypatch.setattr(
+        common,
+        "_read_json",
+        lambda path: None,
+    )
+
+    with pytest.raises(RuntimeError):
+        common._write_json_atomic(
+            tmp_path / "derived.json",
+            {"k": 1},
+        )
+
+
+def test_daily_no_change_retry_reconfirms_parent_fsync(
+    tmp_path,
+    monkeypatch,
+):
+    """R10.2-P1-01：replace 成功后 parent fsync 失败 -> 同语义重试必须重新 fsync。"""
+    import json
+
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import write_if_changed
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    with open(
+        "web/public/data/daily/2026/2026-08-14.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        snap = json.load(f)
+
+    # 首次写入成功
+    changed, _ = write_if_changed(snap)
+    assert changed
+
+    # 故障注入：parent fsync 首次调用抛错
+    original_fsync = common._fsync_directory
+    calls = {"n": 0}
+
+    def flaky_fsync(path):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise OSError("injected fsync failure")
+        return original_fsync(path)
+
+    monkeypatch.setattr(common, "_fsync_directory", flaky_fsync)
+
+    # 同语义重试：首次（写入路径）fsync 失败 -> raise
+    import pytest
+
+    with pytest.raises(OSError):
+        write_if_changed(snap)
+
+    # 恢复后再次同语义调用 -> NO_CHANGE 且必须重新 fsync（防 durability 不确定被压平）
+    monkeypatch.setattr(common, "_fsync_directory", original_fsync)
+    fsync_calls = {"n": 0}
+
+    def counting_fsync(path):
+        fsync_calls["n"] += 1
+        return original_fsync(path)
+
+    monkeypatch.setattr(common, "_fsync_directory", counting_fsync)
+
+    changed, reason = write_if_changed(snap)
+    assert not changed
+    assert reason == "NO_CHANGE"
+    assert fsync_calls["n"] >= 1
+
+
+def test_derived_no_repair_reconfirms_parent_fsync(
+    tmp_path,
+    monkeypatch,
+):
+    """R10.2-P1-01：派生一致但上一事务 fsync 未确认 -> no-repair 路径也必须重新 fsync。"""
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import (
+        _write_json_atomic,
+        ensure_derived_state_consistent,
+        update_manifest_and_latest,
+    )
+    from collector.schema import new_snapshot
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+    test_calendar = test_data / "calendar"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    day_dir = test_daily / "2026"
+    day_dir.mkdir(parents=True, exist_ok=True)
+
+    snap = new_snapshot("2026-08-14")
+    for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    ):
+        snap["modules"][name]["status"] = "FINAL"
+        snap["modules"][name]["dataDate"] = "2026-08-14"
+    snap["modules"]["margin"]["status"] = "PENDING"
+    snap["modules"]["tracks"]["status"] = "UNAVAILABLE"
+    snap["overallStatus"] = "PARTIAL_PENDING"
+
+    _write_json_atomic(day_dir / "2026-08-14.json", snap)
+    update_manifest_and_latest("2026-08-14", snap)
+
+    original_fsync = common._fsync_directory
+    fsync_calls = {"n": 0}
+
+    def counting_fsync(path):
+        fsync_calls["n"] += 1
+        return original_fsync(path)
+
+    monkeypatch.setattr(common, "_fsync_directory", counting_fsync)
+
+    # 派生已一致 -> no-repair，但必须重新 fsync 数据目录
+    repaired = ensure_derived_state_consistent("2026-08-14", snap)
+
+    assert repaired is False
+    assert fsync_calls["n"] >= 1
+
+
+def test_manifest_rejects_partial_tracks_data_date_mismatch(
+    tmp_path,
+    monkeypatch,
+):
+    """R10.2-P2-01：PARTIAL tracks dataDate 错日不得参与索引（CC 指针不可被推进）。"""
+    import pytest
+
+    import collector.config as config
+    import collector.jobs.common as common
+    from collector.jobs.common import (
+        _write_json_atomic,
+        update_manifest_and_latest,
+    )
+    from collector.schema import new_snapshot
+
+    test_root = tmp_path / "repo"
+    test_data = test_root / "data"
+    test_daily = test_data / "daily"
+    test_calendar = test_data / "calendar"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_data)
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
+    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
+
+    day_dir = test_daily / "2026"
+    day_dir.mkdir(parents=True, exist_ok=True)
+
+    snap = new_snapshot("2026-08-14")
+    for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "summary",
+    ):
+        snap["modules"][name]["status"] = "FINAL"
+        snap["modules"][name]["dataDate"] = "2026-08-14"
+    snap["modules"]["margin"]["status"] = "PENDING"
+    snap["modules"]["tracks"]["status"] = "PARTIAL"
+    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
+    snap["modules"]["tracks"]["coveragePct"] = 80.0
+    snap["modules"]["tracks"]["dataDate"] = "2026-08-13"  # 错日
+    snap["overallStatus"] = "PARTIAL"
+
+    _write_json_atomic(day_dir / "2026-08-14.json", snap)
+
+    with pytest.raises(RuntimeError):
+        update_manifest_and_latest("2026-08-14", snap)
+
+
+def test_margin_reference_accepts_exact_boundary_conservation(
+    tmp_path,
+    monkeypatch,
+):
+    """R10.2-P2-02：Decimal 口径——恰好 +0.05 的 reference 必须被 collector 接受。"""
+    import json
+
+    import collector.config as config
+    from collector.modules.margin import (
+        _latest_published_reference,
+    )
+
+    test_root = tmp_path / "repo"
+    test_daily = test_root / "data" / "daily"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
+    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
+    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
+
+    prev_dir = test_daily / "2026"
+    prev_dir.mkdir(parents=True, exist_ok=True)
+
+    # 十进制精确差 = 0.05，按业务规则应通过
+    (prev_dir / "2026-08-13.json").write_text(
+        json.dumps({
+            "tradeDate": "2026-08-13",
+            "modules": {
+                "margin": {
+                    "status": "FINAL",
+                    "dataDate": "2026-08-13",
+                    "financingBalance": 99900.0,
+                    "securitiesLendingBalance": 100.0,
+                    "marginBalance": 100000.05,
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    ref = _latest_published_reference("2026-08-14")
+
+    assert ref is not None
+    assert ref["dataDate"] == "2026-08-13"
+
+
+def test_validator_reference_boundary_decimal():
+    """R10.2-P2-02：validator 恰好 +0.05 通过；+0.06 拒绝。"""
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    valid = _margin_pending_mutation({
+        "dataDate": "2026-07-16",
+        "financingBalance": 99900.0,
+        "securitiesLendingBalance": 100.0,
+        "marginBalance": 100000.05,
+    })
+    validate_snapshot(valid)
+
+    invalid = _margin_pending_mutation({
+        "dataDate": "2026-07-16",
+        "financingBalance": 99900.0,
+        "securitiesLendingBalance": 100.0,
+        "marginBalance": 100000.06,
+    })
+
+    with pytest.raises(ValueError):
+        validate_snapshot(invalid)

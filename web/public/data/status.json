@@ -1,9 +1,20 @@
 {
   "lastWorkflow": "manual",
-  "lastRunAt": "2026-08-15T23:05:09+08:00",
-  "lastSuccessfulTradeDate": "2026-08-13",
+  "lastRunAt": "2026-08-16T00:35:11+08:00",
+  "lastSuccessfulTradeDate": "2026-07-17",
+  "latestCapturedDate": "2026-08-14",
+  "latestCloseCompleteDate": "2026-07-17",
+  "latestFinalDate": "2026-07-17",
   "latestDate": "2026-08-14",
-  "health": "OK",
-  "errors": [],
+  "health": "DEGRADED",
+  "errors": [
+    {
+      "module": "margin",
+      "status": "PENDING",
+      "errors": [
+        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+      ]
+    }
+  ],
   "staleModules": []
 }

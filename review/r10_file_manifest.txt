@@ -1,0 +1,21 @@
+M	collector/calculators/summary.py
+M	collector/jobs/close_snapshot.py
+M	collector/jobs/common.py
+M	collector/jobs/manual_backfill.py
+M	collector/jobs/reconcile_turnover_chain.py
+M	collector/jobs/t1_reconcile.py
+M	collector/modules/margin.py
+M	collector/tests/test_core.py
+M	collector/validators/schema.py
+M	docs/SMI-V1-Design-V1.1.md
+M	web/public/data/daily/2026/2026-08-14.json
+M	web/public/data/latest.json
+M	web/public/data/manifest.json
+M	web/public/data/status.json
+M	web/src/App.vue
+M	web/src/modules/MarginPanel.vue
+M	web/src/types/smi.ts
+
+--- sha256 of diff ---
+B9F885993BEC011D31FE1A14FB9D2B2DE52D924DA078B95551E8378B6FA78921
+A	collector/completeness.py (untracked, in working tree / zip)

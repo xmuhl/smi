@@ -251,15 +251,30 @@ def main() -> int:
         if written:
             reconciled.append(trade_date)
 
-    if not reconciled:
+    if not paths:
+        # 空仓库（无 daily 文件）保持 88f4097 行为：NO_CHANGE 退出，
+        # 而非在下述 paths[-1] 上 IndexError（R10.2-N02）。
         print("NO_CHANGE")
         return 0
 
     latest_date = paths[-1].stem
     latest_snapshot = _read_snapshot(daily_path(latest_date))
 
-    if latest_snapshot is not None:
-        update_manifest_and_latest(latest_date, latest_snapshot)
+    if latest_snapshot is None:
+        raise RuntimeError(
+            f"latest snapshot invalid during derived repair: {latest_date}"
+        )
+
+    from collector.jobs.common import ensure_derived_state_consistent
+
+    ensure_derived_state_consistent(
+        latest_date,
+        latest_snapshot,
+    )
+
+    if not reconciled:
+        print("NO_CHANGE")
+        return 0
 
     print("RECONCILED " + ",".join(reconciled))
     return 0

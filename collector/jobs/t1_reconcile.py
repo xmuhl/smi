@@ -92,6 +92,9 @@ def main() -> int:
     previous_margin = snapshot["modules"].get("margin", {})
 
     if previous_margin.get("status") == ModuleStatus.FINAL.value:
+        from collector.jobs.common import ensure_derived_state_consistent
+
+        ensure_derived_state_consistent(target, snapshot)
         print(f"ALREADY_FINAL {target}")
         return 0
 
@@ -116,8 +119,11 @@ def main() -> int:
 
     changed, _ = write_if_changed(snapshot)
 
+    from collector.jobs.common import ensure_derived_state_consistent
+
+    ensure_derived_state_consistent(target, snapshot)
+
     if changed:
-        update_manifest_and_latest(target, snapshot)
         print(
             f"UPDATED {target} "
             f"margin={updated_margin.get('status')} "

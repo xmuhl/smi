@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 import pandas as pd
@@ -32,6 +33,20 @@ def collect_margin(
         "warnings": [],
     }
 
+    # D0 参考值（R7-P1）：D0 时 margin=PENDING，前端需要展示
+    # "最近已披露"的 T-1 官方值，而不是空白或伪装的 T 日 FINAL。
+    # 仅在结果非 FINAL 时附加；FINAL 本身就是 T 日真实值，无需参考。
+    _latest_reference = _latest_published_reference(
+        trade_date
+    )
+
+    def _attach_reference(
+        result: dict[str, Any],
+    ) -> dict[str, Any]:
+        if _latest_reference is not None:
+            result["latestPublishedReference"] = _latest_reference
+        return result
+
     try:
         sse = ak.stock_margin_sse(
             start_date=yyyymmdd,
@@ -43,31 +58,35 @@ def collect_margin(
         )
 
     except Exception as exc:  # noqa: BLE001
-        return {
-            **base,
-            "status": (
-                ModuleStatus.ERROR.value
-                if is_t1
-                else ModuleStatus.PENDING.value
-            ),
-            "errors": [str(exc)],
-        }
+        return _attach_reference(
+            {
+                **base,
+                "status": (
+                    ModuleStatus.ERROR.value
+                    if is_t1
+                    else ModuleStatus.PENDING.value
+                ),
+                "errors": [str(exc)],
+            }
+        )
 
     sse_row = _last_row(sse)
     szse_row = _last_row(szse)
 
     if sse_row is None or szse_row is None:
-        return {
-            **base,
-            "status": (
-                ModuleStatus.STALE.value
-                if is_t1
-                else ModuleStatus.PENDING.value
-            ),
-            "errors": [
-                "SSE/SZSE 两融汇总尚未同时取得"
-            ],
-        }
+        return _attach_reference(
+            {
+                **base,
+                "status": (
+                    ModuleStatus.STALE.value
+                    if is_t1
+                    else ModuleStatus.PENDING.value
+                ),
+                "errors": [
+                    "SSE/SZSE 两融汇总尚未同时取得"
+                ],
+            }
+        )
 
     sse_financing_balance = _yuan_to_yi(
         _pick_float(
@@ -129,13 +148,15 @@ def collect_margin(
     ]
 
     if any(value is None for value in required_values):
-        return {
-            **base,
-            "status": ModuleStatus.ERROR.value,
-            "errors": [
-                "两融核心字段缺失，拒绝生成 FINAL"
-            ],
-        }
+        return _attach_reference(
+            {
+                **base,
+                "status": ModuleStatus.ERROR.value,
+                "errors": [
+                    "两融核心字段缺失，拒绝生成 FINAL"
+                ],
+            }
+        )
 
     financing_balance = (
         sse_financing_balance
@@ -339,6 +360,117 @@ def collect_margin(
     )
 
     return result
+
+def _latest_published_reference(
+    trade_date: str,
+) -> dict[str, Any] | None:
+    """最近已披露两融参考值；文件名、snapshot.tradeDate、margin.dataDate 三者必须同日。
+
+    从 trade_date 之前的交易日倒序查找第一个满足身份一致且 margin=FINAL 的
+    快照，返回其三项余额作为"最近已披露"参考；找不到则返回 None（fail-closed）。
+
+    约束（R10-P2-01 强化）：
+    - 只读已落盘快照，不重新抓网络（与 _compute_balance_change 同源）；
+    - 文件名日期、snapshot.tradeDate、margin.dataDate 必须三者一致，
+      任何错位一律跳过（防错名/被改文件把 T-n 内容标成 T-1）；
+    - 参考值必须是 FINAL 快照的核心余额字段，避免把 PENDING/ERROR 当参考；
+    - 三项余额必须是有限数值（bool/NaN/Inf 一律跳过并继续回退）且 >= 0，
+      并满足 marginBalance == financingBalance + securitiesLendingBalance
+      （绝对容差 0.05 亿元，与 validator 同口径）；
+    - 回退上限为 30 个交易日（约 6 周），防止异常日历死循环；
+    - 返回结构固定：dataDate + 三项余额（亿元），供 validator 深度契约。
+    """
+    from math import isfinite
+
+    from collector.calendar import previous_trading_day
+    from collector.config import daily_path
+
+    cursor = date.fromisoformat(trade_date)
+
+    for _ in range(30):
+        try:
+            previous = previous_trading_day(
+                cursor,
+                fallback_weekday=True,
+            )
+        except ValueError:
+            return None
+
+        if previous >= cursor:
+            return None
+
+        expected_date = previous.isoformat()
+        path = daily_path(expected_date)
+
+        if not path.exists():
+            cursor = previous
+            continue
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError, TypeError):
+            cursor = previous
+            continue
+
+        if (
+            not isinstance(data, dict)
+            or data.get("tradeDate") != expected_date
+        ):
+            cursor = previous
+            continue
+
+        modules = data.get("modules")
+
+        if not isinstance(modules, dict):
+            cursor = previous
+            continue
+
+        margin = modules.get("margin")
+
+        if not isinstance(margin, dict):
+            cursor = previous
+            continue
+
+        if (
+            margin.get("status") != ModuleStatus.FINAL.value
+            or margin.get("dataDate") != expected_date
+        ):
+            cursor = previous
+            continue
+
+        financing = margin.get("financingBalance")
+        lending = margin.get("securitiesLendingBalance")
+        total = margin.get("marginBalance")
+
+        values = (financing, lending, total)
+
+        if not all(
+            isinstance(v, (int, float))
+            and not isinstance(v, bool)
+            and isfinite(v)
+            and float(v) >= 0
+            for v in values
+        ):
+            cursor = previous
+            continue
+
+        expected = Decimal(str(financing)) + Decimal(str(lending))
+        actual = Decimal(str(total))
+
+        if abs(actual - expected) > Decimal("0.05"):
+            cursor = previous
+            continue
+
+        return {
+            "dataDate": expected_date,
+            "financingBalance": financing,
+            "securitiesLendingBalance": lending,
+            "marginBalance": total,
+        }
+
+    return None
+
 
 def _compute_balance_change(
     result: dict[str, Any],

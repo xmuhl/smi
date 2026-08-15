@@ -7,19 +7,31 @@
     <div v-if="module.status === 'PENDING'" class="notice">
       两融数据 T+1 披露，今日暂缺，待次日回补。
     </div>
+    <div
+      v-if="module.latestPublishedReference && module.status !== 'FINAL'"
+      class="ref-line"
+    >
+      最近已披露（{{ module.latestPublishedReference.dataDate }}）参考：
+      融资 {{ fmt(module.latestPublishedReference.financingBalance) }} ·
+      融券 {{ fmt(module.latestPublishedReference.securitiesLendingBalance) }} ·
+      合计 {{ fmt(module.latestPublishedReference.marginBalance) }}
+    </div>
     <div class="grid grid-4">
       <div class="metric">
         <div class="label">融资余额</div>
         <div class="value">{{ fmt(module.financingBalance) }}</div>
+        <div class="sub flat" v-if="module.status !== 'FINAL'">当日未披露</div>
       </div>
       <div class="metric">
         <div class="label">融券余额</div>
         <div class="value">{{ fmt(module.securitiesLendingBalance) }}</div>
+        <div class="sub flat" v-if="module.status !== 'FINAL'">当日未披露</div>
       </div>
       <div class="metric">
         <div class="label">两融总余额</div>
         <div class="value">{{ fmt(module.marginBalance) }}</div>
-        <div class="sub" :class="signClass(module.marginBalanceChange)">{{ fmtSigned(module.marginBalanceChange) }}</div>
+        <div class="sub flat" v-if="module.status !== 'FINAL'">当日未披露</div>
+        <div class="sub" v-else :class="signClass(module.marginBalanceChange)">{{ fmtSigned(module.marginBalanceChange) }}</div>
       </div>
       <div class="metric">
         <div class="label">融资净买入</div>
@@ -81,5 +93,10 @@ function qualityText(q: string | undefined): string {
   font-size: 12px;
   color: var(--blue);
   margin-bottom: 10px;
+}
+.ref-line {
+  font-size: 12px;
+  color: var(--muted, #999);
+  margin-bottom: 8px;
 }
 </style>

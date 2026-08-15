@@ -151,16 +151,24 @@ export interface QualityValue {
 
 export interface MarginModule extends ModuleBase {
   unit: string;
-  financingBalance: number | null;
-  securitiesLendingBalance: number | null;
-  marginBalance: number | null;
-  marginBalanceChange: number | null;
-  financingBuyAmount: number | null;
-  financingNetBuyAmount: QualityValue;
-  securitiesLendingNetSellVolume: QualityValue;
+  /** FINAL 必有；PENDING/STALE/ERROR 可缺省或 null（R10-P3-02） */
+  financingBalance?: number | null;
+  securitiesLendingBalance?: number | null;
+  marginBalance?: number | null;
+  marginBalanceChange?: number | null;
+  financingBuyAmount?: number | null;
+  financingNetBuyAmount?: QualityValue;
+  securitiesLendingNetSellVolume?: QualityValue;
   legacySecuritiesLendingNetSellAmount?: QualityValue;
-  marginTradeAmount: QualityValue;
-  marginTradeSharePct: QualityValue;
+  marginTradeAmount?: QualityValue;
+  marginTradeSharePct?: QualityValue;
+  /** 非 FINAL 时展示最近已披露的官方两融余额；可能是 T-1，也可能因缺口回退到更早交易日，以 dataDate 为准（R10-P3-01） */
+  latestPublishedReference?: {
+    dataDate: string;
+    financingBalance: number;
+    securitiesLendingBalance: number;
+    marginBalance: number;
+  } | null;
 }
 
 export interface TrackItem {
@@ -190,6 +198,9 @@ export interface TrackItem {
 export interface TracksModule extends ModuleBase {
   configVersion: string;
   sourceSystem?: string;
+  /** 模块级 D0 覆盖契约；仅 PARTIAL sufficient 路径使用（R10-P1-02） */
+  decision?: "TRACKS_SUFFICIENT" | "INSUFFICIENT";
+  coveragePct?: number | null;
   items: TrackItem[];
 }
 
@@ -247,8 +258,12 @@ export interface DailySnapshot {
 
 export interface Manifest {
   schemaVersion: string;
-  latestDate: string;
+  /** 三指针（R7-P1）：最新已采集 / 最新 D0 收盘完整 / 最新 D+1 全 FINAL */
+  latestCapturedDate: string;
+  latestCloseCompleteDate: string | null;
   latestFinalDate: string | null;
+  /** 已废弃别名，与 latestCapturedDate 同值 */
+  latestDate?: string;
   updatedAt: string;
   availableDates: string[];
 }

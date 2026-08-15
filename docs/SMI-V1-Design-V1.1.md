@@ -2835,23 +2835,42 @@ web/public/data/daily/2026/2026-08-13.json
 
 ---
 
-# 13. manifest.json
+# 13. manifest.json（schemaVersion 1.2 · D0/D+1 三指针）
 
-建议：
+建议（示例为 tracks 占位期的线上真实形态：07-17 是 Legacy FINAL 基线；
+07-20~08-14 因 tracks=UNAVAILABLE 只能 CAPTURED。启用真实 tracks collector 后，
+latestCloseCompleteDate 将自当日起每日推进）：
 
 ```json
 {
-  "schemaVersion": "1.0",
-  "latestDate": "2026-08-13",
-  "latestFinalDate": "2026-08-13",
-  "updatedAt": "2026-08-14T10:18:12+08:00",
+  "schemaVersion": "1.2",
+  "latestCapturedDate": "2026-08-14",
+  "latestCloseCompleteDate": "2026-07-17",
+  "latestFinalDate": "2026-07-17",
+  "latestDate": "2026-08-14",
+  "updatedAt": "2026-08-16T00:35:11+08:00",
   "availableDates": [
+    "2026-08-14",
     "2026-08-13",
-    "2026-08-12",
-    "2026-08-11"
+    "2026-08-12"
   ]
 }
 ```
+
+三指针语义（R7-P1 / R6-P1-04，D0/D+1 两阶段完整性模型）：
+
+| 字段 | 语义 | 判定 |
+|---|---|---|
+| latestCapturedDate | 最新有快照文件的日期（任意阶段） | availableDates 最大值 |
+| latestCloseCompleteDate | 最新达到 D0 CLOSE_COMPLETE 的日期 | 8 个非 margin 模块 FINAL（tracks 需 FINAL 或 TRACKS_SUFFICIENT coverage>=80），margin 允许 PENDING |
+| latestFinalDate | 最新达到 D+1 FINAL 的日期 | 9 模块全部 FINAL |
+| latestDate | 已废弃别名，与 latestCapturedDate 同值 | 兼容旧消费者 |
+
+- FINAL 隐含 CLOSE_COMPLETE（9 模块全 FINAL ⊃ 非 margin FINAL + margin FINAL/PENDING）。
+- 从启用真实 tracks collector 之日起，每日形成 D0 CLOSE_COMPLETE；
+  当前 tracks 为占位 UNAVAILABLE，07-20 起各日只能 CAPTURED，
+  latestCloseCompleteDate 锚定 07-17（Legacy FINAL）属预期。
+- 阶段判定纯函数位于 `collector/completeness.py`（snapshot_phase）。
 
 日期选择器只允许选择：
 
@@ -2869,14 +2888,28 @@ availableDates
 
 ```json
 {
-  "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-08-14T10:18:12+08:00",
-  "lastSuccessfulTradeDate": "2026-08-13",
-  "latestDate": "2026-08-13",
-  "health": "OK",
-  "errors": []
+  "lastWorkflow": "manual",
+  "lastRunAt": "2026-08-16T00:35:11+08:00",
+  "lastSuccessfulTradeDate": "2026-07-17",
+  "latestCapturedDate": "2026-08-14",
+  "latestCloseCompleteDate": "2026-07-17",
+  "latestFinalDate": "2026-07-17",
+  "latestDate": "2026-08-14",
+  "health": "DEGRADED",
+  "errors": [
+    {
+      "module": "margin",
+      "status": "PENDING",
+      "errors": ["Length mismatch: Expected axis has 0 elements, new values have 13 elements"]
+    }
+  ],
+  "staleModules": []
 }
 ```
+
+说明：health 描述"流水线故障"（errors/stale），三指针描述"快照完整度"，两者分离
+（R6-P2-03）。D0 margin=PENDING 且采集带真实 errors 时 health=DEGRADED 属既有语义；
+预期中的 D0 PENDING 是否计降级留待 R6-P2-03 后续任务。
 
 ---
 

@@ -317,6 +317,35 @@ def _rule_margin(
     status = margin.get("status")
 
     if status == ModuleStatus.PENDING.value:
+        from math import isfinite
+
+        reference = margin.get(
+            "latestPublishedReference"
+        )
+        data_date = (
+            reference.get("dataDate")
+            if isinstance(reference, dict)
+            else None
+        )
+        balance = (
+            reference.get("marginBalance")
+            if isinstance(reference, dict)
+            else None
+        )
+
+        if (
+            isinstance(data_date, str)
+            and data_date
+            and isinstance(balance, (int, float))
+            and not isinstance(balance, bool)
+            and isfinite(balance)
+        ):
+            return (
+                "两融数据按 T+1 节奏回补，目前待披露；"
+                f"最近已披露（{data_date}）"
+                f"总余额 {balance:.2f} 亿元。"
+            )
+
         return "两融数据按 T+1 节奏回补，目前待披露。"
 
     if status == ModuleStatus.STALE.value:

@@ -202,6 +202,10 @@ def write_if_changed(
         )
 
         if old_semantic == new_semantic:
+            # 上一轮可能在 os.replace 后、parent fsync 前失败；即使业务语义
+            # 已一致，也必须重新确认目录项耐久性，不能把不确定状态压成 NO_CHANGE
+            # （R10.2-P1-01）。
+            _fsync_directory(path.parent)
             return False, "NO_CHANGE"
 
         snapshot["generatedAt"] = (
@@ -220,7 +224,6 @@ def write_if_changed(
         )
 
     snapshot["updatedAt"] = now_iso()
-
     validate_snapshot(snapshot)
 
     text = json.dumps(
@@ -230,8 +233,33 @@ def write_if_changed(
         allow_nan=False,
     ) + "\n"
 
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+
+        os.replace(tmp, path)
+        _fsync_directory(path.parent)
+    finally:
+        if tmp.exists():
+            tmp.unlink(missing_ok=True)
+
+    persisted = _read_json(path)
+
+    if persisted is None:
+        raise RuntimeError(
+            "daily strict readback failed: "
+            + str(snapshot.get("tradeDate"))
+        )
+
+    validate_snapshot(persisted)
+
+    if canonical_json(persisted) != canonical_json(snapshot):
+        raise RuntimeError(
+            "daily strict readback mismatch: "
+            + str(snapshot.get("tradeDate"))
+        )
 
     return True, "CHANGED"
 
@@ -239,36 +267,133 @@ def _write_json_atomic(
     path,
     obj: dict[str, Any],
 ) -> None:
+    """单 JSON 文件的耐久原子替换；提交后必须严格回读一致。"""
     path.parent.mkdir(parents=True, exist_ok=True)
 
     temp = path.with_suffix(
-        path.suffix + ".tmp"
+        path.suffix + f".tmp-{os.getpid()}"
     )
 
-    temp.write_text(
-        json.dumps(
-            obj,
-            ensure_ascii=False,
-            indent=2,
-            allow_nan=False,
+    text = json.dumps(
+        obj,
+        ensure_ascii=False,
+        indent=2,
+        allow_nan=False,
+    ) + "\n"
+
+    try:
+        with open(temp, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+
+        os.replace(temp, path)
+        _fsync_directory(path.parent)
+    finally:
+        if temp.exists():
+            temp.unlink(missing_ok=True)
+
+    persisted = _read_json(path)
+
+    if persisted is None:
+        raise RuntimeError(
+            f"json strict readback failed: {path}"
         )
-        + "\n",
-        encoding="utf-8",
-    )
 
-    os.replace(temp, path)
+    if canonical_json(persisted) != canonical_json(obj):
+        raise RuntimeError(
+            f"json strict readback mismatch: {path}"
+        )
 
-def update_manifest_and_latest(
+def _fsync_directory(path) -> None:
+    """POSIX 下把目录项更新刷入磁盘；非 POSIX 由 os.replace + 严格回读兜底。"""
+    if os.name != "posix":
+        return
+
+    fd = os.open(str(path), os.O_RDONLY)
+
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _read_daily_for_index(
+    trade_date: str,
+) -> dict[str, Any]:
+    """读取参与 manifest/latest 派生的 daily；身份不一致立即 fail-closed。
+
+    文件名、snapshot.tradeDate、各 FINAL 模块 dataDate 必须同一天；
+    防止错名/被改文件抬高完整性指针（R10-P2-01）。
+    """
+    item = _read_json(daily_path(trade_date))
+
+    if item is None:
+        raise RuntimeError(
+            f"cannot read daily snapshot: {trade_date}"
+        )
+
+    if item.get("tradeDate") != trade_date:
+        raise RuntimeError(
+            "daily snapshot identity mismatch: "
+            f"filename={trade_date} tradeDate={item.get('tradeDate')}"
+        )
+
+    modules = item.get("modules")
+
+    if not isinstance(modules, dict):
+        raise RuntimeError(
+            f"daily snapshot modules invalid: {trade_date}"
+        )
+
+    # writer 已保证 FINAL dataDate == tradeDate；读侧再次做最关键的身份防御
+    for name, module in modules.items():
+        if (
+            isinstance(module, dict)
+            and module.get("status") == ModuleStatus.FINAL.value
+            and module.get("dataDate") != trade_date
+        ):
+            raise RuntimeError(
+                "daily module identity mismatch: "
+                f"date={trade_date} module={name} "
+                f"dataDate={module.get('dataDate')}"
+            )
+
+    # R10.2 新增 PARTIAL tracks 可以参与 CLOSE_COMPLETE，因此只校验 FINAL
+    # dataDate 已不足以覆盖索引身份。当前 validator 允许的 PARTIAL
+    # （sentiment / tracks）都要求 dataDate == tradeDate，读侧同步执行该身份防线
+    # （R10.2-P2-01）。
+    for name, module in modules.items():
+        if (
+            isinstance(module, dict)
+            and module.get("status") == ModuleStatus.PARTIAL.value
+            and module.get("dataDate") != trade_date
+        ):
+            raise RuntimeError(
+                "daily PARTIAL module identity mismatch: "
+                f"date={trade_date} module={name} "
+                f"dataDate={module.get('dataDate')}"
+            )
+
+    return item
+
+
+def _compute_derived_semantic(
     trade_date: str,
     snapshot: dict[str, Any],
 ) -> dict[str, Any]:
-    """重算 manifest，旧日期修订不得让 latestDate 回退。"""
-    ensure_dirs()
+    """manifest/latest/status 派生语义的唯一权威计算（R10.2-N03）。
 
-    data_root = DAILY_DIR.parent
-    manifest_path = data_root / "manifest.json"
-    latest_path = data_root / "latest.json"
-    status_path = data_root / "status.json"
+    update_manifest_and_latest（重建权威）与 ensure_derived_state_consistent
+    （一致性比较权威）必须共用本函数，从结构上消除两份手写计算分叉的
+    可能。所有参与索引的 daily 均经 _read_daily_for_index 身份校验，
+    错名/被改文件直接 raise（fail-closed，R10-P2-01）。
+    """
+    from collector.completeness import (
+        PHASE_CLOSE_COMPLETE,
+        PHASE_FINAL,
+        snapshot_phase,
+    )
 
     available_dates = _list_available_dates()
 
@@ -277,45 +402,28 @@ def update_manifest_and_latest(
 
     latest_date = available_dates[-1]
 
-    latest_final_date: str | None = None
+    # latest.json 的权威内容；同时触发最新日的身份校验
+    authoritative_latest = _read_daily_for_index(latest_date)
+
+    close_date: str | None = None
+    final_date: str | None = None
 
     for value in reversed(available_dates):
-        item = _read_json(daily_path(value))
+        item = _read_daily_for_index(value)
+        phase = snapshot_phase(item)
 
+        # FINAL 隐含 CLOSE_COMPLETE（9 模块全 FINAL ⊃ 非 margin FINAL）
         if (
-            item is not None
-            and item.get("overallStatus")
-            == ModuleStatus.FINAL.value
+            close_date is None
+            and phase in {PHASE_CLOSE_COMPLETE, PHASE_FINAL}
         ):
-            latest_final_date = value
+            close_date = value
+
+        if final_date is None and phase == PHASE_FINAL:
+            final_date = value
+
+        if close_date is not None and final_date is not None:
             break
-
-    latest_snapshot = _read_json(
-        daily_path(latest_date)
-    )
-
-    if latest_snapshot is None:
-        raise RuntimeError(
-            f"cannot read latest snapshot: {latest_date}"
-        )
-
-    manifest = {
-        "schemaVersion": "1.1",
-        "latestDate": latest_date,
-        "latestFinalDate": latest_final_date,
-        "updatedAt": now_iso(),
-        "availableDates": available_dates,
-    }
-
-    _write_json_atomic(
-        manifest_path,
-        manifest,
-    )
-
-    _write_json_atomic(
-        latest_path,
-        latest_snapshot,
-    )
 
     errors = _collect_errors(snapshot)
 
@@ -323,21 +431,22 @@ def update_manifest_and_latest(
         name
         for name, module
         in snapshot.get("modules", {}).items()
-        if module.get("status")
+        if isinstance(module, dict)
+        and module.get("status")
         == ModuleStatus.STALE.value
     ]
 
-    status = {
-        "lastWorkflow": os.environ.get(
-            "SMI_WORKFLOW",
-            "manual",
-        ),
-        "lastRunAt": now_iso(),
+    status_semantic = {
         "lastSuccessfulTradeDate": (
             trade_date
             if not errors
-            else latest_final_date
+            else final_date
         ),
+        # 三指针（R6-P2-03 / R7-P1）：completeness 与 health 分离
+        "latestCapturedDate": latest_date,
+        "latestCloseCompleteDate": close_date,
+        "latestFinalDate": final_date,
+        # 已废弃别名（保持旧消费者兼容），与 latestCapturedDate 同值
         "latestDate": latest_date,
         "health": (
             "DEGRADED"
@@ -348,12 +457,147 @@ def update_manifest_and_latest(
         "staleModules": stale_modules,
     }
 
+    return {
+        "available_dates": available_dates,
+        "latest_date": latest_date,
+        "close_date": close_date,
+        "final_date": final_date,
+        "authoritative_latest": authoritative_latest,
+        "status_semantic": status_semantic,
+    }
+
+
+def update_manifest_and_latest(
+    trade_date: str,
+    snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    """从身份可信的 daily 文件重算 manifest/latest/status；身份冲突 fail-closed。
+
+    三指针（R7-P1 / R6-P1-04 落地）：
+    - latestCapturedDate：最新有快照文件的日期（任意阶段）；
+    - latestCloseCompleteDate：最新达到 D0 CLOSE_COMPLETE 的日期；
+    - latestFinalDate：最新达到 D+1 FINAL（9 模块全 FINAL）的日期。
+
+    全部派生语义由 _compute_derived_semantic 唯一计算（R10.2-N03）。
+    """
+    ensure_dirs()
+
+    data_root = DAILY_DIR.parent
+    manifest_path = data_root / "manifest.json"
+    latest_path = data_root / "latest.json"
+    status_path = data_root / "status.json"
+
+    semantic = _compute_derived_semantic(
+        trade_date,
+        snapshot,
+    )
+
+    manifest = {
+        "schemaVersion": "1.2",
+        "latestCapturedDate": semantic["latest_date"],
+        "latestCloseCompleteDate": semantic["close_date"],
+        "latestFinalDate": semantic["final_date"],
+        # 已废弃别名（旧消费者兼容），与 latestCapturedDate 同值
+        "latestDate": semantic["latest_date"],
+        "updatedAt": now_iso(),
+        "availableDates": semantic["available_dates"],
+    }
+
+    status = {
+        "lastWorkflow": os.environ.get(
+            "SMI_WORKFLOW",
+            "manual",
+        ),
+        "lastRunAt": now_iso(),
+        **semantic["status_semantic"],
+    }
+
+    # 先完成全部派生计算，再开始三个单文件提交；任一异常向上抛出，
+    # 由调用方停止 git commit/deploy，并由下一次 consistency repair 收敛。
+    _write_json_atomic(
+        manifest_path,
+        manifest,
+    )
+    _write_json_atomic(
+        latest_path,
+        semantic["authoritative_latest"],
+    )
     _write_json_atomic(
         status_path,
         status,
     )
 
     return manifest
+
+
+def ensure_derived_state_consistent(
+    trade_date: str,
+    snapshot: dict[str, Any],
+) -> bool:
+    """仅在派生文件缺失或语义上与 daily/本次事务不一致时重建。
+
+    正常 NO_CHANGE 不更新时间戳、不制造 git diff；S2/S3 故障态必须被修复
+    （R10-P1-01）。返回 True 表示执行了重建。
+
+    期望语义与 update_manifest_and_latest 共用 _compute_derived_semantic，
+    两个权威永不分叉（R10.2-N03）。
+    """
+    data_root = DAILY_DIR.parent
+    manifest_path = data_root / "manifest.json"
+    latest_path = data_root / "latest.json"
+    status_path = data_root / "status.json"
+
+    semantic = _compute_derived_semantic(
+        trade_date,
+        snapshot,
+    )
+
+    expected_manifest_semantic = {
+        "schemaVersion": "1.2",
+        "latestCapturedDate": semantic["latest_date"],
+        "latestCloseCompleteDate": semantic["close_date"],
+        "latestFinalDate": semantic["final_date"],
+        "latestDate": semantic["latest_date"],
+        "availableDates": semantic["available_dates"],
+    }
+
+    expected_status_semantic = semantic["status_semantic"]
+
+    current_manifest = _read_json(manifest_path)
+    current_latest = _read_json(latest_path)
+    current_status = _read_json(status_path)
+
+    def manifest_semantic(value):
+        if value is None:
+            return None
+        return {key: value.get(key) for key in expected_manifest_semantic}
+
+    def status_semantic(value):
+        if value is None:
+            return None
+        return {key: value.get(key) for key in expected_status_semantic}
+
+    needs_repair = (
+        manifest_semantic(current_manifest)
+        != expected_manifest_semantic
+        or current_latest is None
+        or canonical_json(current_latest)
+        != canonical_json(
+            semantic["authoritative_latest"]
+        )
+        or status_semantic(current_status)
+        != expected_status_semantic
+    )
+
+    if not needs_repair:
+        # 语义一致不等于上一事务的 parent fsync 已成功。重新 fsync 数据目录，
+        # 使"提交后耐久性不确定"在重试时保持 fail-closed，直到耐久确认成功
+        # （R10.2-P1-01）。
+        _fsync_directory(data_root)
+        return False
+
+    update_manifest_and_latest(trade_date, snapshot)
+    return True
 
 def _list_available_dates() -> list[str]:
     dates: list[str] = []

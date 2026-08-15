@@ -1,0 +1,2700 @@
+diff --git a/collector/calculators/summary.py b/collector/calculators/summary.py
+index 30947c6..15b653b 100644
+--- a/collector/calculators/summary.py
++++ b/collector/calculators/summary.py
+@@ -317,6 +317,35 @@ def _rule_margin(
+     status = margin.get("status")
+ 
+     if status == ModuleStatus.PENDING.value:
++        from math import isfinite
++
++        reference = margin.get(
++            "latestPublishedReference"
++        )
++        data_date = (
++            reference.get("dataDate")
++            if isinstance(reference, dict)
++            else None
++        )
++        balance = (
++            reference.get("marginBalance")
++            if isinstance(reference, dict)
++            else None
++        )
++
++        if (
++            isinstance(data_date, str)
++            and data_date
++            and isinstance(balance, (int, float))
++            and not isinstance(balance, bool)
++            and isfinite(balance)
++        ):
++            return (
++                "两融数据按 T+1 节奏回补，目前待披露；"
++                f"最近已披露（{data_date}）"
++                f"总余额 {balance:.2f} 亿元。"
++            )
++
+         return "两融数据按 T+1 节奏回补，目前待披露。"
+ 
+     if status == ModuleStatus.STALE.value:
+diff --git a/collector/jobs/close_snapshot.py b/collector/jobs/close_snapshot.py
+index a07400d..c241007 100644
+--- a/collector/jobs/close_snapshot.py
++++ b/collector/jobs/close_snapshot.py
+@@ -197,8 +197,11 @@ def main() -> int:
+         force=args.force,
+     )
+ 
++    from collector.jobs.common import ensure_derived_state_consistent
++
++    ensure_derived_state_consistent(target, snapshot)
++
+     if changed:
+-        update_manifest_and_latest(target, snapshot)
+         print(
+             f"WRITTEN {target} "
+             f"revision={snapshot['revision']}"
+diff --git a/collector/jobs/common.py b/collector/jobs/common.py
+index c26527f..a3382d6 100644
+--- a/collector/jobs/common.py
++++ b/collector/jobs/common.py
+@@ -202,6 +202,10 @@ def write_if_changed(
+         )
+ 
+         if old_semantic == new_semantic:
++            # 上一轮可能在 os.replace 后、parent fsync 前失败；即使业务语义
++            # 已一致，也必须重新确认目录项耐久性，不能把不确定状态压成 NO_CHANGE
++            # （R10.2-P1-01）。
++            _fsync_directory(path.parent)
+             return False, "NO_CHANGE"
+ 
+         snapshot["generatedAt"] = (
+@@ -220,7 +224,6 @@ def write_if_changed(
+         )
+ 
+     snapshot["updatedAt"] = now_iso()
+-
+     validate_snapshot(snapshot)
+ 
+     text = json.dumps(
+@@ -230,8 +233,33 @@ def write_if_changed(
+         allow_nan=False,
+     ) + "\n"
+ 
+-    tmp.write_text(text, encoding="utf-8")
+-    os.replace(tmp, path)
++    try:
++        with open(tmp, "w", encoding="utf-8") as f:
++            f.write(text)
++            f.flush()
++            os.fsync(f.fileno())
++
++        os.replace(tmp, path)
++        _fsync_directory(path.parent)
++    finally:
++        if tmp.exists():
++            tmp.unlink(missing_ok=True)
++
++    persisted = _read_json(path)
++
++    if persisted is None:
++        raise RuntimeError(
++            "daily strict readback failed: "
++            + str(snapshot.get("tradeDate"))
++        )
++
++    validate_snapshot(persisted)
++
++    if canonical_json(persisted) != canonical_json(snapshot):
++        raise RuntimeError(
++            "daily strict readback mismatch: "
++            + str(snapshot.get("tradeDate"))
++        )
+ 
+     return True, "CHANGED"
+ 
+@@ -239,36 +267,133 @@ def _write_json_atomic(
+     path,
+     obj: dict[str, Any],
+ ) -> None:
++    """单 JSON 文件的耐久原子替换；提交后必须严格回读一致。"""
+     path.parent.mkdir(parents=True, exist_ok=True)
+ 
+     temp = path.with_suffix(
+-        path.suffix + ".tmp"
++        path.suffix + f".tmp-{os.getpid()}"
+     )
+ 
+-    temp.write_text(
+-        json.dumps(
+-            obj,
+-            ensure_ascii=False,
+-            indent=2,
+-            allow_nan=False,
++    text = json.dumps(
++        obj,
++        ensure_ascii=False,
++        indent=2,
++        allow_nan=False,
++    ) + "\n"
++
++    try:
++        with open(temp, "w", encoding="utf-8") as f:
++            f.write(text)
++            f.flush()
++            os.fsync(f.fileno())
++
++        os.replace(temp, path)
++        _fsync_directory(path.parent)
++    finally:
++        if temp.exists():
++            temp.unlink(missing_ok=True)
++
++    persisted = _read_json(path)
++
++    if persisted is None:
++        raise RuntimeError(
++            f"json strict readback failed: {path}"
++        )
++
++    if canonical_json(persisted) != canonical_json(obj):
++        raise RuntimeError(
++            f"json strict readback mismatch: {path}"
+         )
+-        + "\n",
+-        encoding="utf-8",
+-    )
+ 
+-    os.replace(temp, path)
++def _fsync_directory(path) -> None:
++    """POSIX 下把目录项更新刷入磁盘；非 POSIX 由 os.replace + 严格回读兜底。"""
++    if os.name != "posix":
++        return
+ 
+-def update_manifest_and_latest(
++    fd = os.open(str(path), os.O_RDONLY)
++
++    try:
++        os.fsync(fd)
++    finally:
++        os.close(fd)
++
++
++def _read_daily_for_index(
++    trade_date: str,
++) -> dict[str, Any]:
++    """读取参与 manifest/latest 派生的 daily；身份不一致立即 fail-closed。
++
++    文件名、snapshot.tradeDate、各 FINAL 模块 dataDate 必须同一天；
++    防止错名/被改文件抬高完整性指针（R10-P2-01）。
++    """
++    item = _read_json(daily_path(trade_date))
++
++    if item is None:
++        raise RuntimeError(
++            f"cannot read daily snapshot: {trade_date}"
++        )
++
++    if item.get("tradeDate") != trade_date:
++        raise RuntimeError(
++            "daily snapshot identity mismatch: "
++            f"filename={trade_date} tradeDate={item.get('tradeDate')}"
++        )
++
++    modules = item.get("modules")
++
++    if not isinstance(modules, dict):
++        raise RuntimeError(
++            f"daily snapshot modules invalid: {trade_date}"
++        )
++
++    # writer 已保证 FINAL dataDate == tradeDate；读侧再次做最关键的身份防御
++    for name, module in modules.items():
++        if (
++            isinstance(module, dict)
++            and module.get("status") == ModuleStatus.FINAL.value
++            and module.get("dataDate") != trade_date
++        ):
++            raise RuntimeError(
++                "daily module identity mismatch: "
++                f"date={trade_date} module={name} "
++                f"dataDate={module.get('dataDate')}"
++            )
++
++    # R10.2 新增 PARTIAL tracks 可以参与 CLOSE_COMPLETE，因此只校验 FINAL
++    # dataDate 已不足以覆盖索引身份。当前 validator 允许的 PARTIAL
++    # （sentiment / tracks）都要求 dataDate == tradeDate，读侧同步执行该身份防线
++    # （R10.2-P2-01）。
++    for name, module in modules.items():
++        if (
++            isinstance(module, dict)
++            and module.get("status") == ModuleStatus.PARTIAL.value
++            and module.get("dataDate") != trade_date
++        ):
++            raise RuntimeError(
++                "daily PARTIAL module identity mismatch: "
++                f"date={trade_date} module={name} "
++                f"dataDate={module.get('dataDate')}"
++            )
++
++    return item
++
++
++def _compute_derived_semantic(
+     trade_date: str,
+     snapshot: dict[str, Any],
+ ) -> dict[str, Any]:
+-    """重算 manifest，旧日期修订不得让 latestDate 回退。"""
+-    ensure_dirs()
++    """manifest/latest/status 派生语义的唯一权威计算（R10.2-N03）。
+ 
+-    data_root = DAILY_DIR.parent
+-    manifest_path = data_root / "manifest.json"
+-    latest_path = data_root / "latest.json"
+-    status_path = data_root / "status.json"
++    update_manifest_and_latest（重建权威）与 ensure_derived_state_consistent
++    （一致性比较权威）必须共用本函数，从结构上消除两份手写计算分叉的
++    可能。所有参与索引的 daily 均经 _read_daily_for_index 身份校验，
++    错名/被改文件直接 raise（fail-closed，R10-P2-01）。
++    """
++    from collector.completeness import (
++        PHASE_CLOSE_COMPLETE,
++        PHASE_FINAL,
++        snapshot_phase,
++    )
+ 
+     available_dates = _list_available_dates()
+ 
+@@ -277,45 +402,28 @@ def update_manifest_and_latest(
+ 
+     latest_date = available_dates[-1]
+ 
+-    latest_final_date: str | None = None
++    # latest.json 的权威内容；同时触发最新日的身份校验
++    authoritative_latest = _read_daily_for_index(latest_date)
++
++    close_date: str | None = None
++    final_date: str | None = None
+ 
+     for value in reversed(available_dates):
+-        item = _read_json(daily_path(value))
++        item = _read_daily_for_index(value)
++        phase = snapshot_phase(item)
+ 
++        # FINAL 隐含 CLOSE_COMPLETE（9 模块全 FINAL ⊃ 非 margin FINAL）
+         if (
+-            item is not None
+-            and item.get("overallStatus")
+-            == ModuleStatus.FINAL.value
++            close_date is None
++            and phase in {PHASE_CLOSE_COMPLETE, PHASE_FINAL}
+         ):
+-            latest_final_date = value
+-            break
+-
+-    latest_snapshot = _read_json(
+-        daily_path(latest_date)
+-    )
+-
+-    if latest_snapshot is None:
+-        raise RuntimeError(
+-            f"cannot read latest snapshot: {latest_date}"
+-        )
++            close_date = value
+ 
+-    manifest = {
+-        "schemaVersion": "1.1",
+-        "latestDate": latest_date,
+-        "latestFinalDate": latest_final_date,
+-        "updatedAt": now_iso(),
+-        "availableDates": available_dates,
+-    }
++        if final_date is None and phase == PHASE_FINAL:
++            final_date = value
+ 
+-    _write_json_atomic(
+-        manifest_path,
+-        manifest,
+-    )
+-
+-    _write_json_atomic(
+-        latest_path,
+-        latest_snapshot,
+-    )
++        if close_date is not None and final_date is not None:
++            break
+ 
+     errors = _collect_errors(snapshot)
+ 
+@@ -323,21 +431,22 @@ def update_manifest_and_latest(
+         name
+         for name, module
+         in snapshot.get("modules", {}).items()
+-        if module.get("status")
++        if isinstance(module, dict)
++        and module.get("status")
+         == ModuleStatus.STALE.value
+     ]
+ 
+-    status = {
+-        "lastWorkflow": os.environ.get(
+-            "SMI_WORKFLOW",
+-            "manual",
+-        ),
+-        "lastRunAt": now_iso(),
++    status_semantic = {
+         "lastSuccessfulTradeDate": (
+             trade_date
+             if not errors
+-            else latest_final_date
++            else final_date
+         ),
++        # 三指针（R6-P2-03 / R7-P1）：completeness 与 health 分离
++        "latestCapturedDate": latest_date,
++        "latestCloseCompleteDate": close_date,
++        "latestFinalDate": final_date,
++        # 已废弃别名（保持旧消费者兼容），与 latestCapturedDate 同值
+         "latestDate": latest_date,
+         "health": (
+             "DEGRADED"
+@@ -348,6 +457,71 @@ def update_manifest_and_latest(
+         "staleModules": stale_modules,
+     }
+ 
++    return {
++        "available_dates": available_dates,
++        "latest_date": latest_date,
++        "close_date": close_date,
++        "final_date": final_date,
++        "authoritative_latest": authoritative_latest,
++        "status_semantic": status_semantic,
++    }
++
++
++def update_manifest_and_latest(
++    trade_date: str,
++    snapshot: dict[str, Any],
++) -> dict[str, Any]:
++    """从身份可信的 daily 文件重算 manifest/latest/status；身份冲突 fail-closed。
++
++    三指针（R7-P1 / R6-P1-04 落地）：
++    - latestCapturedDate：最新有快照文件的日期（任意阶段）；
++    - latestCloseCompleteDate：最新达到 D0 CLOSE_COMPLETE 的日期；
++    - latestFinalDate：最新达到 D+1 FINAL（9 模块全 FINAL）的日期。
++
++    全部派生语义由 _compute_derived_semantic 唯一计算（R10.2-N03）。
++    """
++    ensure_dirs()
++
++    data_root = DAILY_DIR.parent
++    manifest_path = data_root / "manifest.json"
++    latest_path = data_root / "latest.json"
++    status_path = data_root / "status.json"
++
++    semantic = _compute_derived_semantic(
++        trade_date,
++        snapshot,
++    )
++
++    manifest = {
++        "schemaVersion": "1.2",
++        "latestCapturedDate": semantic["latest_date"],
++        "latestCloseCompleteDate": semantic["close_date"],
++        "latestFinalDate": semantic["final_date"],
++        # 已废弃别名（旧消费者兼容），与 latestCapturedDate 同值
++        "latestDate": semantic["latest_date"],
++        "updatedAt": now_iso(),
++        "availableDates": semantic["available_dates"],
++    }
++
++    status = {
++        "lastWorkflow": os.environ.get(
++            "SMI_WORKFLOW",
++            "manual",
++        ),
++        "lastRunAt": now_iso(),
++        **semantic["status_semantic"],
++    }
++
++    # 先完成全部派生计算，再开始三个单文件提交；任一异常向上抛出，
++    # 由调用方停止 git commit/deploy，并由下一次 consistency repair 收敛。
++    _write_json_atomic(
++        manifest_path,
++        manifest,
++    )
++    _write_json_atomic(
++        latest_path,
++        semantic["authoritative_latest"],
++    )
+     _write_json_atomic(
+         status_path,
+         status,
+@@ -355,6 +529,76 @@ def update_manifest_and_latest(
+ 
+     return manifest
+ 
++
++def ensure_derived_state_consistent(
++    trade_date: str,
++    snapshot: dict[str, Any],
++) -> bool:
++    """仅在派生文件缺失或语义上与 daily/本次事务不一致时重建。
++
++    正常 NO_CHANGE 不更新时间戳、不制造 git diff；S2/S3 故障态必须被修复
++    （R10-P1-01）。返回 True 表示执行了重建。
++
++    期望语义与 update_manifest_and_latest 共用 _compute_derived_semantic，
++    两个权威永不分叉（R10.2-N03）。
++    """
++    data_root = DAILY_DIR.parent
++    manifest_path = data_root / "manifest.json"
++    latest_path = data_root / "latest.json"
++    status_path = data_root / "status.json"
++
++    semantic = _compute_derived_semantic(
++        trade_date,
++        snapshot,
++    )
++
++    expected_manifest_semantic = {
++        "schemaVersion": "1.2",
++        "latestCapturedDate": semantic["latest_date"],
++        "latestCloseCompleteDate": semantic["close_date"],
++        "latestFinalDate": semantic["final_date"],
++        "latestDate": semantic["latest_date"],
++        "availableDates": semantic["available_dates"],
++    }
++
++    expected_status_semantic = semantic["status_semantic"]
++
++    current_manifest = _read_json(manifest_path)
++    current_latest = _read_json(latest_path)
++    current_status = _read_json(status_path)
++
++    def manifest_semantic(value):
++        if value is None:
++            return None
++        return {key: value.get(key) for key in expected_manifest_semantic}
++
++    def status_semantic(value):
++        if value is None:
++            return None
++        return {key: value.get(key) for key in expected_status_semantic}
++
++    needs_repair = (
++        manifest_semantic(current_manifest)
++        != expected_manifest_semantic
++        or current_latest is None
++        or canonical_json(current_latest)
++        != canonical_json(
++            semantic["authoritative_latest"]
++        )
++        or status_semantic(current_status)
++        != expected_status_semantic
++    )
++
++    if not needs_repair:
++        # 语义一致不等于上一事务的 parent fsync 已成功。重新 fsync 数据目录，
++        # 使"提交后耐久性不确定"在重试时保持 fail-closed，直到耐久确认成功
++        # （R10.2-P1-01）。
++        _fsync_directory(data_root)
++        return False
++
++    update_manifest_and_latest(trade_date, snapshot)
++    return True
++
+ def _list_available_dates() -> list[str]:
+     dates: list[str] = []
+ 
+diff --git a/collector/jobs/manual_backfill.py b/collector/jobs/manual_backfill.py
+index e73f48d..9b26605 100644
+--- a/collector/jobs/manual_backfill.py
++++ b/collector/jobs/manual_backfill.py
+@@ -191,8 +191,11 @@ def main() -> int:
+         force=args.force,
+     )
+ 
++    from collector.jobs.common import ensure_derived_state_consistent
++
++    ensure_derived_state_consistent(target, rebuilt)
++
+     if changed:
+-        update_manifest_and_latest(target, rebuilt)
+         print(
+             f"WRITTEN {target} "
+             f"revision={rebuilt['revision']}"
+diff --git a/collector/jobs/reconcile_turnover_chain.py b/collector/jobs/reconcile_turnover_chain.py
+index a753e87..3ae029d 100644
+--- a/collector/jobs/reconcile_turnover_chain.py
++++ b/collector/jobs/reconcile_turnover_chain.py
+@@ -251,15 +251,30 @@ def main() -> int:
+         if written:
+             reconciled.append(trade_date)
+ 
+-    if not reconciled:
++    if not paths:
++        # 空仓库（无 daily 文件）保持 88f4097 行为：NO_CHANGE 退出，
++        # 而非在下述 paths[-1] 上 IndexError（R10.2-N02）。
+         print("NO_CHANGE")
+         return 0
+ 
+     latest_date = paths[-1].stem
+     latest_snapshot = _read_snapshot(daily_path(latest_date))
+ 
+-    if latest_snapshot is not None:
+-        update_manifest_and_latest(latest_date, latest_snapshot)
++    if latest_snapshot is None:
++        raise RuntimeError(
++            f"latest snapshot invalid during derived repair: {latest_date}"
++        )
++
++    from collector.jobs.common import ensure_derived_state_consistent
++
++    ensure_derived_state_consistent(
++        latest_date,
++        latest_snapshot,
++    )
++
++    if not reconciled:
++        print("NO_CHANGE")
++        return 0
+ 
+     print("RECONCILED " + ",".join(reconciled))
+     return 0
+diff --git a/collector/jobs/t1_reconcile.py b/collector/jobs/t1_reconcile.py
+index be393d0..c099c71 100644
+--- a/collector/jobs/t1_reconcile.py
++++ b/collector/jobs/t1_reconcile.py
+@@ -92,6 +92,9 @@ def main() -> int:
+     previous_margin = snapshot["modules"].get("margin", {})
+ 
+     if previous_margin.get("status") == ModuleStatus.FINAL.value:
++        from collector.jobs.common import ensure_derived_state_consistent
++
++        ensure_derived_state_consistent(target, snapshot)
+         print(f"ALREADY_FINAL {target}")
+         return 0
+ 
+@@ -116,8 +119,11 @@ def main() -> int:
+ 
+     changed, _ = write_if_changed(snapshot)
+ 
++    from collector.jobs.common import ensure_derived_state_consistent
++
++    ensure_derived_state_consistent(target, snapshot)
++
+     if changed:
+-        update_manifest_and_latest(target, snapshot)
+         print(
+             f"UPDATED {target} "
+             f"margin={updated_margin.get('status')} "
+diff --git a/collector/modules/margin.py b/collector/modules/margin.py
+index b3ace88..ce832fc 100644
+--- a/collector/modules/margin.py
++++ b/collector/modules/margin.py
+@@ -8,6 +8,7 @@ from __future__ import annotations
+ 
+ import json
+ from datetime import date
++from decimal import Decimal
+ from typing import Any
+ 
+ import pandas as pd
+@@ -32,6 +33,20 @@ def collect_margin(
+         "warnings": [],
+     }
+ 
++    # D0 参考值（R7-P1）：D0 时 margin=PENDING，前端需要展示
++    # "最近已披露"的 T-1 官方值，而不是空白或伪装的 T 日 FINAL。
++    # 仅在结果非 FINAL 时附加；FINAL 本身就是 T 日真实值，无需参考。
++    _latest_reference = _latest_published_reference(
++        trade_date
++    )
++
++    def _attach_reference(
++        result: dict[str, Any],
++    ) -> dict[str, Any]:
++        if _latest_reference is not None:
++            result["latestPublishedReference"] = _latest_reference
++        return result
++
+     try:
+         sse = ak.stock_margin_sse(
+             start_date=yyyymmdd,
+@@ -43,31 +58,35 @@ def collect_margin(
+         )
+ 
+     except Exception as exc:  # noqa: BLE001
+-        return {
+-            **base,
+-            "status": (
+-                ModuleStatus.ERROR.value
+-                if is_t1
+-                else ModuleStatus.PENDING.value
+-            ),
+-            "errors": [str(exc)],
+-        }
++        return _attach_reference(
++            {
++                **base,
++                "status": (
++                    ModuleStatus.ERROR.value
++                    if is_t1
++                    else ModuleStatus.PENDING.value
++                ),
++                "errors": [str(exc)],
++            }
++        )
+ 
+     sse_row = _last_row(sse)
+     szse_row = _last_row(szse)
+ 
+     if sse_row is None or szse_row is None:
+-        return {
+-            **base,
+-            "status": (
+-                ModuleStatus.STALE.value
+-                if is_t1
+-                else ModuleStatus.PENDING.value
+-            ),
+-            "errors": [
+-                "SSE/SZSE 两融汇总尚未同时取得"
+-            ],
+-        }
++        return _attach_reference(
++            {
++                **base,
++                "status": (
++                    ModuleStatus.STALE.value
++                    if is_t1
++                    else ModuleStatus.PENDING.value
++                ),
++                "errors": [
++                    "SSE/SZSE 两融汇总尚未同时取得"
++                ],
++            }
++        )
+ 
+     sse_financing_balance = _yuan_to_yi(
+         _pick_float(
+@@ -129,13 +148,15 @@ def collect_margin(
+     ]
+ 
+     if any(value is None for value in required_values):
+-        return {
+-            **base,
+-            "status": ModuleStatus.ERROR.value,
+-            "errors": [
+-                "两融核心字段缺失，拒绝生成 FINAL"
+-            ],
+-        }
++        return _attach_reference(
++            {
++                **base,
++                "status": ModuleStatus.ERROR.value,
++                "errors": [
++                    "两融核心字段缺失，拒绝生成 FINAL"
++                ],
++            }
++        )
+ 
+     financing_balance = (
+         sse_financing_balance
+@@ -340,6 +361,117 @@ def collect_margin(
+ 
+     return result
+ 
++def _latest_published_reference(
++    trade_date: str,
++) -> dict[str, Any] | None:
++    """最近已披露两融参考值；文件名、snapshot.tradeDate、margin.dataDate 三者必须同日。
++
++    从 trade_date 之前的交易日倒序查找第一个满足身份一致且 margin=FINAL 的
++    快照，返回其三项余额作为"最近已披露"参考；找不到则返回 None（fail-closed）。
++
++    约束（R10-P2-01 强化）：
++    - 只读已落盘快照，不重新抓网络（与 _compute_balance_change 同源）；
++    - 文件名日期、snapshot.tradeDate、margin.dataDate 必须三者一致，
++      任何错位一律跳过（防错名/被改文件把 T-n 内容标成 T-1）；
++    - 参考值必须是 FINAL 快照的核心余额字段，避免把 PENDING/ERROR 当参考；
++    - 三项余额必须是有限数值（bool/NaN/Inf 一律跳过并继续回退）且 >= 0，
++      并满足 marginBalance == financingBalance + securitiesLendingBalance
++      （绝对容差 0.05 亿元，与 validator 同口径）；
++    - 回退上限为 30 个交易日（约 6 周），防止异常日历死循环；
++    - 返回结构固定：dataDate + 三项余额（亿元），供 validator 深度契约。
++    """
++    from math import isfinite
++
++    from collector.calendar import previous_trading_day
++    from collector.config import daily_path
++
++    cursor = date.fromisoformat(trade_date)
++
++    for _ in range(30):
++        try:
++            previous = previous_trading_day(
++                cursor,
++                fallback_weekday=True,
++            )
++        except ValueError:
++            return None
++
++        if previous >= cursor:
++            return None
++
++        expected_date = previous.isoformat()
++        path = daily_path(expected_date)
++
++        if not path.exists():
++            cursor = previous
++            continue
++
++        try:
++            with open(path, "r", encoding="utf-8") as f:
++                data = json.load(f)
++        except (OSError, ValueError, TypeError):
++            cursor = previous
++            continue
++
++        if (
++            not isinstance(data, dict)
++            or data.get("tradeDate") != expected_date
++        ):
++            cursor = previous
++            continue
++
++        modules = data.get("modules")
++
++        if not isinstance(modules, dict):
++            cursor = previous
++            continue
++
++        margin = modules.get("margin")
++
++        if not isinstance(margin, dict):
++            cursor = previous
++            continue
++
++        if (
++            margin.get("status") != ModuleStatus.FINAL.value
++            or margin.get("dataDate") != expected_date
++        ):
++            cursor = previous
++            continue
++
++        financing = margin.get("financingBalance")
++        lending = margin.get("securitiesLendingBalance")
++        total = margin.get("marginBalance")
++
++        values = (financing, lending, total)
++
++        if not all(
++            isinstance(v, (int, float))
++            and not isinstance(v, bool)
++            and isfinite(v)
++            and float(v) >= 0
++            for v in values
++        ):
++            cursor = previous
++            continue
++
++        expected = Decimal(str(financing)) + Decimal(str(lending))
++        actual = Decimal(str(total))
++
++        if abs(actual - expected) > Decimal("0.05"):
++            cursor = previous
++            continue
++
++        return {
++            "dataDate": expected_date,
++            "financingBalance": financing,
++            "securitiesLendingBalance": lending,
++            "marginBalance": total,
++        }
++
++    return None
++
++
+ def _compute_balance_change(
+     result: dict[str, Any],
+     trade_date: str,
+diff --git a/collector/tests/test_core.py b/collector/tests/test_core.py
+index 25a690f..40dc100 100644
+--- a/collector/tests/test_core.py
++++ b/collector/tests/test_core.py
+@@ -1636,3 +1636,1317 @@ def test_market_index_explicit_chain_keeps_prior_errors(
+ 
+ 
+ 
++
++
++# ---------------------------------------------------------------------------
++# ④ D0/D+1 两阶段完整性模型（R7-P1 / R6-P1-04）
++# ---------------------------------------------------------------------------
++
++def _phase_snapshot(module_statuses):
++    """构造一个只带 status 的快照骨架，供 snapshot_phase 测试。"""
++    from collector.schema import new_snapshot
++    snap = new_snapshot("2026-08-14")
++    for name, status in module_statuses.items():
++        snap["modules"][name]["status"] = status
++    return snap
++
++
++def test_phase_all_final_is_final():
++    from collector.completeness import PHASE_FINAL, snapshot_phase
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "margin", "tracks", "summary",
++    )}
++    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_FINAL
++
++
++def test_phase_margin_pending_with_tracks_final_is_close_complete():
++    from collector.completeness import (
++        PHASE_CLOSE_COMPLETE,
++        snapshot_phase,
++    )
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "tracks", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_CLOSE_COMPLETE
++
++
++def test_phase_tracks_unavailable_is_captured_not_close_complete():
++    """当前 tracks 占位 UNAVAILABLE -> 无 CLOSE_COMPLETE 日（R7 原文语义）。"""
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    statuses["tracks"] = "UNAVAILABLE"
++    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_CAPTURED
++
++
++def test_phase_tracks_sufficient_with_coverage_is_close_complete():
++    from collector.completeness import (
++        PHASE_CLOSE_COMPLETE,
++        snapshot_phase,
++    )
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    statuses["tracks"] = "FINAL"
++    snap = _phase_snapshot(statuses)
++    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++    snap["modules"]["tracks"]["coveragePct"] = 85.0
++    assert snapshot_phase(snap) == PHASE_CLOSE_COMPLETE
++
++
++def test_phase_margin_error_is_captured():
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "tracks", "summary",
++    )}
++    statuses["margin"] = "ERROR"
++    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_CAPTURED
++
++
++def test_phase_any_module_missing_is_captured():
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "tracks", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    statuses["sentiment"] = "PARTIAL"
++    assert snapshot_phase(_phase_snapshot(statuses)) == PHASE_CAPTURED
++
++
++def test_margin_d0_reference_attached_when_pending(
++    tmp_path,
++    monkeypatch,
++):
++    """D0 时 margin=PENDING 必须附加最近已披露 T-1 参考值。"""
++    import json
++
++    import collector.config as config
++    from collector.modules.margin import (
++        _latest_published_reference,
++    )
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++
++    # 前一日（08-13）已披露 FINAL 两融
++    prev_dir = test_daily / "2026"
++    prev_dir.mkdir(parents=True, exist_ok=True)
++
++    prev_snapshot = {
++        "tradeDate": "2026-08-13",
++        "modules": {
++            "margin": {
++                "status": "FINAL",
++                "dataDate": "2026-08-13",
++                "financingBalance": 100.0,
++                "securitiesLendingBalance": 5.0,
++                "marginBalance": 105.0,
++            }
++        },
++    }
++
++    (prev_dir / "2026-08-13.json").write_text(
++        json.dumps(prev_snapshot),
++        encoding="utf-8",
++    )
++
++    ref = _latest_published_reference("2026-08-14")
++
++    assert ref is not None
++    assert ref["dataDate"] == "2026-08-13"
++    assert ref["marginBalance"] == 105.0
++
++
++def test_margin_d0_reference_none_without_prior_final(
++    tmp_path,
++    monkeypatch,
++):
++    import collector.config as config
++    from collector.modules.margin import (
++        _latest_published_reference,
++    )
++
++    test_root = tmp_path / "repo"
++    test_daily = test_root / "data" / "daily"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++
++    assert (
++        _latest_published_reference("2026-08-14")
++        is None
++    )
++
++
++def test_margin_reference_skips_pending_previous_day(
++    tmp_path,
++    monkeypatch,
++):
++    """前一日 margin 仍 PENDING 时必须继续回退找更早 FINAL 日。"""
++    import json
++
++    import collector.config as config
++    from collector.modules.margin import (
++        _latest_published_reference,
++    )
++
++    test_root = tmp_path / "repo"
++    test_daily = test_root / "data" / "daily"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++
++    prev_dir = test_daily / "2026"
++    prev_dir.mkdir(parents=True, exist_ok=True)
++
++    (prev_dir / "2026-08-13.json").write_text(
++        json.dumps({
++            "tradeDate": "2026-08-13",
++            "modules": {"margin": {"status": "PENDING"}},
++        }),
++        encoding="utf-8",
++    )
++
++    (prev_dir / "2026-08-12.json").write_text(
++        json.dumps({
++            "tradeDate": "2026-08-12",
++            "modules": {
++                "margin": {
++                    "status": "FINAL",
++                    "dataDate": "2026-08-12",
++                    "financingBalance": 90.0,
++                    "securitiesLendingBalance": 4.0,
++                    "marginBalance": 94.0,
++                }
++            },
++        }),
++        encoding="utf-8",
++    )
++
++    ref = _latest_published_reference("2026-08-14")
++
++    assert ref is not None
++    assert ref["dataDate"] == "2026-08-12"
++    assert ref["marginBalance"] == 94.0
++
++
++def test_validator_accepts_margin_reference_on_pending():
++    import copy
++    import json
++
++    from collector.validators.schema import validate_snapshot
++
++    with open(
++        "web/public/data/daily/2026/2026-07-17.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snapshot = json.load(f)
++
++    mutated = copy.deepcopy(snapshot)
++    margin = mutated["modules"]["margin"]
++    margin["status"] = "PENDING"
++    margin["dataDate"] = None
++    margin["latestPublishedReference"] = {
++        "dataDate": "2026-07-16",
++        "financingBalance": 100.0,
++        "securitiesLendingBalance": 5.0,
++        "marginBalance": 105.0,
++    }
++    mutated["overallStatus"] = "PARTIAL_PENDING"
++
++    validate_snapshot(mutated)
++
++
++def test_validator_rejects_final_margin_with_reference():
++    import copy
++    import json
++
++    import pytest
++
++    from collector.validators.schema import validate_snapshot
++
++    with open(
++        "web/public/data/daily/2026/2026-07-17.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snapshot = json.load(f)
++
++    mutated = copy.deepcopy(snapshot)
++    mutated["modules"]["margin"]["latestPublishedReference"] = {
++        "dataDate": "2026-07-16",
++        "financingBalance": 100.0,
++        "securitiesLendingBalance": 5.0,
++        "marginBalance": 105.0,
++    }
++
++    with pytest.raises(ValueError):
++        validate_snapshot(mutated)
++
++
++def test_validator_rejects_reference_date_not_before_trade_date():
++    import copy
++    import json
++
++    import pytest
++
++    from collector.validators.schema import validate_snapshot
++
++    with open(
++        "web/public/data/daily/2026/2026-07-17.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snapshot = json.load(f)
++
++    mutated = copy.deepcopy(snapshot)
++    margin = mutated["modules"]["margin"]
++    margin["status"] = "PENDING"
++    margin["dataDate"] = None
++    margin["latestPublishedReference"] = {
++        "dataDate": "2026-07-17",
++        "financingBalance": 100.0,
++        "securitiesLendingBalance": 5.0,
++        "marginBalance": 105.0,
++    }
++    mutated["overallStatus"] = "PARTIAL_PENDING"
++
++    with pytest.raises(ValueError):
++        validate_snapshot(mutated)
++
++
++def test_summary_margin_pending_with_reference_text():
++    from collector.calculators.summary import _rule_margin
++
++    text = _rule_margin({
++        "status": "PENDING",
++        "latestPublishedReference": {
++            "dataDate": "2026-08-13",
++            "marginBalance": 105.0,
++        },
++    })
++
++    assert "2026-08-13" in text
++    assert "105.00" in text
++
++
++def test_manifest_three_pointers_computed(
++    tmp_path,
++    monkeypatch,
++):
++    """manifest 三指针：captured=最新、closeComplete=最新 CLOSE_COMPLETE、final=最新 FINAL。"""
++    import json
++
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import (
++        _write_json_atomic,
++        update_manifest_and_latest,
++    )
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++    test_calendar = test_data / "calendar"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
++    # common 模块在 import 时绑定了 DAILY_DIR，需同步打补丁
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    day_dir = test_daily / "2026"
++    day_dir.mkdir(parents=True, exist_ok=True)
++
++    def build_day(d, margin_status, tracks_status):
++        from collector.schema import new_snapshot
++        snap = new_snapshot(d)
++        for name in (
++            "marketIndex", "turnover", "sentiment",
++            "sectorPerformance", "fundFlow", "northbound",
++            "summary",
++        ):
++            snap["modules"][name]["status"] = "FINAL"
++            snap["modules"][name]["dataDate"] = d
++        snap["modules"]["margin"]["status"] = margin_status
++        if margin_status == "FINAL":
++            snap["modules"]["margin"]["dataDate"] = d
++        snap["modules"]["tracks"]["status"] = tracks_status
++        if tracks_status == "FINAL":
++            snap["modules"]["tracks"]["dataDate"] = d
++        if margin_status == "PENDING" and tracks_status == "FINAL":
++            snap["overallStatus"] = "PARTIAL_PENDING"
++        elif margin_status == "FINAL" and tracks_status == "FINAL":
++            snap["overallStatus"] = "FINAL"
++        else:
++            snap["overallStatus"] = "PARTIAL"
++        return snap
++
++    # 08-12：全 FINAL（D+1）
++    snap_a = build_day("2026-08-12", "FINAL", "FINAL")
++    _write_json_atomic(day_dir / "2026-08-12.json", snap_a)
++
++    # 08-13：margin PENDING + tracks FINAL（D0 CLOSE_COMPLETE）
++    snap_b = build_day("2026-08-13", "PENDING", "FINAL")
++    _write_json_atomic(day_dir / "2026-08-13.json", snap_b)
++
++    # 08-14：tracks UNAVAILABLE（CAPTURED，最新采集日）
++    snap_c = build_day("2026-08-14", "PENDING", "UNAVAILABLE")
++    _write_json_atomic(day_dir / "2026-08-14.json", snap_c)
++
++    manifest = update_manifest_and_latest(
++        "2026-08-14",
++        snap_c,
++    )
++
++    assert manifest["latestCapturedDate"] == "2026-08-14"
++    assert manifest["latestCloseCompleteDate"] == "2026-08-13"
++    assert manifest["latestFinalDate"] == "2026-08-12"
++    assert manifest["latestDate"] == "2026-08-14"
++
++    status = json.loads(
++        (test_data / "status.json").read_text(encoding="utf-8")
++    )
++
++    assert status["latestCapturedDate"] == "2026-08-14"
++    assert status["latestCloseCompleteDate"] == "2026-08-13"
++    assert status["latestFinalDate"] == "2026-08-12"
++
++
++# ---------------------------------------------------------------------------
++# ④ 复核补充：snapshot_phase / validator / manifest 边界用例（GLM-5.3 复核）
++# ---------------------------------------------------------------------------
++
++def test_phase_final_requires_all_nine_modules_by_name():
++    """缺 tracks 模块键的快照不得判 FINAL（按名锚定，防 8/9 FINAL 误抬指针）。"""
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++
++    snap = _phase_snapshot(
++        {name: "FINAL" for name in (
++            "marketIndex", "turnover", "sentiment",
++            "sectorPerformance", "fundFlow", "northbound",
++            "margin", "summary",
++        )}
++    )
++    # 不设置 tracks（模块键缺失）
++    del snap["modules"]["tracks"]
++
++    assert snapshot_phase(snap) == PHASE_CAPTURED
++
++
++def test_phase_tracks_sufficient_boundary_at_80():
++    from collector.completeness import (
++        PHASE_CLOSE_COMPLETE,
++        snapshot_phase,
++    )
++
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    statuses["tracks"] = "PARTIAL"
++    snap = _phase_snapshot(statuses)
++    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++    snap["modules"]["tracks"]["coveragePct"] = 80.0
++    assert snapshot_phase(snap) == PHASE_CLOSE_COMPLETE
++
++
++def test_phase_tracks_sufficient_below_80_is_captured():
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    statuses["tracks"] = "PARTIAL"
++    snap = _phase_snapshot(statuses)
++    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++    snap["modules"]["tracks"]["coveragePct"] = 79.9
++    assert snapshot_phase(snap) == PHASE_CAPTURED
++
++
++def test_phase_tracks_error_with_sufficient_decision_is_captured():
++    """矛盾数据（ERROR + TRACKS_SUFFICIENT + 达标覆盖率）不得点亮 CLOSE_COMPLETE。"""
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    statuses["tracks"] = "ERROR"
++    snap = _phase_snapshot(statuses)
++    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++    snap["modules"]["tracks"]["coveragePct"] = 95.0
++    assert snapshot_phase(snap) == PHASE_CAPTURED
++
++
++def test_phase_legacy_2026_07_17_snapshot_file_is_final():
++    """锚定设计边界：07-17 Legacy 为 9 模块全 FINAL（隐含 CLOSE_COMPLETE）。
++
++    同时守护 FIX-1：若该文件缺任一必需模块键，本用例失败，
++    说明落地 latestFinalDate=07-17 需重新裁决。
++    """
++    import json
++
++    from collector.completeness import (
++        PHASE_FINAL,
++        snapshot_phase,
++    )
++
++    with open(
++        "web/public/data/daily/2026/2026-07-17.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snapshot = json.load(f)
++
++    assert snapshot_phase(snapshot) == PHASE_FINAL
++
++
++def _margin_pending_mutation(reference):
++    import copy
++    import json
++
++    with open(
++        "web/public/data/daily/2026/2026-07-17.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snapshot = json.load(f)
++
++    mutated = copy.deepcopy(snapshot)
++    margin = mutated["modules"]["margin"]
++    margin["status"] = "PENDING"
++    margin["dataDate"] = None
++    margin["latestPublishedReference"] = reference
++    mutated["overallStatus"] = "PARTIAL_PENDING"
++    return mutated
++
++
++def test_validator_rejects_negative_reference_balance():
++    import pytest
++
++    from collector.validators.schema import validate_snapshot
++
++    mutated = _margin_pending_mutation({
++        "dataDate": "2026-07-16",
++        "financingBalance": 100.0,
++        "securitiesLendingBalance": 5.0,
++        "marginBalance": -1.0,
++    })
++
++    with pytest.raises(ValueError):
++        validate_snapshot(mutated)
++
++
++def test_validator_rejects_noncanonical_reference_date():
++    import pytest
++
++    from collector.validators.schema import validate_snapshot
++
++    mutated = _margin_pending_mutation({
++        "dataDate": "20260716",
++        "financingBalance": 100.0,
++        "securitiesLendingBalance": 5.0,
++        "marginBalance": 105.0,
++    })
++
++    with pytest.raises(ValueError):
++        validate_snapshot(mutated)
++
++
++def test_validator_rejects_reference_missing_balance_field():
++    import pytest
++
++    from collector.validators.schema import validate_snapshot
++
++    mutated = _margin_pending_mutation({
++        "dataDate": "2026-07-16",
++    })
++
++    with pytest.raises(ValueError):
++        validate_snapshot(mutated)
++
++
++def test_manifest_final_implies_close_complete(
++    tmp_path,
++    monkeypatch,
++):
++    """唯一一天为 D+1 FINAL 时，CLOSE_COMPLETE 指针应与 FINAL 指针同日
++    （FINAL 隐含 CLOSE_COMPLETE 的直接断言）。"""
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import (
++        _write_json_atomic,
++        update_manifest_and_latest,
++    )
++    from collector.schema import new_snapshot
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++    test_calendar = test_data / "calendar"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    day_dir = test_daily / "2026"
++    day_dir.mkdir(parents=True, exist_ok=True)
++
++    snap = new_snapshot("2026-08-12")
++    for module in snap["modules"].values():
++        module["status"] = "FINAL"
++        module["dataDate"] = "2026-08-12"
++    snap["overallStatus"] = "FINAL"
++    _write_json_atomic(day_dir / "2026-08-12.json", snap)
++
++    manifest = update_manifest_and_latest(
++        "2026-08-12",
++        snap,
++    )
++
++    assert manifest["latestCapturedDate"] == "2026-08-12"
++    assert manifest["latestCloseCompleteDate"] == "2026-08-12"
++    assert manifest["latestFinalDate"] == "2026-08-12"
++
++
++# ---------------------------------------------------------------------------
++# R10.1 评审修复回归（ChatGPT 6 项：P1-01 事务恢复 / P1-02 tracks 状态域 /
++# P2-01 身份校验 / P3-01 文档 / P3-02 TS 形状）
++# ---------------------------------------------------------------------------
++
++def test_phase_tracks_stale_sufficient_is_captured():
++    """STALE + TRACKS_SUFFICIENT + 80 不得点亮 CLOSE_COMPLETE（R10-P1-02）。"""
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    statuses["tracks"] = "STALE"
++    snap = _phase_snapshot(statuses)
++    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++    snap["modules"]["tracks"]["coveragePct"] = 80.0
++    assert snapshot_phase(snap) == PHASE_CAPTURED
++
++
++def test_phase_tracks_pending_sufficient_is_captured():
++    """PENDING + TRACKS_SUFFICIENT + 80 不得点亮 CLOSE_COMPLETE（R10-P1-02）。"""
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++
++    statuses = {name: "FINAL" for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    )}
++    statuses["margin"] = "PENDING"
++    statuses["tracks"] = "PENDING"
++    snap = _phase_snapshot(statuses)
++    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++    snap["modules"]["tracks"]["coveragePct"] = 80.0
++    assert snapshot_phase(snap) == PHASE_CAPTURED
++
++
++def test_phase_tracks_partial_sufficient_80_is_close_complete():
++    """PARTIAL + TRACKS_SUFFICIENT + 80 -> CLOSE_COMPLETE + validator PASS。"""
++    import copy
++    import json
++
++    from collector.completeness import (
++        PHASE_CLOSE_COMPLETE,
++        snapshot_phase,
++    )
++    from collector.validators.schema import validate_snapshot
++
++    with open(
++        "web/public/data/daily/2026/2026-07-17.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snap = json.load(f)
++
++    # 以真实 FINAL 快照为基础，仅把 tracks 降级为受约束 PARTIAL sufficient
++    snap["modules"]["tracks"]["status"] = "PARTIAL"
++    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++    snap["modules"]["tracks"]["coveragePct"] = 80.0
++    snap["modules"]["tracks"]["dataDate"] = "2026-07-17"
++    snap["overallStatus"] = "PARTIAL"
++
++    assert snapshot_phase(snap) == PHASE_CLOSE_COMPLETE
++    validate_snapshot(snap)
++
++
++def test_phase_tracks_partial_invalid_coverage_fails_closed():
++    """PARTIAL sufficient 的 Inf/101/bool/79.9 均不得点亮，validator 拒绝。"""
++    import pytest
++
++    from collector.completeness import (
++        PHASE_CAPTURED,
++        snapshot_phase,
++    )
++    from collector.validators.schema import validate_snapshot
++
++    for coverage in (float("inf"), 101.0, True, 79.9):
++        statuses = {name: "FINAL" for name in (
++            "marketIndex", "turnover", "sentiment", "sectorPerformance",
++            "fundFlow", "northbound", "summary",
++        )}
++        statuses["margin"] = "PENDING"
++        statuses["tracks"] = "PARTIAL"
++        snap = _phase_snapshot(statuses)
++        snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++        snap["modules"]["tracks"]["coveragePct"] = coverage
++        snap["modules"]["tracks"]["dataDate"] = "2026-08-14"
++        snap["overallStatus"] = "PARTIAL"
++
++        assert snapshot_phase(snap) == PHASE_CAPTURED
++
++        with pytest.raises(ValueError):
++            validate_snapshot(snap)
++
++
++def test_margin_reference_rejects_filename_trade_date_mismatch(
++    tmp_path,
++    monkeypatch,
++):
++    """文件名=08-13、snapshot.tradeDate=08-12 -> reference 必须跳过（R10-P2-01）。"""
++    import json
++
++    import collector.config as config
++    from collector.modules.margin import (
++        _latest_published_reference,
++    )
++
++    test_root = tmp_path / "repo"
++    test_daily = test_root / "data" / "daily"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++
++    prev_dir = test_daily / "2026"
++    prev_dir.mkdir(parents=True, exist_ok=True)
++
++    (prev_dir / "2026-08-13.json").write_text(
++        json.dumps({
++            "tradeDate": "2026-08-12",
++            "modules": {
++                "margin": {
++                    "status": "FINAL",
++                    "dataDate": "2026-08-12",
++                    "financingBalance": 100.0,
++                    "securitiesLendingBalance": 5.0,
++                    "marginBalance": 105.0,
++                }
++            },
++        }),
++        encoding="utf-8",
++    )
++
++    assert (
++        _latest_published_reference("2026-08-14")
++        is None
++    )
++
++
++def test_margin_reference_rejects_margin_data_date_mismatch(
++    tmp_path,
++    monkeypatch,
++):
++    """snapshot.tradeDate=08-13、margin.dataDate=08-12 -> 跳过（R10-P2-01）。"""
++    import json
++
++    import collector.config as config
++    from collector.modules.margin import (
++        _latest_published_reference,
++    )
++
++    test_root = tmp_path / "repo"
++    test_daily = test_root / "data" / "daily"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++
++    prev_dir = test_daily / "2026"
++    prev_dir.mkdir(parents=True, exist_ok=True)
++
++    (prev_dir / "2026-08-13.json").write_text(
++        json.dumps({
++            "tradeDate": "2026-08-13",
++            "modules": {
++                "margin": {
++                    "status": "FINAL",
++                    "dataDate": "2026-08-12",
++                    "financingBalance": 100.0,
++                    "securitiesLendingBalance": 5.0,
++                    "marginBalance": 105.0,
++                }
++            },
++        }),
++        encoding="utf-8",
++    )
++
++    assert (
++        _latest_published_reference("2026-08-14")
++        is None
++    )
++
++
++def test_manifest_rejects_daily_identity_mismatch(
++    tmp_path,
++    monkeypatch,
++):
++    """文件名=08-14、snapshot.tradeDate=08-13 -> manifest 更新必须抛错（R10-P2-01）。"""
++    import pytest
++
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import (
++        _write_json_atomic,
++        update_manifest_and_latest,
++    )
++    from collector.schema import new_snapshot
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++    test_calendar = test_data / "calendar"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    day_dir = test_daily / "2026"
++    day_dir.mkdir(parents=True, exist_ok=True)
++
++    snap = new_snapshot("2026-08-13")
++    for module in snap["modules"].values():
++        module["status"] = "FINAL"
++        module["dataDate"] = "2026-08-13"
++    snap["overallStatus"] = "FINAL"
++
++    # 故意错名：内容 tradeDate=08-13 却写到 08-14 文件名
++    _write_json_atomic(day_dir / "2026-08-14.json", snap)
++
++    with pytest.raises(RuntimeError):
++        update_manifest_and_latest(
++            "2026-08-14",
++            snap,
++        )
++
++
++def test_derived_publish_recovers_after_second_file_failure(
++    tmp_path,
++    monkeypatch,
++):
++    """第二派生文件写失败后，下一次 ensure_derived_state_consistent 必须恢复（R10-P1-01）。"""
++    import json
++
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import (
++        _write_json_atomic,
++        ensure_derived_state_consistent,
++        update_manifest_and_latest,
++    )
++    from collector.schema import new_snapshot
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++    test_calendar = test_data / "calendar"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    day_dir = test_daily / "2026"
++    day_dir.mkdir(parents=True, exist_ok=True)
++
++    snap = new_snapshot("2026-08-14")
++    for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    ):
++        snap["modules"][name]["status"] = "FINAL"
++        snap["modules"][name]["dataDate"] = "2026-08-14"
++    snap["modules"]["margin"]["status"] = "PENDING"
++    snap["modules"]["tracks"]["status"] = "UNAVAILABLE"
++    snap["overallStatus"] = "PARTIAL_PENDING"
++
++    _write_json_atomic(day_dir / "2026-08-14.json", snap)
++
++    # 首次正常更新
++    update_manifest_and_latest("2026-08-14", snap)
++
++    # 故障注入：模拟第二派生文件(latest)失败——把 latest.json 删掉
++    (test_data / "latest.json").unlink()
++
++    # 一致性修复入口必须重建 latest.json
++    repaired = ensure_derived_state_consistent("2026-08-14", snap)
++
++    assert repaired is True
++    assert (test_data / "latest.json").exists()
++
++    restored = json.loads(
++        (test_data / "latest.json").read_text(encoding="utf-8")
++    )
++
++    assert restored["tradeDate"] == "2026-08-14"
++
++    # 再次执行应为 NO_REPAIR（幂等）
++    assert ensure_derived_state_consistent("2026-08-14", snap) is False
++
++
++def test_no_change_path_repairs_interrupted_derived_publish(
++    tmp_path,
++    monkeypatch,
++):
++    """NO_CHANGE 路径也必须修复派生分叉，且不制造无意义时间戳（R10-P1-01）。"""
++    import json
++
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import (
++        _write_json_atomic,
++        ensure_derived_state_consistent,
++        write_if_changed,
++    )
++    from collector.schema import new_snapshot
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++    test_calendar = test_data / "calendar"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    day_dir = test_daily / "2026"
++    day_dir.mkdir(parents=True, exist_ok=True)
++
++    import json
++
++    # 以真实 08-14 快照为基（V1 口径、margin 已 PENDING），仅修正 tracks
++    with open(
++        "web/public/data/daily/2026/2026-08-14.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snap = json.load(f)
++
++    snap["modules"]["tracks"]["status"] = "UNAVAILABLE"
++    snap["modules"]["tracks"]["dataDate"] = "2026-08-14"
++    snap["overallStatus"] = "PARTIAL_PENDING"
++
++    # 首次写入
++    changed, _ = write_if_changed(snap)
++    assert changed
++
++    from collector.jobs.common import update_manifest_and_latest
++
++    update_manifest_and_latest("2026-08-14", snap)
++
++    # 模拟派生分叉：删掉 status.json
++    (test_data / "status.json").unlink()
++
++    # 同语义重跑 -> NO_CHANGE，但 ensure 必须修复 status.json
++    changed, reason = write_if_changed(snap)
++    assert not changed
++    assert reason == "NO_CHANGE"
++
++    repaired = ensure_derived_state_consistent("2026-08-14", snap)
++    assert repaired is True
++    assert (test_data / "status.json").exists()
++
++    # 再次 ensure 幂等
++    assert ensure_derived_state_consistent("2026-08-14", snap) is False
++
++
++def test_validator_rejects_reference_unbalanced_balance():
++    """reference 三项余额不守恒（|total-(fin+lend)|>0.05）必须拒绝（R10.2-N04）。"""
++    import pytest
++
++    from collector.validators.schema import validate_snapshot
++
++    mutated = _margin_pending_mutation({
++        "dataDate": "2026-07-16",
++        "financingBalance": 100.0,
++        "securitiesLendingBalance": 5.0,
++        "marginBalance": 110.0,  # 100+5=105，偏差 5 > 0.05
++    })
++
++    with pytest.raises(ValueError):
++        validate_snapshot(mutated)
++
++
++def test_write_if_changed_raises_on_readback_corruption(
++    tmp_path,
++    monkeypatch,
++):
++    """严格回读防线：落盘后读回失败必须 raise，不得静默成功（R10-P1-01 变异敏感度）。"""
++    import json
++
++    import pytest
++
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import write_if_changed
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    with open(
++        "web/public/data/daily/2026/2026-08-14.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snap = json.load(f)
++
++    original_read = common._read_json
++
++    def corrupting_read(path):
++        value = original_read(path)
++        if (
++            value is not None
++            and isinstance(value, dict)
++            and value.get("tradeDate") == "2026-08-14"
++        ):
++            return None  # 模拟回读失败/损坏
++        return value
++
++    monkeypatch.setattr(
++        common,
++        "_read_json",
++        corrupting_read,
++    )
++
++    with pytest.raises(RuntimeError):
++        write_if_changed(snap)
++
++
++def test_write_json_atomic_raises_on_readback_corruption(
++    tmp_path,
++    monkeypatch,
++):
++    """派生文件严格回读防线：读回失败必须 raise（R10-P1-01 变异敏感度）。"""
++    import pytest
++
++    import collector.jobs.common as common
++
++    monkeypatch.setattr(
++        common,
++        "_read_json",
++        lambda path: None,
++    )
++
++    with pytest.raises(RuntimeError):
++        common._write_json_atomic(
++            tmp_path / "derived.json",
++            {"k": 1},
++        )
++
++
++def test_daily_no_change_retry_reconfirms_parent_fsync(
++    tmp_path,
++    monkeypatch,
++):
++    """R10.2-P1-01：replace 成功后 parent fsync 失败 -> 同语义重试必须重新 fsync。"""
++    import json
++
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import write_if_changed
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    with open(
++        "web/public/data/daily/2026/2026-08-14.json",
++        "r",
++        encoding="utf-8",
++    ) as f:
++        snap = json.load(f)
++
++    # 首次写入成功
++    changed, _ = write_if_changed(snap)
++    assert changed
++
++    # 故障注入：parent fsync 首次调用抛错
++    original_fsync = common._fsync_directory
++    calls = {"n": 0}
++
++    def flaky_fsync(path):
++        calls["n"] += 1
++        if calls["n"] == 1:
++            raise OSError("injected fsync failure")
++        return original_fsync(path)
++
++    monkeypatch.setattr(common, "_fsync_directory", flaky_fsync)
++
++    # 同语义重试：首次（写入路径）fsync 失败 -> raise
++    import pytest
++
++    with pytest.raises(OSError):
++        write_if_changed(snap)
++
++    # 恢复后再次同语义调用 -> NO_CHANGE 且必须重新 fsync（防 durability 不确定被压平）
++    monkeypatch.setattr(common, "_fsync_directory", original_fsync)
++    fsync_calls = {"n": 0}
++
++    def counting_fsync(path):
++        fsync_calls["n"] += 1
++        return original_fsync(path)
++
++    monkeypatch.setattr(common, "_fsync_directory", counting_fsync)
++
++    changed, reason = write_if_changed(snap)
++    assert not changed
++    assert reason == "NO_CHANGE"
++    assert fsync_calls["n"] >= 1
++
++
++def test_derived_no_repair_reconfirms_parent_fsync(
++    tmp_path,
++    monkeypatch,
++):
++    """R10.2-P1-01：派生一致但上一事务 fsync 未确认 -> no-repair 路径也必须重新 fsync。"""
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import (
++        _write_json_atomic,
++        ensure_derived_state_consistent,
++        update_manifest_and_latest,
++    )
++    from collector.schema import new_snapshot
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++    test_calendar = test_data / "calendar"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    day_dir = test_daily / "2026"
++    day_dir.mkdir(parents=True, exist_ok=True)
++
++    snap = new_snapshot("2026-08-14")
++    for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    ):
++        snap["modules"][name]["status"] = "FINAL"
++        snap["modules"][name]["dataDate"] = "2026-08-14"
++    snap["modules"]["margin"]["status"] = "PENDING"
++    snap["modules"]["tracks"]["status"] = "UNAVAILABLE"
++    snap["overallStatus"] = "PARTIAL_PENDING"
++
++    _write_json_atomic(day_dir / "2026-08-14.json", snap)
++    update_manifest_and_latest("2026-08-14", snap)
++
++    original_fsync = common._fsync_directory
++    fsync_calls = {"n": 0}
++
++    def counting_fsync(path):
++        fsync_calls["n"] += 1
++        return original_fsync(path)
++
++    monkeypatch.setattr(common, "_fsync_directory", counting_fsync)
++
++    # 派生已一致 -> no-repair，但必须重新 fsync 数据目录
++    repaired = ensure_derived_state_consistent("2026-08-14", snap)
++
++    assert repaired is False
++    assert fsync_calls["n"] >= 1
++
++
++def test_manifest_rejects_partial_tracks_data_date_mismatch(
++    tmp_path,
++    monkeypatch,
++):
++    """R10.2-P2-01：PARTIAL tracks dataDate 错日不得参与索引（CC 指针不可被推进）。"""
++    import pytest
++
++    import collector.config as config
++    import collector.jobs.common as common
++    from collector.jobs.common import (
++        _write_json_atomic,
++        update_manifest_and_latest,
++    )
++    from collector.schema import new_snapshot
++
++    test_root = tmp_path / "repo"
++    test_data = test_root / "data"
++    test_daily = test_data / "daily"
++    test_calendar = test_data / "calendar"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_data)
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++    monkeypatch.setattr(config, "CALENDAR_DIR", test_calendar)
++    monkeypatch.setattr(common, "DAILY_DIR", test_daily)
++
++    day_dir = test_daily / "2026"
++    day_dir.mkdir(parents=True, exist_ok=True)
++
++    snap = new_snapshot("2026-08-14")
++    for name in (
++        "marketIndex", "turnover", "sentiment", "sectorPerformance",
++        "fundFlow", "northbound", "summary",
++    ):
++        snap["modules"][name]["status"] = "FINAL"
++        snap["modules"][name]["dataDate"] = "2026-08-14"
++    snap["modules"]["margin"]["status"] = "PENDING"
++    snap["modules"]["tracks"]["status"] = "PARTIAL"
++    snap["modules"]["tracks"]["decision"] = "TRACKS_SUFFICIENT"
++    snap["modules"]["tracks"]["coveragePct"] = 80.0
++    snap["modules"]["tracks"]["dataDate"] = "2026-08-13"  # 错日
++    snap["overallStatus"] = "PARTIAL"
++
++    _write_json_atomic(day_dir / "2026-08-14.json", snap)
++
++    with pytest.raises(RuntimeError):
++        update_manifest_and_latest("2026-08-14", snap)
++
++
++def test_margin_reference_accepts_exact_boundary_conservation(
++    tmp_path,
++    monkeypatch,
++):
++    """R10.2-P2-02：Decimal 口径——恰好 +0.05 的 reference 必须被 collector 接受。"""
++    import json
++
++    import collector.config as config
++    from collector.modules.margin import (
++        _latest_published_reference,
++    )
++
++    test_root = tmp_path / "repo"
++    test_daily = test_root / "data" / "daily"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
++    monkeypatch.setattr(config, "DAILY_DIR", test_daily)
++
++    prev_dir = test_daily / "2026"
++    prev_dir.mkdir(parents=True, exist_ok=True)
++
++    # 十进制精确差 = 0.05，按业务规则应通过
++    (prev_dir / "2026-08-13.json").write_text(
++        json.dumps({
++            "tradeDate": "2026-08-13",
++            "modules": {
++                "margin": {
++                    "status": "FINAL",
++                    "dataDate": "2026-08-13",
++                    "financingBalance": 99900.0,
++                    "securitiesLendingBalance": 100.0,
++                    "marginBalance": 100000.05,
++                }
++            },
++        }),
++        encoding="utf-8",
++    )
++
++    ref = _latest_published_reference("2026-08-14")
++
++    assert ref is not None
++    assert ref["dataDate"] == "2026-08-13"
++
++
++def test_validator_reference_boundary_decimal():
++    """R10.2-P2-02：validator 恰好 +0.05 通过；+0.06 拒绝。"""
++    import pytest
++
++    from collector.validators.schema import validate_snapshot
++
++    valid = _margin_pending_mutation({
++        "dataDate": "2026-07-16",
++        "financingBalance": 99900.0,
++        "securitiesLendingBalance": 100.0,
++        "marginBalance": 100000.05,
++    })
++    validate_snapshot(valid)
++
++    invalid = _margin_pending_mutation({
++        "dataDate": "2026-07-16",
++        "financingBalance": 99900.0,
++        "securitiesLendingBalance": 100.0,
++        "marginBalance": 100000.06,
++    })
++
++    with pytest.raises(ValueError):
++        validate_snapshot(invalid)
+diff --git a/collector/validators/schema.py b/collector/validators/schema.py
+index 21a9891..c646515 100644
+--- a/collector/validators/schema.py
++++ b/collector/validators/schema.py
+@@ -307,6 +307,30 @@ def validate_snapshot(
+                     f"expected={expected})"
+                 )
+ 
++    margin_reference = margin.get(
++        "latestPublishedReference"
++    )
++
++    if (
++        margin_reference is not None
++        and margin.get("status")
++        != ModuleStatus.FINAL.value
++    ):
++        _validate_margin_reference(
++            margin_reference,
++            trade_date,
++            errors,
++        )
++    elif (
++        margin_reference is not None
++        and margin.get("status")
++        == ModuleStatus.FINAL.value
++    ):
++        errors.append(
++            "margin: FINAL must not carry "
++            "latestPublishedReference"
++        )
++
+     summary = modules.get(
+         "summary",
+         {},
+@@ -380,7 +404,32 @@ def _validate_partial_module(
+     trade_date: str,
+     errors: list[str],
+ ) -> None:
+-    """V1 的 PARTIAL 当前只允许历史 sentiment 涨跌停池子集（R8-P2-01）。"""
++    """V1 PARTIAL：历史 sentiment（R8-P2-01）；R10 起允许受约束 tracks sufficient。"""
++    if name == "tracks":
++        if module.get("dataDate") != trade_date:
++            errors.append(
++                "tracks: PARTIAL dataDate "
++                f"{module.get('dataDate')} != tradeDate {trade_date}"
++            )
++
++        if module.get("decision") != "TRACKS_SUFFICIENT":
++            errors.append(
++                "tracks: PARTIAL decision must be TRACKS_SUFFICIENT"
++            )
++
++        coverage = module.get("coveragePct")
++
++        if (
++            not _is_finite_number(coverage)
++            or float(coverage) < 80.0
++            or float(coverage) > 100.0
++        ):
++            errors.append(
++                "tracks: PARTIAL coveragePct must be finite within [80, 100]"
++            )
++
++        return
++
+     if name != "sentiment":
+         errors.append(
+             f"{name}: PARTIAL is not supported"
+@@ -450,6 +499,118 @@ def _validate_partial_module(
+             )
+ 
+ 
++def _validate_margin_reference(
++    reference: dict[str, Any],
++    trade_date: str,
++    errors: list[str],
++) -> None:
++    """D0 两融参考值深度契约（R7-P1 / R6-P1-04）。
++
++    状态机契约（与 modules/margin._latest_published_reference 严格配对）：
++    - 仅允许在 margin.status != FINAL 时出现（FINAL 本身即 T 日真实值）；
++    - dataDate 必须是严格早于 tradeDate 的合法规范 ISO 日期；
++    - 三项余额必须是有限数值（排除 bool）且 >= 0；
++    - marginBalance ≈ financingBalance + securitiesLendingBalance
++      （绝对容差 0.05 亿元，与 collector 端同口径，R10.2-N04）。
++
++    边界说明：本函数保持纯函数、不读磁盘。参考值与所属快照的身份
++    一致性（dataDate 确实取自该日已落盘 FINAL margin）由采集端
++    _latest_published_reference 的"只读已落盘 FINAL 快照、倒序首个命中、
++    找不到即 None"查找保证（fail-closed），validator 不重复校验。
++    """
++    if not isinstance(reference, dict):
++        errors.append(
++            "margin.latestPublishedReference "
++            "must be object"
++        )
++        return
++
++    data_date = reference.get("dataDate")
++
++    try:
++        parsed = date.fromisoformat(
++            str(data_date)
++        ).isoformat()
++    except (KeyError, ValueError, TypeError):
++        errors.append(
++            "margin reference: invalid dataDate"
++        )
++        return
++
++    if data_date != parsed:
++        errors.append(
++            "margin reference: non-canonical dataDate"
++        )
++        return
++
++    try:
++        trade = date.fromisoformat(
++            str(trade_date)
++        )
++    except ValueError:
++        trade = None
++
++    if (
++        trade is not None
++        and date.fromisoformat(data_date) >= trade
++    ):
++        errors.append(
++            "margin reference dataDate must be "
++            "strictly before tradeDate"
++        )
++        return
++
++    for field in (
++        "financingBalance",
++        "securitiesLendingBalance",
++        "marginBalance",
++    ):
++        value = reference.get(field)
++
++        if (
++            isinstance(value, bool)
++            or not _is_finite_number(value)
++        ):
++            errors.append(
++                f"margin reference.{field} "
++                "must be finite number"
++            )
++            continue
++
++        if float(value) < 0:
++            errors.append(
++                f"margin reference.{field} "
++                "must be >= 0"
++            )
++
++    financing = reference.get(
++        "financingBalance"
++    )
++    lending = reference.get(
++        "securitiesLendingBalance"
++    )
++    total = reference.get("marginBalance")
++
++    if (
++        _is_finite_number(financing)
++        and not isinstance(financing, bool)
++        and _is_finite_number(lending)
++        and not isinstance(lending, bool)
++        and _is_finite_number(total)
++        and not isinstance(total, bool)
++    ):
++        expected = Decimal(str(financing)) + Decimal(str(lending))
++        actual = Decimal(str(total))
++
++        if abs(actual - expected) > Decimal("0.05"):
++            errors.append(
++                "margin reference: marginBalance must "
++                "equal financingBalance + "
++                "securitiesLendingBalance "
++                "(tolerance 0.05)"
++            )
++
++
+ def _validate_turnover_lineage(
+     turnover: dict[str, Any],
+     errors: list[str],
+diff --git a/docs/SMI-V1-Design-V1.1.md b/docs/SMI-V1-Design-V1.1.md
+index d3bccf8..9304e30 100644
+--- a/docs/SMI-V1-Design-V1.1.md
++++ b/docs/SMI-V1-Design-V1.1.md
+@@ -2835,24 +2835,43 @@ web/public/data/daily/2026/2026-08-13.json
+ 
+ ---
+ 
+-# 13. manifest.json
++# 13. manifest.json（schemaVersion 1.2 · D0/D+1 三指针）
+ 
+-建议：
++建议（示例为 tracks 占位期的线上真实形态：07-17 是 Legacy FINAL 基线；
++07-20~08-14 因 tracks=UNAVAILABLE 只能 CAPTURED。启用真实 tracks collector 后，
++latestCloseCompleteDate 将自当日起每日推进）：
+ 
+ ```json
+ {
+-  "schemaVersion": "1.0",
+-  "latestDate": "2026-08-13",
+-  "latestFinalDate": "2026-08-13",
+-  "updatedAt": "2026-08-14T10:18:12+08:00",
++  "schemaVersion": "1.2",
++  "latestCapturedDate": "2026-08-14",
++  "latestCloseCompleteDate": "2026-07-17",
++  "latestFinalDate": "2026-07-17",
++  "latestDate": "2026-08-14",
++  "updatedAt": "2026-08-16T00:35:11+08:00",
+   "availableDates": [
++    "2026-08-14",
+     "2026-08-13",
+-    "2026-08-12",
+-    "2026-08-11"
++    "2026-08-12"
+   ]
+ }
+ ```
+ 
++三指针语义（R7-P1 / R6-P1-04，D0/D+1 两阶段完整性模型）：
++
++| 字段 | 语义 | 判定 |
++|---|---|---|
++| latestCapturedDate | 最新有快照文件的日期（任意阶段） | availableDates 最大值 |
++| latestCloseCompleteDate | 最新达到 D0 CLOSE_COMPLETE 的日期 | 8 个非 margin 模块 FINAL（tracks 需 FINAL 或 TRACKS_SUFFICIENT coverage>=80），margin 允许 PENDING |
++| latestFinalDate | 最新达到 D+1 FINAL 的日期 | 9 模块全部 FINAL |
++| latestDate | 已废弃别名，与 latestCapturedDate 同值 | 兼容旧消费者 |
++
++- FINAL 隐含 CLOSE_COMPLETE（9 模块全 FINAL ⊃ 非 margin FINAL + margin FINAL/PENDING）。
++- 从启用真实 tracks collector 之日起，每日形成 D0 CLOSE_COMPLETE；
++  当前 tracks 为占位 UNAVAILABLE，07-20 起各日只能 CAPTURED，
++  latestCloseCompleteDate 锚定 07-17（Legacy FINAL）属预期。
++- 阶段判定纯函数位于 `collector/completeness.py`（snapshot_phase）。
++
+ 日期选择器只允许选择：
+ 
+ ```text
+@@ -2869,15 +2888,29 @@ availableDates
+ 
+ ```json
+ {
+-  "lastWorkflow": "t1-reconcile",
+-  "lastRunAt": "2026-08-14T10:18:12+08:00",
+-  "lastSuccessfulTradeDate": "2026-08-13",
+-  "latestDate": "2026-08-13",
+-  "health": "OK",
+-  "errors": []
++  "lastWorkflow": "manual",
++  "lastRunAt": "2026-08-16T00:35:11+08:00",
++  "lastSuccessfulTradeDate": "2026-07-17",
++  "latestCapturedDate": "2026-08-14",
++  "latestCloseCompleteDate": "2026-07-17",
++  "latestFinalDate": "2026-07-17",
++  "latestDate": "2026-08-14",
++  "health": "DEGRADED",
++  "errors": [
++    {
++      "module": "margin",
++      "status": "PENDING",
++      "errors": ["Length mismatch: Expected axis has 0 elements, new values have 13 elements"]
++    }
++  ],
++  "staleModules": []
+ }
+ ```
+ 
++说明：health 描述"流水线故障"（errors/stale），三指针描述"快照完整度"，两者分离
++（R6-P2-03）。D0 margin=PENDING 且采集带真实 errors 时 health=DEGRADED 属既有语义；
++预期中的 D0 PENDING 是否计降级留待 R6-P2-03 后续任务。
++
+ ---
+ 
+ # 15. 项目目录结构
+diff --git a/web/public/data/daily/2026/2026-08-14.json b/web/public/data/daily/2026/2026-08-14.json
+index 9256206..c6ac033 100644
+--- a/web/public/data/daily/2026/2026-08-14.json
++++ b/web/public/data/daily/2026/2026-08-14.json
+@@ -2,10 +2,10 @@
+   "schemaVersion": "1.1",
+   "tradeDate": "2026-08-14",
+   "generatedAt": "2026-08-14T18:04:47+08:00",
+-  "updatedAt": "2026-08-15T21:31:50+08:00",
+-  "revision": 6,
++  "updatedAt": "2026-08-16T00:35:11+08:00",
++  "revision": 7,
+   "overallStatus": "PARTIAL_PENDING",
+-  "generationReason": "TURNOVER_CHAIN_RECONCILE",
++  "generationReason": "D0_REFERENCE_BACKFILL",
+   "market": "CN_A",
+   "timezone": "Asia/Shanghai",
+   "meta": {
+@@ -35149,7 +35149,13 @@
+       "errors": [
+         "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+       ],
+-      "warnings": []
++      "warnings": [],
++      "latestPublishedReference": {
++        "dataDate": "2026-08-13",
++        "financingBalance": 26413.68,
++        "securitiesLendingBalance": 259.77,
++        "marginBalance": 26673.45
++      }
+     },
+     "tracks": {
+       "status": "UNAVAILABLE",
+@@ -35282,7 +35288,7 @@
+       "indexAndTurnover": "上证指数收涨 +0.01%；创业板表现强于沪深300。",
+       "sentiment": "上涨 2400 家、下跌 2969 家，非ST涨停 63 家，下跌家数占优。",
+       "fundFlow": "行业主力净流入居前：通信设备、小金属、通信服务；行业主力净流出居前：电力、证券、化学制药。",
+-      "margin": "两融数据按 T+1 节奏回补，目前待披露。",
++      "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-08-13）总余额 26673.45 亿元。",
+       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。",
+       "marketEnvironment": "沪深两市成交额 21422.77 亿元，较前一交易日 -16.11%，缩量。",
+       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",
+diff --git a/web/public/data/latest.json b/web/public/data/latest.json
+index 9256206..c6ac033 100644
+--- a/web/public/data/latest.json
++++ b/web/public/data/latest.json
+@@ -2,10 +2,10 @@
+   "schemaVersion": "1.1",
+   "tradeDate": "2026-08-14",
+   "generatedAt": "2026-08-14T18:04:47+08:00",
+-  "updatedAt": "2026-08-15T21:31:50+08:00",
+-  "revision": 6,
++  "updatedAt": "2026-08-16T00:35:11+08:00",
++  "revision": 7,
+   "overallStatus": "PARTIAL_PENDING",
+-  "generationReason": "TURNOVER_CHAIN_RECONCILE",
++  "generationReason": "D0_REFERENCE_BACKFILL",
+   "market": "CN_A",
+   "timezone": "Asia/Shanghai",
+   "meta": {
+@@ -35149,7 +35149,13 @@
+       "errors": [
+         "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+       ],
+-      "warnings": []
++      "warnings": [],
++      "latestPublishedReference": {
++        "dataDate": "2026-08-13",
++        "financingBalance": 26413.68,
++        "securitiesLendingBalance": 259.77,
++        "marginBalance": 26673.45
++      }
+     },
+     "tracks": {
+       "status": "UNAVAILABLE",
+@@ -35282,7 +35288,7 @@
+       "indexAndTurnover": "上证指数收涨 +0.01%；创业板表现强于沪深300。",
+       "sentiment": "上涨 2400 家、下跌 2969 家，非ST涨停 63 家，下跌家数占优。",
+       "fundFlow": "行业主力净流入居前：通信设备、小金属、通信服务；行业主力净流出居前：电力、证券、化学制药。",
+-      "margin": "两融数据按 T+1 节奏回补，目前待披露。",
++      "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-08-13）总余额 26673.45 亿元。",
+       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。",
+       "marketEnvironment": "沪深两市成交额 21422.77 亿元，较前一交易日 -16.11%，缩量。",
+       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",
+diff --git a/web/public/data/manifest.json b/web/public/data/manifest.json
+index ade9541..96205b5 100644
+--- a/web/public/data/manifest.json
++++ b/web/public/data/manifest.json
+@@ -1,8 +1,10 @@
+ {
+-  "schemaVersion": "1.1",
+-  "latestDate": "2026-08-14",
++  "schemaVersion": "1.2",
++  "latestCapturedDate": "2026-08-14",
++  "latestCloseCompleteDate": "2026-07-17",
+   "latestFinalDate": "2026-07-17",
+-  "updatedAt": "2026-08-15T23:05:09+08:00",
++  "latestDate": "2026-08-14",
++  "updatedAt": "2026-08-16T00:35:11+08:00",
+   "availableDates": [
+     "2026-07-17",
+     "2026-07-20",
+diff --git a/web/public/data/status.json b/web/public/data/status.json
+index 70a5e5f..b76f8a8 100644
+--- a/web/public/data/status.json
++++ b/web/public/data/status.json
+@@ -1,9 +1,20 @@
+ {
+   "lastWorkflow": "manual",
+-  "lastRunAt": "2026-08-15T23:05:09+08:00",
+-  "lastSuccessfulTradeDate": "2026-08-13",
++  "lastRunAt": "2026-08-16T00:35:11+08:00",
++  "lastSuccessfulTradeDate": "2026-07-17",
++  "latestCapturedDate": "2026-08-14",
++  "latestCloseCompleteDate": "2026-07-17",
++  "latestFinalDate": "2026-07-17",
+   "latestDate": "2026-08-14",
+-  "health": "OK",
+-  "errors": [],
++  "health": "DEGRADED",
++  "errors": [
++    {
++      "module": "margin",
++      "status": "PENDING",
++      "errors": [
++        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
++      ]
++    }
++  ],
+   "staleModules": []
+ }
+diff --git a/web/src/App.vue b/web/src/App.vue
+index 46390b3..9de2200 100644
+--- a/web/src/App.vue
++++ b/web/src/App.vue
+@@ -13,6 +13,11 @@
+       <div class="status-line" v-if="snapshot">
+         {{ statusSummary }} · 更新于 {{ snapshot.updatedAt || snapshot.generatedAt || "—" }}
+       </div>
++      <div class="completeness-line" v-if="manifest">
++        采集 {{ manifest.latestCapturedDate || manifest.latestDate || "—" }}
++        · 收盘完整 {{ manifest.latestCloseCompleteDate || "—" }}
++        · 全量最终 {{ manifest.latestFinalDate || "—" }}
++      </div>
+     </div>
+ 
+     <div v-if="error" class="empty-tip">加载失败：{{ error }}</div>
+@@ -75,7 +80,7 @@ const currentDate = ref("");
+ const error = ref("");
+ 
+ const dates = computed(() => manifest.value?.availableDates ?? []);
+-const latestDate = computed(() => manifest.value?.latestDate ?? "");
++const latestDate = computed(() => manifest.value?.latestCapturedDate || manifest.value?.latestDate || "");
+ 
+ const idx = computed(() => dates.value.indexOf(currentDate.value));
+ const prevDate = computed(() => (idx.value > 0 ? dates.value[idx.value - 1] : null));
+@@ -138,6 +143,11 @@ watch(latestDate, (d) => {
+ </script>
+ 
+ <style scoped>
++.completeness-line {
++  font-size: 12px;
++  color: var(--muted, #999);
++  margin-top: 4px;
++}
+ .legacy-banner {
+   background: rgba(255, 202, 40, 0.08);
+   border: 1px solid rgba(255, 202, 40, 0.3);
+diff --git a/web/src/modules/MarginPanel.vue b/web/src/modules/MarginPanel.vue
+index 65db30c..d9de896 100644
+--- a/web/src/modules/MarginPanel.vue
++++ b/web/src/modules/MarginPanel.vue
+@@ -7,19 +7,31 @@
+     <div v-if="module.status === 'PENDING'" class="notice">
+       两融数据 T+1 披露，今日暂缺，待次日回补。
+     </div>
++    <div
++      v-if="module.latestPublishedReference && module.status !== 'FINAL'"
++      class="ref-line"
++    >
++      最近已披露（{{ module.latestPublishedReference.dataDate }}）参考：
++      融资 {{ fmt(module.latestPublishedReference.financingBalance) }} ·
++      融券 {{ fmt(module.latestPublishedReference.securitiesLendingBalance) }} ·
++      合计 {{ fmt(module.latestPublishedReference.marginBalance) }}
++    </div>
+     <div class="grid grid-4">
+       <div class="metric">
+         <div class="label">融资余额</div>
+         <div class="value">{{ fmt(module.financingBalance) }}</div>
++        <div class="sub flat" v-if="module.status !== 'FINAL'">当日未披露</div>
+       </div>
+       <div class="metric">
+         <div class="label">融券余额</div>
+         <div class="value">{{ fmt(module.securitiesLendingBalance) }}</div>
++        <div class="sub flat" v-if="module.status !== 'FINAL'">当日未披露</div>
+       </div>
+       <div class="metric">
+         <div class="label">两融总余额</div>
+         <div class="value">{{ fmt(module.marginBalance) }}</div>
+-        <div class="sub" :class="signClass(module.marginBalanceChange)">{{ fmtSigned(module.marginBalanceChange) }}</div>
++        <div class="sub flat" v-if="module.status !== 'FINAL'">当日未披露</div>
++        <div class="sub" v-else :class="signClass(module.marginBalanceChange)">{{ fmtSigned(module.marginBalanceChange) }}</div>
+       </div>
+       <div class="metric">
+         <div class="label">融资净买入</div>
+@@ -82,4 +94,9 @@ function qualityText(q: string | undefined): string {
+   color: var(--blue);
+   margin-bottom: 10px;
+ }
++.ref-line {
++  font-size: 12px;
++  color: var(--muted, #999);
++  margin-bottom: 8px;
++}
+ </style>
+diff --git a/web/src/types/smi.ts b/web/src/types/smi.ts
+index 9ed1098..43c49db 100644
+--- a/web/src/types/smi.ts
++++ b/web/src/types/smi.ts
+@@ -151,16 +151,24 @@ export interface QualityValue {
+ 
+ export interface MarginModule extends ModuleBase {
+   unit: string;
+-  financingBalance: number | null;
+-  securitiesLendingBalance: number | null;
+-  marginBalance: number | null;
+-  marginBalanceChange: number | null;
+-  financingBuyAmount: number | null;
+-  financingNetBuyAmount: QualityValue;
+-  securitiesLendingNetSellVolume: QualityValue;
++  /** FINAL 必有；PENDING/STALE/ERROR 可缺省或 null（R10-P3-02） */
++  financingBalance?: number | null;
++  securitiesLendingBalance?: number | null;
++  marginBalance?: number | null;
++  marginBalanceChange?: number | null;
++  financingBuyAmount?: number | null;
++  financingNetBuyAmount?: QualityValue;
++  securitiesLendingNetSellVolume?: QualityValue;
+   legacySecuritiesLendingNetSellAmount?: QualityValue;
+-  marginTradeAmount: QualityValue;
+-  marginTradeSharePct: QualityValue;
++  marginTradeAmount?: QualityValue;
++  marginTradeSharePct?: QualityValue;
++  /** 非 FINAL 时展示最近已披露的官方两融余额；可能是 T-1，也可能因缺口回退到更早交易日，以 dataDate 为准（R10-P3-01） */
++  latestPublishedReference?: {
++    dataDate: string;
++    financingBalance: number;
++    securitiesLendingBalance: number;
++    marginBalance: number;
++  } | null;
+ }
+ 
+ export interface TrackItem {
+@@ -190,6 +198,9 @@ export interface TrackItem {
+ export interface TracksModule extends ModuleBase {
+   configVersion: string;
+   sourceSystem?: string;
++  /** 模块级 D0 覆盖契约；仅 PARTIAL sufficient 路径使用（R10-P1-02） */
++  decision?: "TRACKS_SUFFICIENT" | "INSUFFICIENT";
++  coveragePct?: number | null;
+   items: TrackItem[];
+ }
+ 
+@@ -247,8 +258,12 @@ export interface DailySnapshot {
+ 
+ export interface Manifest {
+   schemaVersion: string;
+-  latestDate: string;
++  /** 三指针（R7-P1）：最新已采集 / 最新 D0 收盘完整 / 最新 D+1 全 FINAL */
++  latestCapturedDate: string;
++  latestCloseCompleteDate: string | null;
+   latestFinalDate: string | null;
++  /** 已废弃别名，与 latestCapturedDate 同值 */
++  latestDate?: string;
+   updatedAt: string;
+   availableDates: string[];
+ }

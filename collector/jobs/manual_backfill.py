@@ -191,8 +191,11 @@ def main() -> int:
         force=args.force,
     )
 
+    from collector.jobs.common import ensure_derived_state_consistent
+
+    ensure_derived_state_consistent(target, rebuilt)
+
     if changed:
-        update_manifest_and_latest(target, rebuilt)
         print(
             f"WRITTEN {target} "
             f"revision={rebuilt['revision']}"
