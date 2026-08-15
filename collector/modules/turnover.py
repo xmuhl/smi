@@ -40,7 +40,8 @@ def _fetch_turnover_yuan(
 ) -> float:
     """按指定源返回两市总成交额（元）。
 
-    spot 类源（eastmoney/eastmoney_delay/sina）仅支持当日；
+    spot 类源（eastmoney/sina）仅支持当日（delay 主机 clist 后端数据
+    不一致，不可用于全市场统计，R9.2 已移除该路径）；
     exchange 源为交易所官方口径（沪：主板A+科创板；深：主板A股+创业板A股），
     支持历史日期（R9）。
     """

@@ -1,10 +1,14 @@
-"""东财延迟行情主机（push2delay.eastmoney.com）适配器（R9）。
+"""东财延迟行情主机（push2delay.eastmoney.com）适配器（R9 / R9.2 能力边界修正）。
 
 背景（2026-08-15 实测）：东财 push2his / 编号 push2 主机对部分出口 IP 做主机级封禁
 （连接被断），但 push2delay 主机与 push2ex 未封。延迟约 15 分钟，对 16:23 收盘采集
-而言即当日最终数据，因此可用于当日指数与全市场 spot。
+而言即当日最终数据。
 
-约束：该主机不提供历史 kline / 历史 spot，非当日调用直接失败（由调用方降级链兜底）。
+能力边界（R9.2 修正）：
+- 本适配器**仅提供 8 大指数 ulist 当日收盘行情**（fetch_index_quotes）；
+- delay 主机的 clist（全市场 spot）后端节点数据不一致（total 在 1640 ~ 59070 间
+  漂移，2026-08-15 实测），**不可用于全市场统计**，本适配器不提供 clist 接口；
+- 该主机不提供历史 kline / 历史 spot，非当日调用直接失败（由调用方降级链兜底）。
 """
 
 from __future__ import annotations

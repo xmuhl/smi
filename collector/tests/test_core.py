@@ -1361,9 +1361,11 @@ def test_reconcile_day_idempotent_when_unchanged():
     snapshot["modules"]["summary"] = generate_summary(snapshot)
 
     prev = {
+        "tradeDate": "2026-08-12",
         "modules": {
             "turnover": {
                 "status": "FINAL",
+                "dataDate": "2026-08-12",
                 "turnoverToday": 27037.72,
                 "method": "SH_SZ_A_NO_B_NO_BJ_V1",
                 "source": ["EXCHANGE"],
@@ -1524,6 +1526,113 @@ def test_validator_turnover_lineage_negative_cases():
     legacy_ok["modules"]["turnover"].pop("method", None)
     legacy_ok["modules"]["turnover"].pop("comparisonStatus", None)
     validate_snapshot(legacy_ok)
+
+
+def test_reconcile_read_rejects_filename_trade_date_mismatch(
+    tmp_path,
+):
+    """R9.2-P2-01：文件名日期 != tradeDate 的快照必须视为损坏。"""
+    import json
+
+    from collector.jobs.reconcile_turnover_chain import (
+        _read_snapshot,
+    )
+
+    path = tmp_path / "2026-08-12.json"
+
+    path.write_text(
+        json.dumps(
+            {
+                "tradeDate": "2026-08-11",
+                "modules": {
+                    "turnover": {
+                        "status": "FINAL",
+                        "dataDate": "2026-08-11",
+                        "turnoverToday": 100.0,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert _read_snapshot(path) is None
+
+def test_reconcile_rejects_semantically_mislabeled_previous():
+    """R9.2-P2-01：可解析但内部日期身份损坏的 previous 必须拒绝。"""
+    from collector.jobs.reconcile_turnover_chain import (
+        _previous_info_from_snapshot,
+    )
+
+    previous = {
+        "tradeDate": "2026-08-11",
+        "modules": {
+            "turnover": {
+                "status": "FINAL",
+                "dataDate": "2026-08-11",
+                "turnoverToday": 21546.58,
+                "method": "SH_SZ_A_NO_B_NO_BJ_V1",
+                "source": ["EXCHANGE"],
+            }
+        },
+    }
+
+    # 内部身份一致 -> 可提取
+    assert (
+        _previous_info_from_snapshot(previous)
+        is not None
+    )
+
+    # 内部身份损坏（dataDate != tradeDate）-> 必须拒绝
+    broken = {
+        **previous,
+        "modules": {
+            "turnover": {
+                **previous["modules"]["turnover"],
+                "dataDate": "2026-08-12",
+            }
+        },
+    }
+
+    assert (
+        _previous_info_from_snapshot(broken)
+        is None
+    )
+
+def test_market_index_explicit_chain_keeps_prior_errors(
+    monkeypatch,
+):
+    """R9-P3-02：国证显式链（cni->tencent->sina）成功时保留前序失败。"""
+    import collector.modules.market_index as mi
+
+    calls = []
+
+    def fake_fetch(index, trade_date, start, end, source):
+        calls.append(source)
+        if source == "cni":
+            raise RuntimeError("cni blocked")
+        return 2.0, 1.0
+
+    monkeypatch.setattr(
+        mi,
+        "_fetch_index_close",
+        fake_fetch,
+    )
+
+    close, previous, used, errors = mi._with_source_list(
+        {"symbol_em": "sz399311"},
+        "2026-07-20",
+        "20260701",
+        "20260720",
+        ["cni", "tencent", "sina"],
+    )
+
+    assert close == 2.0
+    assert previous == 1.0
+    assert used == "tencent"
+    assert errors == ["cni: cni blocked"]
+    assert calls == ["cni", "tencent"]
+
 
 
 

@@ -46,18 +46,52 @@ DERIVED_KEYS = (
 
 
 def _read_snapshot(path) -> dict[str, Any] | None:
+    """严格读取 daily snapshot（R9.2-P2-01 身份校验）。
+
+    文件名日期、snapshot.tradeDate、turnover.dataDate 必须保持同一身份；
+    任何不一致均视为损坏，不得作为当前日或 previous 进入事务状态机。
+    """
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            snapshot = json.load(f)
     except (OSError, ValueError):
         return None
+
+    if not isinstance(snapshot, dict):
+        return None
+
+    expected_date = path.stem
+
+    if snapshot.get("tradeDate") != expected_date:
+        return None
+
+    turnover = (
+        snapshot.get("modules", {}).get("turnover", {})
+    )
+
+    if isinstance(turnover, dict):
+        data_date = turnover.get("dataDate")
+
+        if data_date is not None and data_date != expected_date:
+            return None
+
+    return snapshot
 
 
 def _previous_info_from_snapshot(
     previous_snapshot: dict[str, Any] | None,
 ) -> dict[str, Any] | None:
-    """从真实上一交易日快照提取可比前值；不可证明则返回 None。"""
+    """从真实上一交易日快照提取可比前值；不可证明则返回 None。
+
+    R9.2-P2-01：即使调用方绕过 _read_snapshot，仍要求
+    tradeDate 与 turnover.dataDate 内部身份一致。
+    """
     if not isinstance(previous_snapshot, dict):
+        return None
+
+    trade_date = previous_snapshot.get("tradeDate")
+
+    if not isinstance(trade_date, str):
         return None
 
     module = (
@@ -65,6 +99,9 @@ def _previous_info_from_snapshot(
     )
 
     if not isinstance(module, dict):
+        return None
+
+    if module.get("dataDate") != trade_date:
         return None
 
     if module.get("status") != ModuleStatus.FINAL.value:

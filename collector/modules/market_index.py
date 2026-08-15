@@ -1,7 +1,9 @@
 """模块 1：宽基指数收盘数据采集。
 
 多源降级（R5-P2-01）：按 config/sources.yaml 的 market 顺序
-依次尝试 eastmoney / tencent / sina；国证指数优先 CNINDEX。
+依次尝试 eastmoney / eastmoney_delay（东财延迟主机，仅当日 8 指数
+ulist，见 collector/adapters/eastmoney_delay.py）/ tencent / sina；
+国证指数优先 CNINDEX（显式链 cni -> tencent -> sina）。
 """
 
 from __future__ import annotations
@@ -198,14 +200,18 @@ def collect_market_index(
 
         try:
             if "sources" in idx:
-                close, previous_close, used = _with_source_list(
+                (
+                    close,
+                    previous_close,
+                    used,
+                    source_warnings,
+                ) = _with_source_list(
                     idx,
                     trade_date,
                     start,
                     end,
                     list(idx["sources"]),
                 )
-                source_warnings: list[str] = []
             else:
                 (
                     close,
@@ -312,8 +318,8 @@ def _with_source_list(
     start: str,
     end: str,
     sources: list[str],
-) -> tuple[float | None, float | None, str | None]:
-    """按显式源列表尝试取 (close, previous_close, used_source)。"""
+) -> tuple[float | None, float | None, str | None, list[str]]:
+    """按显式源列表取指数，并保留成功前失败记录（R9-P3-02）。"""
     errors: list[str] = []
 
     for source in sources:
@@ -325,7 +331,7 @@ def _with_source_list(
                 end,
                 source,
             )
-            return close, previous_close, source
+            return close, previous_close, source, errors
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{source}: {exc}")
 
