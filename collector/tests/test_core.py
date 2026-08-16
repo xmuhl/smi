@@ -320,13 +320,6 @@ def test_northbound_historical_lookahead_fails_closed(
             "northbound": {
                 "sh_url": "mock://sh",
                 "sz_url": "mock://sz",
-                # 测试日期，不宣称是现实市场发布日期；
-                # 仅验证 point-in-time 逻辑。
-                "quarterly_publication_dates": {
-                    "2026-06-30": (
-                        "2026-07-10"
-                    )
-                },
             }
         }
 
@@ -367,9 +360,10 @@ def test_northbound_historical_lookahead_fails_closed(
         == "2026-06-30"
     )
 
+    # P1 起 publishedAt 由交易日历计算：asOf(2026-06-30) 后第 5 个交易日 = 2026-07-07
     assert (
         holding["publishedAt"]
-        == "2026-07-10"
+        == "2026-07-07"
     )
 
     assert (
@@ -402,7 +396,7 @@ def test_northbound_historical_lookahead_fails_closed(
 
     assert (
         holding_after["publishedAt"]
-        == "2026-07-10"
+        == "2026-07-07"
     )
 
     assert len(

@@ -2,37 +2,66 @@
 
 V1 自动化仅可靠采集 HKEX 最近一期季度持仓。
 2024-08-19 后旧式日度净流入字段保持 UNAVAILABLE。
+
+北向持仓披露采用 OFFICIAL_REPLACEMENT 口径：
+- HKEX 每季度结束后第 5 个沪深港通交易日披露上季末持仓；
+- publishedAt 用 collector.calendar 交易日历计算（离线，不依赖网络）；
+- 未到披露日则 fail-closed（NOT_YET_PUBLISHED_AT_TARGET_DATE），不伪造。
 """
 
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import requests
 from bs4 import BeautifulSoup
 
+from collector import calendar as _cal
 from collector.config import load_yaml
 from collector.status import ModuleStatus
 
 DISCLOSURE_CHANGE_DATE = date(2024, 8, 19)
 
+# HKEX 官方规则：季度结束后第 5 个沪深港通交易日披露上季末持仓。
+DISCLOSURE_LAG_TRADING_DAYS = 5
+
+# 最多向后搜索的日历天数（含节假日），防死循环。
+_MAX_SEARCH_DAYS = 800
+
+
+def _fifth_trading_day_after(as_of: date) -> date | None:
+    """返回 asOf 之后第 DISCLOSURE_LAG_TRADING_DAYS 个交易日（严格晚于 asOf）。"""
+    cursor = as_of
+    remaining = DISCLOSURE_LAG_TRADING_DAYS
+
+    for _ in range(_MAX_SEARCH_DAYS):
+        cursor = cursor + timedelta(days=1)
+
+        if _cal.is_trading_day(
+            cursor,
+            fallback_weekday=True,
+        ):
+            remaining -= 1
+
+            if remaining <= 0:
+                return cursor
+
+    return None
+
+
 def collect_northbound(
     trade_date: str,
 ) -> dict[str, Any]:
-    from datetime import datetime
-
-    from collector.schema import TZ_SHANGHAI
-
     target = date.fromisoformat(trade_date)
-    today = datetime.now(TZ_SHANGHAI).date()
 
     if target < DISCLOSURE_CHANGE_DATE:
         return {
             "status": ModuleStatus.UNAVAILABLE.value,
             "dataDate": trade_date,
             "mode": "PRE_20240819_NOT_IMPLEMENTED",
+            "sourceSystem": "HKEX",
             "source": ["HKEX"],
             "reason": "PRE_20240819_NET_FLOW_HISTORY_NOT_IMPLEMENTED",
             "dailyTurnover": {
@@ -67,18 +96,11 @@ def collect_northbound(
         "sz": north_cfg["sz_url"],
     }
 
-    publication_dates = {
-        str(key): str(value)
-        for key, value in north_cfg.get(
-            "quarterly_publication_dates",
-            {},
-        ).items()
-    }
-
     result: dict[str, Any] = {
         "status": ModuleStatus.PENDING.value,
         "dataDate": trade_date,
-        "mode": "POST_20240819_QUARTERLY_ONLY",
+        "mode": "POST_20240819_OFFICIAL_REPLACEMENT",
+        "sourceSystem": "HKEX",
         "source": ["HKEX"],
         "dailyTurnover": {
             "status": ModuleStatus.UNAVAILABLE.value,
@@ -177,40 +199,61 @@ def collect_northbound(
         }
         return result
 
-    published_at = publication_dates.get(as_of)
+    try:
+        as_of_date = date.fromisoformat(as_of)
+    except (TypeError, ValueError):
+        result["status"] = ModuleStatus.UNAVAILABLE.value
+        result["quarterlyHolding"] = {
+            "status": ModuleStatus.UNAVAILABLE.value,
+            "asOf": as_of,
+            "publishedAt": None,
+            "items": [],
+            "reason": "UNPARSABLE_AS_OF_DATE",
+        }
+        result["errors"].append(
+            f"UNPARSABLE_AS_OF_DATE:{as_of}"
+        )
+        return result
 
-    if target != today:
-        if published_at is None:
-            result["status"] = ModuleStatus.UNAVAILABLE.value
-            result["quarterlyHolding"] = {
-                "status": ModuleStatus.UNAVAILABLE.value,
-                "asOf": as_of,
-                "publishedAt": None,
-                "items": [],
-                "reason": "HISTORICAL_PUBLICATION_DATE_NOT_VERIFIED",
-            }
-            return result
+    published_at = _fifth_trading_day_after(as_of_date)
 
-        if trade_date < published_at:
-            result["status"] = ModuleStatus.UNAVAILABLE.value
-            result["quarterlyHolding"] = {
-                "status": ModuleStatus.UNAVAILABLE.value,
-                "asOf": as_of,
-                "publishedAt": published_at,
-                "items": [],
-                "reason": "NOT_YET_PUBLISHED_AT_TARGET_DATE",
-            }
-            return result
+    if published_at is None:
+        result["status"] = ModuleStatus.UNAVAILABLE.value
+        result["quarterlyHolding"] = {
+            "status": ModuleStatus.UNAVAILABLE.value,
+            "asOf": as_of,
+            "publishedAt": None,
+            "items": [],
+            "reason": "PUBLICATION_DATE_UNRESOLVABLE",
+        }
+        result["errors"].append(
+            f"PUBLICATION_DATE_UNRESOLVABLE:{as_of}"
+        )
+        return result
+
+    published_at_iso = published_at.isoformat()
+
+    if trade_date < published_at_iso:
+        result["status"] = ModuleStatus.UNAVAILABLE.value
+        result["quarterlyHolding"] = {
+            "status": ModuleStatus.UNAVAILABLE.value,
+            "asOf": as_of,
+            "publishedAt": published_at_iso,
+            "items": [],
+            "reason": "NOT_YET_PUBLISHED_AT_TARGET_DATE",
+        }
+        return result
 
     result["status"] = ModuleStatus.FINAL.value
     result["quarterlyHolding"] = {
         "status": ModuleStatus.FINAL.value,
         "asOf": as_of,
-        "publishedAt": published_at,
+        "publishedAt": published_at_iso,
         "items": all_items,
     }
 
     return result
+
 
 def _fetch_quarterly_holding(
     url: str,
@@ -350,6 +393,7 @@ def _fetch_quarterly_holding(
 
     return rows, share_date
 
+
 def _remove_label(
     value: str,
     label: str,
@@ -360,6 +404,7 @@ def _remove_label(
         value,
         flags=re.IGNORECASE,
     ).strip()
+
 
 def _convert_hk_date(
     hk_date: str,
