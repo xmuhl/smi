@@ -17,7 +17,7 @@
             <td>{{ it.name }}</td>
             <td class="up">{{ fmt(it.netInflowYi) }}</td>
           </tr>
-          <tr v-if="!inList.length"><td class="empty-tip">暂无数据</td></tr>
+          <tr v-if="!inList.length"><td class="empty-tip">{{ emptyTip }}</td></tr>
         </table>
       </div>
       <div>
@@ -27,11 +27,12 @@
             <td>{{ it.name }}</td>
             <td class="down">{{ fmt(it.netInflowYi) }}</td>
           </tr>
-          <tr v-if="!outList.length"><td class="empty-tip">暂无数据</td></tr>
+          <tr v-if="!outList.length"><td class="empty-tip">{{ emptyTip }}</td></tr>
         </table>
       </div>
     </div>
-    <div class="empty-tip">单位：亿元 · 数据口径：{{ module.method === "EASTMONEY_MAIN_FORCE" ? "东方财富" : "通达信 Legacy" }}</div>
+    <!-- 口径页脚：展示单位与口径；含 EASTMONEY_PUSH2HIS_HISTORICAL（东方财富历史数据回补，免费源）标注（标准 fundFlow 口径页脚） -->
+    <div class="empty-tip">单位：${module.unit || "亿元"} · 数据口径：{{ methodLabel }}</div>
   </div>
 </template>
 
@@ -62,6 +63,18 @@ function fmt(v: number | null): string {
   const sign = v > 0 ? "+" : "";
   return `${sign}${v.toFixed(2)}亿`;
 }
+
+// 空列表提示：个股榜空时明确提示“历史免费源不可用”，行业/概念沿用通用提示（任务约定）
+const emptyTip = computed(() => (tab.value === "stock" ? "暂无数据（历史免费源不可用）" : "暂无数据"));
+
+// 口径页脚文案：东方财富主口径 / 东方财富历史回补（免费源）/ 通达信系
+const methodLabel = computed(() => {
+  const m = props.module.method;
+  if (m === "EASTMONEY_MAIN_FORCE") return "东方财富";
+  if (m === "EASTMONEY_PUSH2HIS_HISTORICAL") return "东方财富（历史免费源回补，仅供参考）";
+  if (m === "THS_MAIN_FORCE") return "通达信";
+  return "通达信 Legacy";
+});
 </script>
 
 <style scoped>
