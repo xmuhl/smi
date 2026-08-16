@@ -15,6 +15,11 @@ if ($env:OPERATOR_CONFIRM -ne "SMI-EMERGENCY-OK") {
 }
 
 Write-Host "=== EMERGENCY FALLBACK MODE ==="
+# 2026-08-16 实测铁律：本机采集必须清系统代理直连（akshare 请求继承 HTTP_PROXY 会走 v2rayN 挂起）
+$env:HTTP_PROXY = ""
+$env:HTTPS_PROXY = ""
+$env:ALL_PROXY = ""
+$env:NO_PROXY = "*"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $stamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
 $log = Join-Path $logDir ("daily_" + $stamp + ".log")
