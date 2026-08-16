@@ -91,60 +91,17 @@ def _collect_tracks(
     trade_date: str,
     modules: dict[str, Any],
 ) -> dict[str, Any]:
-    """Fail-closed 占位。
+    """委托真实主赛道采集器（collector.modules.tracks.collect_tracks）。
 
-    当前送审代码尚未实现真实赛道指标采集，绝不能用 0/False 伪造评分。
+    该采集器只读 daily raw archive，诚实缺口（沪深300 基准 / 红盘占比）置 None
+    并在 errors 注明，绝不伪造；返回 PARTIAL（据 coveragePct/decision 判定）或
+    UNAVAILABLE。模块入参 modules 未被本函数使用，保留以兼容既有签名。
     """
-    cfg = load_yaml("tracks.yaml")
-    tracks_cfg = cfg.get("tracks", [])
+    del modules
 
-    items: list[dict[str, Any]] = []
+    from collector.modules.tracks import collect_tracks
 
-    for tc in tracks_cfg:
-        if not tc.get("enabled", True):
-            continue
-
-        items.append(
-            {
-                "trackId": tc["id"],
-                "trackName": tc["name"],
-                "positioning": tc.get("positioning", ""),
-                "turnoverRank": None,
-                "turnoverUniverseSize": None,
-                "turnoverPercentile": None,
-                "mainNetInflow": None,
-                "mainNetInflowPercentile": None,
-                "continuousInflowDays": None,
-                "maAlignment": None,
-                "rps60": None,
-                "excessReturn20d": None,
-                "limitUpCount": None,
-                "limitUpRate": None,
-                "ladderCompleteness": None,
-                "redStockRatio": None,
-                "coreCatalyst": {
-                    "state": "UNKNOWN",
-                    "text": "",
-                },
-                "earningsRealization": {
-                    "state": "UNKNOWN",
-                    "text": "",
-                },
-                "score": None,
-                "coveragePct": 0.0,
-                "decision": "INSUFFICIENT",
-            }
-        )
-
-    from collector.calculators.tracks import score_tracks
-
-    return {
-        "status": ModuleStatus.UNAVAILABLE.value,
-        "dataDate": trade_date,
-        "configVersion": "1.0",
-        "reason": "TRACK_METRICS_COLLECTOR_NOT_IMPLEMENTED",
-        "items": score_tracks(items),
-    }
+    return collect_tracks(trade_date)
 
 def _semantic_payload(
     snapshot: dict[str, Any],

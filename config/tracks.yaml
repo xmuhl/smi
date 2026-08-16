@@ -2,6 +2,12 @@
 # index_name_ths：同花顺板块指数接口（stock_board_industry/concept_index_ths）使用的
 # 精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该赛道归档
 # UNAVAILABLE（fail-closed，不伪造）。
+#
+# 定性配置列版本化约定：coreCatalyst（核心催化逻辑）与 earningsRealization
+# （业绩兑现情况）为人工维护的定性文案（字符串），随 configVersion 版本化；
+# 采集器每次从本文件读取最新值，写入快照时携带 configVersion=2.0/
+# effectiveFrom=2026-07-01/effectiveTo=2026-12-31。文案须为真实行业常识表述，
+# 不得用占位符，未配置时采集器回退为空串（记为指标缺口，不影响 fail-closed）。
 
 tracks:
   - id: dividend_cnsoe
@@ -12,6 +18,8 @@ tracks:
     expected_name: 中特估
     index_name_ths: 同花顺中特估100
     positioning: 高股息/央国企价值
+    coreCatalyst: 高股息防御属性、资金抱团避险，央国企市值管理政策催化
+    earningsRealization: 业绩稳定、分红率高，盈利兑现确定性强
 
   - id: power
     name: 电力
@@ -21,6 +29,8 @@ tracks:
     expected_name: 电力
     index_name_ths: 电力
     positioning: 公用事业/高股息
+    coreCatalyst: 夏季用电高峰、电力市场化与电改政策催化
+    earningsRealization: 业绩确定性强、电价上浮，经营现金流稳健
 
   - id: healthcare
     name: 医药生物
@@ -30,6 +40,8 @@ tracks:
     expected_name: 医药生物
     index_name_ths: 生物制品
     positioning: 防御+成长
+    coreCatalyst: 创新药出海授权加速、CXO订单边际改善、集采利空出清
+    earningsRealization: 业绩有望触底回升，出海与放量品种兑现确定性待验证
 
   - id: semiconductor_ai
     name: 半导体/AI算力
@@ -47,6 +59,8 @@ tracks:
         index_name_ths: 东数西算(算力)
         weight: 0.5
     positioning: 科技成长
+    coreCatalyst: AI算力需求景气、国产替代加速、先进制程与国产算力事件催化
+    earningsRealization: 板块业绩兑现依赖景气延续，高估值下兑现不及预期风险大
 
 rps:
   universe: eastmoney_supported_track_boards
