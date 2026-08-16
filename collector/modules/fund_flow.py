@@ -12,10 +12,360 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
+import requests
 
 from collector.adapters.sources import try_sources
 from collector.schema import TZ_SHANGHAI
 from collector.status import ModuleStatus
+
+# ---------------------------------------------------------------------------
+# 历史回补分支（P1）：push2his 板块历史主力资金流 → 任意历史交易日六类榜单
+# ---------------------------------------------------------------------------
+# 接口实测（2026-08；见 work/p1_research_fundflow.md）：
+#   GET https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get
+#       ?lmt=20&klt=101&secid=90.BKxxxx&fields1=f1,f2,f3,f7
+#       &fields2=f51,f52,f53,f54,f55
+#   返回每日主力资金流日线（klines 按日期升序），字段 f51=日期、f52=主力净流入(元)、
+#   f53=小单、f54=中单、f55=大单。
+# 板块 secid 清单取自 push2his clist（m:90+t:2=行业、m:90+t:3=概念），若 clist
+# 不可用则回退 akshare 板块名单接口（stock_board_*_name_em）。
+# 诚实边界：历史免费源无可行的"个股六类榜单"批量接口，个股榜单恒为空并在 errors
+# 标明 STOCK_HISTORICAL_UNAVAILABLE，绝不伪造。
+# ---------------------------------------------------------------------------
+
+EASTMONEY_HISTORICAL_METHOD = "EASTMONEY_PUSH2HIS_HISTORICAL"
+
+# daykline lmt：约 40 根日K 覆盖 30 日历日窗口（跨节假日足够）
+_HIST_KLINE_LMT = 40
+
+# 有效板块数下限：任一侧有效板块 < 该值视为数据不完整 → fail-closed UNAVAILABLE
+_HIST_MIN_BOARDS = 10
+
+_PUSH2HIS_CLIST_URL = (
+    "https://push2his.eastmoney.com/api/qt/clist/get"
+)
+_PUSH2HIS_DAYKLINE_URL = (
+    "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
+)
+
+_EASTMONEY_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/126.0 Safari/537.36"
+    ),
+    "Referer": "https://quote.eastmoney.com/",
+}
+
+
+def _em_http_get_json(
+    url: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    """直连东财 push2his，不继承系统/环境代理（R9-P2-03 同款）。
+
+    国内数据源必须直连：requests 在 Windows 上会继承系统代理（v2rayN 等），
+    经代理访问东财主机会挂起/失败。trust_env=False 同时禁用环境变量代理与
+    netrc。网络失败抛异常，由调用方 fail-closed。
+    """
+    session = requests.Session()
+    session.trust_env = False
+
+    try:
+        response = session.get(
+            url,
+            params=params,
+            timeout=25,
+            headers=_EASTMONEY_HEADERS,
+        )
+        response.raise_for_status()
+        return response.json()
+    finally:
+        session.close()
+
+
+def _em_clist_diff(market_bracket: int) -> list[dict[str, Any]]:
+    """GET push2his clist，返回板块 diff 列表（f12=代码 f14=名称）。"""
+    data = _em_http_get_json(
+        _PUSH2HIS_CLIST_URL,
+        {
+            "pn": 1,
+            "pz": 500,
+            "po": 1,
+            "np": 1,
+            "fltt": 2,
+            "invt": 2,
+            "fid": "f3",
+            "fs": f"m:90+t:{market_bracket}",
+            "fields": "f12,f14",
+        },
+    )
+
+    diff = (data.get("data") or {}).get("diff") or []
+
+    if isinstance(diff, dict):
+        diff = list(diff.values())
+
+    return [item for item in diff if isinstance(item, dict)]
+
+
+def _akshare_secid_list(
+    board_type: str,
+) -> list[tuple[str, str]]:
+    """akshare 板块名单接口回退（clist 不可用时）。返回 [(代码, 名称)]。"""
+    import akshare as ak
+
+    if board_type == "industry":
+        df = ak.stock_board_industry_name_em()
+    elif board_type == "concept":
+        df = ak.stock_board_concept_name_em()
+    else:
+        raise ValueError(
+            f"unknown historical board type: {board_type}"
+        )
+
+    if df is None or df.empty:
+        return []
+
+    result: list[tuple[str, str]] = []
+
+    for _, row in df.iterrows():
+        code = str(row.get("板块代码", "") or "").strip()
+        name = str(row.get("板块名称", "") or "").strip()
+
+        if code and name:
+            result.append((code, name))
+
+    return result
+
+
+def _fetch_secid_list(
+    board_type: str,
+) -> list[tuple[str, str]]:
+    """获取某一侧板块 secid 清单：clist 为主，akshare 名单为回退。
+
+    两路任一拿到有效清单（>=1）即返回；clist 返回的不足 _HIST_MIN_BOARDS 时
+    回退 akshare。最终仍拿不到 → 抛出异常（调用方 fail-closed）。
+    """
+    market_bracket = 2 if board_type == "industry" else 3
+
+    try:
+        diff = _em_clist_diff(market_bracket)
+        clist_result = [
+            (str(item.get("f12", "")).strip(), str(item.get("f14", "")).strip())
+            for item in diff
+            if (item.get("f12") or "") and (item.get("f14") or "")
+        ]
+
+        if len(clist_result) >= _HIST_MIN_BOARDS:
+            return clist_result
+
+    except Exception:  # noqa: BLE001  clist 任何失败均回退 akshare
+        pass
+
+    return _akshare_secid_list(board_type)
+
+
+def _em_ff_daykline(
+    secid: str,
+) -> list[str]:
+    """拉取单板块历史主力资金流日线，返回 klines 原始行列表（升序）。"""
+    data = _em_http_get_json(
+        _PUSH2HIS_DAYKLINE_URL,
+        {
+            "lmt": _HIST_KLINE_LMT,
+            "klt": 101,
+            "secid": secid,
+            "fields1": "f1,f2,f3,f7",
+            "fields2": "f51,f52,f53,f54,f55",
+        },
+    )
+
+    return (data.get("data") or {}).get("klines") or []
+
+
+def _f52_on_date(
+    klines: list[str],
+    trade_date: str,
+) -> float | None:
+    """从日线序列定位 trade_date 行的 f52（主力净流入，元）。"""
+    for kline in klines:
+        parts = str(kline).split(",")
+
+        if len(parts) < 2:
+            continue
+
+        if parts[0].strip() != trade_date:
+            continue
+
+        try:
+            value = float(parts[1])
+        except (TypeError, ValueError):
+            return None
+
+        return value
+
+    return None
+
+
+def _historical_board_rank(
+    board_type: str,
+    trade_date: str,
+) -> dict[str, Any]:
+    """拉取某一侧全部板块在 D 日的主力净流入并排序。
+
+    返回 dict：ok/reason/top10（净流入降序）/bottom10（净流出升序，最负在前）、
+    warnings、skipped。侧级全失败（清单 < 下限或全部板块无有效 D 行）→ ok=False。
+    """
+    secids = _fetch_secid_list(board_type)
+
+    if len(secids) < _HIST_MIN_BOARDS:
+        return {
+            "ok": False,
+            "reason": (
+                f"{board_type}: insufficient boards "
+                f"{len(secids)} < {_HIST_MIN_BOARDS}"
+            ),
+            "top10": [],
+            "bottom10": [],
+            "warnings": [],
+            "skipped": 0,
+        }
+
+    entries: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    skipped = 0
+
+    for code, name in secids:
+        secid = f"90.{code}"
+
+        try:
+            klines = _em_ff_daykline(secid)
+        except Exception as exc:  # noqa: BLE001
+            skipped += 1
+            warnings.append(
+                f"{board_type}:{name}:FETCH_FAILED:"
+                f"{type(exc).__name__}"
+            )
+            continue
+
+        f52 = _f52_on_date(klines, trade_date)
+
+        if f52 is None:
+            skipped += 1
+            continue
+
+        entries.append(
+            {
+                "name": name,
+                "code": code,
+                "netInflowYi": round(f52 / 1e8, 2),
+            }
+        )
+
+    if not entries:
+        return {
+            "ok": False,
+            "reason": (
+                f"{board_type}: no valid boards for {trade_date}"
+            ),
+            "top10": [],
+            "bottom10": [],
+            "warnings": warnings,
+            "skipped": skipped,
+        }
+
+    inflow, outflow = _sort_in_out(entries)
+
+    warnings.append(f"{board_type}:skipped={skipped}")
+
+    return {
+        "ok": True,
+        "reason": "OK",
+        "top10": inflow[:10],
+        "bottom10": outflow[:10],
+        "warnings": warnings,
+        "skipped": skipped,
+    }
+
+
+def _collect_fund_flow_historical(
+    trade_date: str,
+) -> dict[str, Any]:
+    """历史回补入口：行业/概念各取净流入 TOP10 与净流出 TOP10。
+
+    - 板块清单拉取失败或任一侧有效板块数 < _HIST_MIN_BOARDS → fail-closed：
+      UNAVAILABLE + reason=FUNDFLOW_HISTORICAL_FETCH_FAILED + errors 摘要，
+      不得半成品 FINAL；
+    - 个股两类榜单：免费源无可行批量接口 → 恒为空，errors 写明
+      STOCK_HISTORICAL_UNAVAILABLE（诚实缺口，不伪造）。
+    """
+    result: dict[str, Any] = {
+        "status": ModuleStatus.UNAVAILABLE.value,
+        "dataDate": trade_date,
+        "source": ["EASTMONEY_PUSH2HIS"],
+        "method": EASTMONEY_HISTORICAL_METHOD,
+        "unit": "亿元",
+        "reason": None,
+        "industryInflowTop10": [],
+        "industryOutflowTop10": [],
+        "conceptInflowTop10": [],
+        "conceptOutflowTop10": [],
+        "stockInflowTop10": [],
+        "stockOutflowTop10": [],
+        "errors": [],
+        "sourceWarnings": [],
+    }
+
+    try:
+        industry = _historical_board_rank(
+            board_type="industry",
+            trade_date=trade_date,
+        )
+        concept = _historical_board_rank(
+            board_type="concept",
+            trade_date=trade_date,
+        )
+    except Exception as exc:  # noqa: BLE001
+        result["reason"] = "FUNDFLOW_HISTORICAL_FETCH_FAILED"
+        result["errors"].append(
+            "FUNDFLOW_HISTORICAL_FETCH_FAILED: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return result
+
+    # 任一侧数据不完整 → 整体 fail-closed，不伪造 FINAL
+    if not industry["ok"] or not concept["ok"]:
+        for key, side in (
+            ("industry", industry),
+            ("concept", concept),
+        ):
+            if not side["ok"]:
+                result["errors"].append(
+                    f"{key}: {side['reason']}"
+                )
+                result["sourceWarnings"].extend(
+                    side.get("warnings", [])
+                )
+
+        result["reason"] = "FUNDFLOW_HISTORICAL_FETCH_FAILED"
+        return result
+
+    result["sourceWarnings"] = (
+        industry.get("warnings", [])
+        + concept.get("warnings", [])
+    )
+    result["industryInflowTop10"] = industry["top10"]
+    result["industryOutflowTop10"] = industry["bottom10"]
+    result["conceptInflowTop10"] = concept["top10"]
+    result["conceptOutflowTop10"] = concept["bottom10"]
+
+    # 个股历史榜单免费源不可行：诚实置空并标注缺口
+    result["errors"].append("STOCK_HISTORICAL_UNAVAILABLE")
+
+    result["status"] = ModuleStatus.FINAL.value
+    result["reason"] = None
+    return result
 
 
 def _parse_yi_amount(
@@ -132,19 +482,8 @@ def collect_fund_flow(
     ).date().isoformat()
 
     if trade_date != today:
-        return {
-            "status": ModuleStatus.UNAVAILABLE.value,
-            "dataDate": trade_date,
-            "method": "EASTMONEY_MAIN_FORCE",
-            "unit": "亿元",
-            "reason": "HISTORICAL_TODAY_RANK_NOT_SUPPORTED",
-            "industryInflowTop10": [],
-            "industryOutflowTop10": [],
-            "conceptInflowTop10": [],
-            "conceptOutflowTop10": [],
-            "stockInflowTop10": [],
-            "stockOutflowTop10": [],
-        }
+        # 历史回补分支：push2his 板块历史主力资金流 → D 日六类榜单。
+        return _collect_fund_flow_historical(trade_date)
 
     result: dict[str, Any] = {
         "status": ModuleStatus.FINAL.value,
