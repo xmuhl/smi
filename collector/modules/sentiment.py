@@ -90,6 +90,7 @@ def _fetch_historical_limit_pools(
         return None
 
     non_st, st = _split_st_pool(pool)
+    zt_total = non_st + st
 
     result: dict[str, Any] = {
         "nonStLimitUpCount": non_st,
@@ -97,6 +98,8 @@ def _fetch_historical_limit_pools(
         "nonStLimitDownCount": None,
         "stLimitDownCount": None,
         "brokenLimitCount": None,
+        "limitSealRatePct": None,
+        "maxLimitUpStreak": _max_limit_up_streak(pool),
         "errors": [],
         "warnings": [],
     }
@@ -130,8 +133,10 @@ def _fetch_historical_limit_pools(
                 "zbgc: EMPTY_OR_UNAVAILABLE"
             )
         else:
-            result["brokenLimitCount"] = int(
-                len(pool)
+            broken = int(len(pool))
+            result["brokenLimitCount"] = broken
+            result["limitSealRatePct"] = _seal_rate(
+                zt_total, broken
             )
 
     except Exception as exc:  # noqa: BLE001
@@ -203,6 +208,12 @@ def collect_sentiment(
             "brokenLimitCount": pools[
                 "brokenLimitCount"
             ],
+            "limitSealRatePct": pools[
+                "limitSealRatePct"
+            ],
+            "maxLimitUpStreak": pools[
+                "maxLimitUpStreak"
+            ],
             "errors": pools["errors"],
             "warnings": pools["warnings"],
         }
@@ -222,6 +233,8 @@ def collect_sentiment(
         "nonStLimitDownCount": None,
         "stLimitDownCount": None,
         "brokenLimitCount": None,
+        "limitSealRatePct": None,
+        "maxLimitUpStreak": None,
         "errors": [],
     }
 
@@ -256,11 +269,16 @@ def collect_sentiment(
         )
 
         non_st, st = _split_st_pool(pool)
+        zt_total = non_st + st
 
         result["nonStLimitUpCount"] = non_st
         result["stLimitUpCount"] = st
+        result["maxLimitUpStreak"] = (
+            _max_limit_up_streak(pool)
+        )
 
     except Exception as exc:  # noqa: BLE001
+        zt_total = 0
         result["errors"].append(
             f"zt_pool: {exc}"
         )
@@ -287,8 +305,13 @@ def collect_sentiment(
 
         if pool is None or pool.empty:
             result["brokenLimitCount"] = 0
+            result["limitSealRatePct"] = 100.0
         else:
-            result["brokenLimitCount"] = int(len(pool))
+            broken = int(len(pool))
+            result["brokenLimitCount"] = broken
+            result["limitSealRatePct"] = _seal_rate(
+                zt_total, broken
+            )
 
     except Exception as exc:  # noqa: BLE001
         result["errors"].append(
@@ -299,6 +322,30 @@ def collect_sentiment(
         result["status"] = ModuleStatus.ERROR.value
 
     return result
+
+
+def _seal_rate(zt_total: int, broken: int) -> float:
+    """Limit-up seal rate = zt/(zt+broken)*100 (eastmoney), rounded to 2.
+    0 broken -> 100.0 (no division by zero).
+    """
+    if broken <= 0:
+        return 100.0
+    return round(zt_total / (zt_total + broken) * 100.0, 2)
+
+
+def _max_limit_up_streak(pool) -> str:
+    """Max consecutive limit-up boards in zt pool (("连板数", "limit_up_count") col).
+    No rows/col -> "0连板".
+    """
+    if pool is None or pool.empty:
+        return "0连板"
+    col = _pick_col(pool, ("连板数", "limit_up_count"))
+    if col is None:
+        return "0连板"
+    values = pd.to_numeric(pool[col], errors="coerce").dropna()
+    if values.empty:
+        return "0连板"
+    return f"{int(values.max())}连板"
 
 
 def _split_st_pool(
