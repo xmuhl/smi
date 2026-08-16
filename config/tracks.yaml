@@ -1,3 +1,8 @@
+# 赛道配置（③ tracks 采集器与 ⑧ daily raw archive 共用）
+# index_name_ths：同花顺板块指数接口（stock_board_industry/concept_index_ths）使用的
+# 精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该赛道归档
+# UNAVAILABLE（fail-closed，不伪造）。
+
 tracks:
   - id: dividend_cnsoe
     name: 高股息中特估
@@ -5,6 +10,7 @@ tracks:
     board_type: concept
     board_code: BK1139
     expected_name: 中特估
+    index_name_ths: 同花顺中特估100
     positioning: 高股息/央国企价值
 
   - id: power
@@ -13,6 +19,7 @@ tracks:
     board_type: industry
     board_code: BK0428
     expected_name: 电力
+    index_name_ths: 电力
     positioning: 公用事业/高股息
 
   - id: healthcare
@@ -21,6 +28,7 @@ tracks:
     board_type: industry
     board_code: BK1216
     expected_name: 医药生物
+    index_name_ths: 生物制品
     positioning: 防御+成长
 
   - id: semiconductor_ai
@@ -30,11 +38,20 @@ tracks:
     composite:
       - code: BK1036
         name: 半导体
+        board_type: industry
+        index_name_ths: 半导体
         weight: 0.5
       - code: BK1134
         name: 算力概念
+        board_type: concept
+        index_name_ths: 东数西算(算力)
         weight: 0.5
     positioning: 科技成长
 
 rps:
   universe: eastmoney_supported_track_boards
+# fund_name_ths（可选，track 与 composite 子项均可配）：THS 当日资金流接口
+# （stock_fund_flow_industry/concept，symbol="即时"）返回"行业"列中的条目名。
+# 缺省回退 index_name_ths；若该指数名不在资金流条目中（如特色指数
+# "同花顺中特估100"），须显式配置 fund_name_ths，否则每日 SKIP
+# BOARD_NOT_FOUND（fail-closed，不伪造）。

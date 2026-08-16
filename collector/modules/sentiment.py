@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Any
 
@@ -20,14 +19,10 @@ from collector.status import ModuleStatus
 def is_st(
     name: str,
 ) -> bool:
-    value = str(name or "").strip().upper()
+    """ST 判定（统一谓词：raw_archive.is_st_stock_name，见设计文档 §39.5.5）。"""
+    from collector.modules.raw_archive import is_st_stock_name
 
-    return bool(
-        re.match(
-            r"^(?:\*ST|ST|S\*ST)",
-            value,
-        )
-    )
+    return is_st_stock_name(name)
 
 
 def _fetch_spot_counts(

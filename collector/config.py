@@ -12,6 +12,8 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 DATA_DIR = PROJECT_ROOT / "web" / "public" / "data"
 DAILY_DIR = DATA_DIR / "daily"
 CALENDAR_DIR = DATA_DIR / "calendar"
+# ⑧ daily raw archive：tracks 数据底座（JSONL 逐日追加，随站点部署）
+ARCHIVE_DIR = DATA_DIR / "archive"
 
 
 def load_yaml(name: str) -> dict:
@@ -23,7 +25,7 @@ def load_yaml(name: str) -> dict:
 
 
 def ensure_dirs() -> None:
-    for d in (DAILY_DIR, CALENDAR_DIR, PROJECT_ROOT / "tmp"):
+    for d in (DAILY_DIR, CALENDAR_DIR, ARCHIVE_DIR, PROJECT_ROOT / "tmp"):
         d.mkdir(parents=True, exist_ok=True)
 
 

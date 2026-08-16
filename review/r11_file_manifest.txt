@@ -1,0 +1,16 @@
+A	.github/workflows/archive-raw.yml
+M	.gitignore
+A	collector/archive.py
+M	collector/config.py
+A	collector/jobs/archive_raw.py
+A	collector/modules/raw_archive.py
+M	collector/modules/sentiment.py
+A	collector/tests/test_archive.py
+M	config/tracks.yaml
+M	docs/SMI-V1-Design-V1.1.md
+A	web/public/data/archive/limit-up-pool.jsonl
+A	web/public/data/archive/track-board-close.jsonl
+
+SMI R11 patch evidence
+baseline: a271086
+sha256(review/r11_vs_a271086.diff)=CACDFDCDE42B86B54BACA7688B09679A7623A8F9E0DA56C82CFAC3D1EEAC6B27

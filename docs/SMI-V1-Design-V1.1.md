@@ -4805,6 +4805,88 @@ enabled = false
 
 ---
 
+---
+
+# 39.5 daily raw archive（⑧ tracks 数据底座）
+
+> 2026-08-16 落地。目的：从上线日起自建 tracks 所需历史（R7 第四优先级），
+> 使 continuousInflowDays / MA / RPS / excessReturn 等在若干交易日后自然可计算，
+> 无需购买历史资金流。
+
+## 39.5.1 归档集（web/public/data/archive/*.jsonl）
+
+| 文件 | 内容 | 数据源 | 历史支持 |
+|---|---|---|---|
+| track-board-close.jsonl | 赛道板块指数当日 OHLCV（每 track 一行；composite 拆子板块） | THS stock_board_industry/concept_index_ths（index_name_ths 精确名） | 支持历史回补 |
+| track-board-flow.jsonl | 赛道板块当日主力资金净额（亿元） | THS stock_fund_flow_industry/concept（即时） | 仅当日 |
+| limit-up-pool.jsonl | 当日全市场涨停池（含连板数/炸板/封板/涨停统计） | 东财 stock_zt_pool_em(date) | 窗口内历史 |
+| track-membership-snapshot.jsonl | 赛道板块成分快照（当日成分代码列表） | 东财 stock_board_industry_cons_em(BK) | 仅当日；行业板块可用，概念板块显式 CONCEPT_CONS_DISABLED（成分接口实测被封：不请求、不伪造；接口恢复后移除短路） |
+
+## 39.5.2 行结构、幂等与并发
+
+- 每行自包含 JSON（JSONL，UTF-8）：tradeDate/capturedAt/kind/source 为公共字段，
+  kind 专属校验见 collector/archive.py::_validate_line；
+- 追加键 = (tradeDate, trackId, boardCode)。同 key 命中后先重新确认 parent-directory
+  durability；现存可解析记录必须恰 1 行且重新通过行级校验。仅当现存记录与候选记录的
+  业务 payload 一致（capturedAt 不参与比较）时返回 ALREADY_EXISTS；同 key 不同 payload、
+  重复 key 或现存记录校验失败均视为完整性冲突并 fail-closed；
+  track-* 三类行 trackId/boardCode 必填非空；
+- 原子写（持锁事务）：跨进程 flock（`*.lock`，不入库）内完成
+  payload-aware dedupe/冲突检查 → 读全文 → 坏尾行缺失换行修复 → 追加 →
+  tmp 写入 + file fsync → os.replace → parent-directory fsync → strict readback。
+  只有 canonical 回读与 expected 完全一致后才返回 APPENDED；Windows 本地无 fcntl
+  退化为无锁，须遵守 §39.5.5 单写者约定；
+- 行级校验失败拒绝写入并记 reason，覆盖：非规范日期、非有限数值（含
+  limit-up-pool items 内部数值字段）、非法 6 位代码、负计数、
+  OHLC 区间（low≤open/close≤high）、counts 与 len(items) 一致、
+  memberCount 与 len(members) 一致、序列化异常（INVALID:serialize）；
+- 读取容错：非 JSON / 非 JSON 对象的损坏行静默跳过（其键不参与 dedupe）；
+- 数据源失败（异常/空/名称缺失/历史不支持）→ SKIP + reason
+  （异常统一包装为 FETCH_FAILED:*），绝不写伪造行、绝不向上抛。
+
+## 39.5.3 采集任务与调度
+
+- python -m collector.jobs.archive_raw --date auto|YYYY-MM-DD；
+- GitHub Actions archive-raw.yml：工作日 16:35 CST cron（close-snapshot 之后），
+  同 concurrency group，变更自动 commit + deploy；
+- 历史回补：--date 指定日，board-close/limit-up-pool 可补，flow/membership 记
+  HISTORICAL_*_UNSUPPORTED（fail-closed）；
+- 退出码：0 = 成功/部分成功/幂等重跑；1 = 交易日零新增且零已存在
+  （全源失败，CI 告警）；2 = 未分类异常（含归档持久化/严格回读/payload conflict，
+  fail-closed）。
+- 发布门禁：仅 archive_raw exit 0 允许 stage/commit/build/deploy。
+  exit 1/2 时 Commit 被跳过，随后 Propagate archive failure 在任何 Node/Build/Deploy
+  步骤之前传播原始非零退出码；全部 web/deploy 步骤自身还显式要求
+  steps.archive.outputs.exit_code == '0'。workflow_dispatch 的 deploy=true 仅允许在 rc=0
+  时覆盖"无数据变化不部署"，不得覆盖 transaction safety gate。
+  部分数据源 FETCH_FAILED 但已有 verified 新增行时，archive_raw 状态仍为 0，
+  因此合法部分结果仍会正常提交和部署；
+- workflow：git add 仅纳入 archive 目录顶层 `*.jsonl`；`*.tmp-*` / `*.lock`
+  同时由命名规则与 .gitignore 保持在 Git 发布边界之外；push 冲突
+  pull --rebase 重试至多 3 次；
+- THS 历史指数请求起点常量 ARCHIVE_HISTORY_START=20260101。
+
+## 39.5.4 与 ③ tracks 采集器的关系
+
+- ③ 采集器只消费 archive（不直接抓上游），保证历史口径一致；
+- MA/RPS/excess ← track-board-close；mainNetInflow/连续天数 ← track-board-flow；
+  limitUpCount/rate/ladder ← limit-up-pool；redStockRatio ← membership + 当日行情；
+- composite 赛道（semiconductor_ai）按子板块（BK1036 行业 + BK1134 概念）各归档一行，
+  聚合逻辑由 ③ 负责。
+
+## 39.5.5 并发与口径约定
+
+- 单写者约定：archive JSONL 的合法写入者仅 archive-raw job（CI 由
+  concurrency group `smi-data-write-*` 串行化）；Linux/macOS 附加 flock
+  防本地手动并发。Windows 本地开发禁止并发写 archive。
+- ST 谓词统一：collector.modules.raw_archive::is_st_stock_name
+  （前缀 *ST / S*ST / SST / ST，大小写不敏感）；③ tracks 与 sentiment
+  模块必须复用同一谓词，不得各自实现。"退市"整理期前缀不计入 ST
+  （如需调整须三处同步）。
+- flow 条目名：资金流接口条目名缺省取 index_name_ths，可用
+  fund_name_ths 显式覆盖（指数名 ≠ 资金流条目名的场景）。
+
+---
 # 40. V1.1 修订记录
 
 相对 V1.0，本版锁定以下变化：

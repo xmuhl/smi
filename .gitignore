@@ -6,3 +6,6 @@ __pycache__/
 tmp/
 preview.log
 .DS_Store
+# ⑧ daily raw archive：原子写崩溃残留的 tmp 与并发锁文件（禁止入库）
+web/public/data/archive/*.tmp-*
+web/public/data/archive/*.lock

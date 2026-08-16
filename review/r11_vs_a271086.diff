@@ -1,0 +1,2537 @@
+diff --git a/.github/workflows/archive-raw.yml b/.github/workflows/archive-raw.yml
+new file mode 100644
+index 0000000..3793e01
+--- /dev/null
++++ b/.github/workflows/archive-raw.yml
+@@ -0,0 +1,151 @@
++name: archive-raw
++
++on:
++  schedule:
++    # 08:35 UTC = 16:35 Asia/Shanghai（工作日，close-snapshot 之后）
++    - cron: "35 8 * * 1-5"
++  workflow_dispatch:
++    inputs:
++      date:
++        description: "目标交易日 YYYY-MM-DD（留空自动）"
++        required: false
++        default: "auto"
++        type: string
++      deploy:
++        description: "无数据变化也强制构建并部署（deploy 失败恢复用）"
++        required: false
++        default: false
++        type: boolean
++
++permissions:
++  contents: write
++
++concurrency:
++  # 必须与 close-snapshot 等一切数据写入 workflow 共用同一 group（串行化 git 写）
++  group: smi-data-write-${{ github.ref }}
++  cancel-in-progress: false
++
++jobs:
++  archive:
++    runs-on: ubuntu-latest
++    timeout-minutes: 60
++
++    steps:
++      - uses: actions/checkout@v4
++        with:
++          fetch-depth: 0
++
++      - uses: actions/setup-python@v5
++        with:
++          python-version: "3.11"
++
++      - name: Install Python dependencies
++        run: |
++          python -m pip install --upgrade pip
++          pip install -r collector/requirements.txt
++
++      - name: Python syntax preflight
++        run: |
++          python -m compileall -q collector
++
++      - name: Run raw archive
++        id: archive
++        env:
++          SMI_WORKFLOW: archive-raw
++          TARGET_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.date || 'auto' }}
++        run: |
++          set +e
++          python -m collector.jobs.archive_raw --date "$TARGET_DATE"
++          rc=$?
++          set -e
++
++          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
++
++          # 暂不在这里终止 job：
++          # 后续先根据真实 rc 执行发布门禁，最后再传播原始失败码。
++          exit 0
++
++      - name: Commit data if changed
++        id: commit
++        # 只有 archive transaction 完整返回 0 才允许进入 Git 外部副作用。
++        # rc=2 可能来自 replace 后 parent-fsync/readback 阶段，
++        # canonical 可能已变化但尚未被证明安全，必须 fail-closed。
++        # [REVERT:GLM F3 的"任何失败都 !cancelled() 提交"——exit 2 不保证
++        #  archive 工作树全部可信；部分 FETCH_FAILED 但 written>0 仍返回 0，
++        #  合法部分结果照常提交]
++        if: ${{ !cancelled() && steps.archive.outputs.exit_code == '0' }}
++        env:
++          TARGET_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.date || 'auto' }}
++        run: |
++          git config user.name "smi-bot"
++          git config user.email "smi-bot@users.noreply.github.com"
++
++          # 只 stage *.jsonl（契约：git add 仅纳入 JSONL 归档；
++          # 其他文件即使出现也不会被提交）
++          if [ -d web/public/data/archive ]; then
++            find web/public/data/archive \
++              -maxdepth 1 \
++              -type f \
++              -name '*.jsonl' \
++              -print0 \
++              | xargs -0 -r git add --
++          fi
++
++          if git diff --cached --quiet; then
++            echo "NO_CHANGE"
++            echo "changed=false" >> "$GITHUB_OUTPUT"
++            exit 0
++          fi
++
++          git commit -m "data: raw archive $TARGET_DATE"
++
++          for attempt in 1 2 3; do
++            if git push; then
++              echo "changed=true" >> "$GITHUB_OUTPUT"
++              exit 0
++            fi
++            git pull --rebase || exit 1
++          done
++
++          echo "PUSH_FAILED"
++          exit 1
++
++      - name: Propagate archive failure
++        # 必须位于任何 build/deploy 前：
++        # rc=1/2 时先把 job 置为失败，禁止"先部署、后报红"。
++        if: ${{ !cancelled() && steps.archive.outputs.exit_code != '0' }}
++        run: |
++          echo "archive_raw failed with exit code ${{ steps.archive.outputs.exit_code }}"
++          exit "${{ steps.archive.outputs.exit_code }}"
++
++      - name: Setup Node
++        if: ${{ steps.archive.outputs.exit_code == '0' && (steps.commit.outputs.changed == 'true' || inputs.deploy) }}
++        uses: actions/setup-node@v4
++        with:
++          node-version: "20"
++          cache: npm
++          cache-dependency-path: web/package-lock.json
++
++      - name: Install web dependencies
++        if: ${{ steps.archive.outputs.exit_code == '0' && (steps.commit.outputs.changed == 'true' || inputs.deploy) }}
++        working-directory: web
++        run: npm ci
++
++      - name: Type check
++        if: ${{ steps.archive.outputs.exit_code == '0' && (steps.commit.outputs.changed == 'true' || inputs.deploy) }}
++        working-directory: web
++        run: npm run typecheck
++
++      - name: Build
++        if: ${{ steps.archive.outputs.exit_code == '0' && (steps.commit.outputs.changed == 'true' || inputs.deploy) }}
++        working-directory: web
++        run: npm run build
++
++      - name: Deploy to Cloudflare Pages
++        if: ${{ steps.archive.outputs.exit_code == '0' && (steps.commit.outputs.changed == 'true' || inputs.deploy) }}
++        working-directory: web
++        env:
++          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
++          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
++        run: |
++          npx wrangler pages deploy dist             --project-name smi             --branch main             --commit-dirty=true
+\ No newline at end of file
+diff --git a/.gitignore b/.gitignore
+index 05c7e2c..208125d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -6,3 +6,6 @@ __pycache__/
+ tmp/
+ preview.log
+ .DS_Store
++# ⑧ daily raw archive：原子写崩溃残留的 tmp 与并发锁文件（禁止入库）
++web/public/data/archive/*.tmp-*
++web/public/data/archive/*.lock
+diff --git a/collector/archive.py b/collector/archive.py
+new file mode 100644
+index 0000000..8c8f8f6
+--- /dev/null
++++ b/collector/archive.py
+@@ -0,0 +1,455 @@
++"""⑧ daily raw archive：tracks 数据底座（R7 第四优先级）。
++
++从上线日起每日归档归一化的原始数据（JSONL 逐行追加），为 ③ tracks
++采集器提供历史底座：
++
++- track-board-close.jsonl   THS 板块历史指数当日 OHLCV（行业/概念）
++- track-board-flow.jsonl    THS 当日资金流净额（行业/概念，亿元）
++- limit-up-pool.jsonl       东财涨停池当日全量（含连板数/炸板/封板）
++- track-membership-snapshot.jsonl 东财板块成分当日快照
++
++设计约束：
++- 每行自包含（tradeDate + capturedAt + kind 冗余），追加时按
++  tradeDate+trackId+boardCode 幂等去重（重复采集不产生重复行）；
++- 原子写：持锁完成 dedupe/冲突检查 → 读全文 → 追加 →
++  tmp + file fsync + os.replace + parent-directory fsync + strict readback；
++  只有全部成功后才返回 APPENDED；同 key 不同业务 payload 视为完整性冲突，
++  fail-closed，不得压成 ALREADY_EXISTS；Windows 无 fcntl 时退化为无锁，
++  依赖单写者约定（CI 由 workflow concurrency group 串行化，见设计文档 §39.5.5）；
++- fail-closed：行级校验失败（缺字段/非规范日期/非有限数值/非法代码/
++  负计数/计数与明细不一致/序列化异常）一律返回 INVALID 拒绝写入，
++  绝不抛异常、绝不写入伪造数据；单行失败不影响其他行；
++- 读取容错：非 JSON 或非 JSON 对象的损坏行静默跳过（其键不参与
++  dedupe；os.replace 保证读者看到旧或新完整文件，读侧无需加锁）。
++"""
++
++from __future__ import annotations
++
++import json
++import math
++import os
++import re
++from contextlib import contextmanager
++from datetime import date
++from threading import get_ident
++from typing import Any, Iterator
++
++from collector.config import ARCHIVE_DIR
++from collector.schema import now_iso
++
++try:  # POSIX（CI/Linux、macOS 本地）；Windows 退化见模块 docstring
++    import fcntl
++except ImportError:  # pragma: no cover
++    fcntl = None  # type: ignore[assignment]
++
++ARCHIVE_KINDS = (
++    "track-board-close",
++    "track-board-flow",
++    "limit-up-pool",
++    "track-membership-snapshot",
++)
++
++# track 专属归档：trackId/boardCode 为幂等键组成部分，必填非空
++_TRACK_KINDS = (
++    "track-board-close",
++    "track-board-flow",
++    "track-membership-snapshot",
++)
++
++_REQUIRED_COMMON = ("tradeDate", "capturedAt", "kind", "source")
++_CLOSE_FIELDS = ("open", "high", "low", "close", "volume", "amount")
++_ITEM_NUM_FIELDS = ("changePct", "close", "amount", "turnoverRate", "sealAmount")
++_ITEM_INT_FIELDS = ("brokenTimes", "streak")
++
++
++def archive_path(kind: str) -> Any:
++    """返回某类归档的 JSONL 路径。"""
++    return ARCHIVE_DIR / f"{kind}.jsonl"
++
++
++@contextmanager
++def _archive_lock(path) -> Iterator[None]:
++    """跨进程/跨线程排它锁（flock 建议性锁；锁文件 *.lock 不入库）。"""
++    lock_path = path.parent / (path.name + ".lock")
++    lock_path.parent.mkdir(parents=True, exist_ok=True)
++    handle = open(lock_path, "a", encoding="utf-8")
++    try:
++        if fcntl is not None:
++            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
++        yield
++    finally:
++        handle.close()  # 关闭 fd 即释放锁
++
++
++def _iter_lines(path) -> Iterator[dict[str, Any]]:
++    """逐行读取 JSONL；损坏行（非 JSON / 非 JSON 对象）跳过。"""
++    if not path.exists():
++        return
++
++    with open(path, "r", encoding="utf-8") as f:
++        for line in f:
++            line = line.strip()
++            if not line:
++                continue
++            try:
++                record = json.loads(line)
++            except ValueError:
++                continue
++            if isinstance(record, dict):
++                yield record
++
++
++def _read_keys(path, kind: str) -> set[tuple[str, str, str]]:
++    """已归档行的 (tradeDate, trackId, boardCode) 键集合（用于幂等去重）。"""
++    keys: set[tuple[str, str, str]] = set()
++
++    for record in _iter_lines(path):
++        if record.get("kind") != kind:
++            continue
++        keys.add(
++            (
++                str(record.get("tradeDate", "")),
++                str(record.get("trackId", "")),
++                str(record.get("boardCode", "")),
++            )
++        )
++
++    return keys
++
++
++def _is_finite_number(value: Any) -> bool:
++    """有限数值（排除 bool；排除 None/字符串/NaN/Inf）。"""
++    if isinstance(value, bool) or not isinstance(value, (int, float)):
++        return False
++    return math.isfinite(value)
++
++
++def _non_negative_int(value: Any) -> bool:
++    if isinstance(value, bool) or not isinstance(value, int):
++        return False
++    return value >= 0
++
++
++def _validate_line(record: dict[str, Any]) -> list[str]:
++    """行级校验；返回错误列表，非空则拒绝写入。"""
++    errors: list[str] = []
++
++    for field in _REQUIRED_COMMON:
++        if record.get(field) in (None, ""):
++            errors.append(f"missing {field}")
++
++    trade_date = record.get("tradeDate")
++
++    try:
++        date.fromisoformat(str(trade_date))
++    except (ValueError, TypeError):
++        errors.append(f"invalid tradeDate: {trade_date}")
++
++    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(trade_date or "")):
++        errors.append(f"non-canonical tradeDate: {trade_date}")
++
++    kind = record.get("kind")
++
++    if kind in _TRACK_KINDS:
++        for field in ("trackId", "boardCode"):
++            if not str(record.get(field) or "").strip():
++                errors.append(f"missing {field}")
++
++    if kind == "track-board-close":
++        for field in _CLOSE_FIELDS:
++            if not _is_finite_number(record.get(field)):
++                errors.append(f"{field} must be finite number")
++
++        if all(_is_finite_number(record.get(f)) for f in ("open", "high", "low", "close")):
++            low = float(record["low"])
++            high = float(record["high"])
++            open_ = float(record["open"])
++            close = float(record["close"])
++            if low > high:
++                errors.append("low > high")
++            if not low <= open_ <= high:
++                errors.append("open out of [low, high]")
++            if not low <= close <= high:
++                errors.append("close out of [low, high]")
++
++    elif kind == "track-board-flow":
++        if not _is_finite_number(record.get("mainNetInflow")):
++            errors.append("mainNetInflow must be finite number")
++
++    elif kind == "limit-up-pool":
++        items = record.get("items")
++        items_ok = isinstance(items, list)
++
++        if not items_ok:
++            errors.append("items must be list")
++        else:
++            for index, item in enumerate(items):
++                if not isinstance(item, dict):
++                    errors.append(f"items[{index}] must be object")
++                    items_ok = False
++                    continue
++
++                code = str(item.get("code") or "")
++                if not re.fullmatch(r"\d{6}", code):
++                    errors.append(f"items[{index}] invalid stock code: {code}")
++
++                for field in _ITEM_NUM_FIELDS:
++                    value = item.get(field)
++                    if value is not None and not _is_finite_number(value):
++                        errors.append(
++                            f"items[{index}].{field} must be finite number or null"
++                        )
++
++                for field in _ITEM_INT_FIELDS:
++                    value = item.get(field)
++                    if value is not None and not _non_negative_int(value):
++                        errors.append(
++                            f"items[{index}].{field} must be non-negative int or null"
++                        )
++
++        counts = record.get("counts")
++        counts_ok = isinstance(counts, dict)
++
++        if not counts_ok:
++            errors.append("counts must be object")
++        else:
++            for field in ("nonStLimitUpCount", "stLimitUpCount"):
++                if not _non_negative_int(counts.get(field)):
++                    errors.append(f"counts.{field} must be non-negative int")
++                    counts_ok = False
++
++            dropped = counts.get("droppedItemCount")
++            if dropped is not None and not _non_negative_int(dropped):
++                errors.append("counts.droppedItemCount must be non-negative int or null")
++
++        if items_ok and counts_ok:
++            total = counts["nonStLimitUpCount"] + counts["stLimitUpCount"]
++            if total != len(items):
++                errors.append(
++                    f"counts sum {total} != len(items)={len(items)}"
++                )
++
++    elif kind == "track-membership-snapshot":
++        members = record.get("members")
++
++        if not isinstance(members, list):
++            errors.append("members must be list")
++        else:
++            for index, code in enumerate(members):
++                if not re.fullmatch(r"\d{6}", str(code or "")):
++                    errors.append(f"members[{index}] invalid code: {code}")
++
++            member_count = record.get("memberCount")
++            if member_count is not None and (
++                isinstance(member_count, bool)
++                or not isinstance(member_count, int)
++                or member_count != len(members)
++            ):
++                errors.append("memberCount must equal len(members)")
++
++        dropped = record.get("droppedMemberCount")
++        if dropped is not None and not _non_negative_int(dropped):
++            errors.append("droppedMemberCount must be non-negative int or null")
++
++    return errors
++
++
++def _dedupe_key(record: dict[str, Any]) -> tuple[str, str, str]:
++    """返回归档幂等键。"""
++    return (
++        str(record.get("tradeDate", "")),
++        str(record.get("trackId", "")),
++        str(record.get("boardCode", "")),
++    )
++
++
++def _business_payload(record: dict[str, Any]) -> dict[str, Any]:
++    """用于幂等一致性比较；capturedAt 仅是采集时间，不属于业务载荷。"""
++    return {
++        key: value
++        for key, value in record.items()
++        if key != "capturedAt"
++    }
++
++
++def _matching_records(
++    path,
++    kind: str,
++    key: tuple[str, str, str],
++) -> list[dict[str, Any]]:
++    """返回指定 kind+幂等键的全部可解析记录。"""
++    return [
++        record
++        for record in _iter_lines(path)
++        if record.get("kind") == kind
++        and _dedupe_key(record) == key
++    ]
++
++
++def _fsync_directory(path) -> None:
++    """POSIX 下确认目录项更新耐久；非 POSIX 依赖 os.replace + 严格回读。"""
++    if os.name != "posix":
++        return
++
++    fd = os.open(str(path), os.O_RDONLY)
++
++    try:
++        os.fsync(fd)
++    finally:
++        os.close(fd)
++
++
++def append_record(
++    kind: str,
++    record: dict[str, Any],
++    *,
++    dedupe: bool = True,
++) -> tuple[bool, str]:
++    """耐久原子追加一行归档；返回 (written, reason)。
++
++    - kind 与 record.kind 必须一致；不一致直接 INVALID；
++    - 幂等：同 key 已存在且现有记录业务 payload（排除 capturedAt）与本次
++      一致时，重新确认目录 durability 后返回 (False, "ALREADY_EXISTS")；
++      同 key 不同 payload 属完整性冲突，抛 RuntimeError fail-closed；
++    - 校验/序列化失败返回 INVALID，不写入；
++    - 写事务（持锁）：dedupe → 全文读入 → 修复缺失的行分隔符 →
++      tmp + file fsync + os.replace + parent fsync + 严格回读。
++    """
++    if kind not in ARCHIVE_KINDS:
++        return False, f"UNKNOWN_KIND:{kind}"
++
++    record = dict(record)
++
++    supplied_kind = record.get("kind")
++
++    if supplied_kind is not None and supplied_kind != kind:
++        return False, f"INVALID:kind mismatch:{supplied_kind}!={kind}"
++
++    record["kind"] = kind
++    record.setdefault("capturedAt", now_iso())
++
++    errors = _validate_line(record)
++
++    if errors:
++        return False, "INVALID:" + ";".join(errors)
++
++    try:
++        line = (
++            json.dumps(
++                record,
++                ensure_ascii=False,
++                separators=(",", ":"),
++                allow_nan=False,
++            )
++            + "\n"
++        )
++    except (TypeError, ValueError) as exc:
++        return False, f"INVALID:serialize:{exc}"
++
++    path = archive_path(kind)
++    path.parent.mkdir(parents=True, exist_ok=True)
++
++    with _archive_lock(path):
++        if dedupe:
++            key = _dedupe_key(record)
++            matches = _matching_records(path, kind, key)
++
++            if matches:
++                # 上一轮可能 replace 已成功但 parent fsync 失败；
++                # 即使 key 已存在，也必须先重新确认目录项耐久。
++                _fsync_directory(path.parent)
++
++                if len(matches) != 1:
++                    raise RuntimeError(
++                        f"archive duplicate-key conflict: {kind} key={key} "
++                        f"count={len(matches)}"
++                    )
++
++                existing_record = matches[0]
++                existing_errors = _validate_line(existing_record)
++
++                if existing_errors:
++                    raise RuntimeError(
++                        f"archive existing record invalid: {kind} key={key}: "
++                        + ";".join(existing_errors)
++                    )
++
++                if _business_payload(existing_record) != _business_payload(record):
++                    raise RuntimeError(
++                        f"archive key conflict: {kind} key={key}"
++                    )
++
++                return False, "ALREADY_EXISTS"
++
++        existing = (
++            path.read_text(encoding="utf-8")
++            if path.exists()
++            else ""
++        )
++
++        if existing and not existing.endswith("\n"):
++            existing += "\n"
++
++        expected = existing + line
++
++        tmp = path.with_suffix(
++            path.suffix + f".tmp-{os.getpid()}-{get_ident()}"
++        )
++
++        try:
++            with open(tmp, "w", encoding="utf-8") as f:
++                f.write(expected)
++                f.flush()
++                os.fsync(f.fileno())
++
++            os.replace(tmp, path)
++            _fsync_directory(path.parent)
++        finally:
++            if tmp.exists():
++                tmp.unlink(missing_ok=True)
++
++        try:
++            persisted = path.read_text(encoding="utf-8")
++        except (OSError, UnicodeError) as exc:
++            raise RuntimeError(
++                f"archive strict readback failed: {path}"
++            ) from exc
++
++        if persisted != expected:
++            raise RuntimeError(
++                f"archive strict readback mismatch: {path}"
++            )
++
++    return True, "APPENDED"
++
++
++def read_records(
++    kind: str,
++    *,
++    trade_date: str | None = None,
++    track_id: str | None = None,
++) -> list[dict[str, Any]]:
++    """读取归档；支持按日期/赛道过滤。"""
++    if kind not in ARCHIVE_KINDS:
++        return []
++
++    records = [
++        record
++        for record in _iter_lines(archive_path(kind))
++        if (
++            trade_date is None
++            or record.get("tradeDate") == trade_date
++        )
++        and (
++            track_id is None
++            or record.get("trackId") == track_id
++        )
++    ]
++
++    return records
++
++
++def count_records(kind: str) -> int:
++    if kind not in ARCHIVE_KINDS:
++        return 0
++    return sum(1 for _ in _iter_lines(archive_path(kind)))
+diff --git a/collector/config.py b/collector/config.py
+index 4c9a2ee..e264c13 100644
+--- a/collector/config.py
++++ b/collector/config.py
+@@ -12,6 +12,8 @@ CONFIG_DIR = PROJECT_ROOT / "config"
+ DATA_DIR = PROJECT_ROOT / "web" / "public" / "data"
+ DAILY_DIR = DATA_DIR / "daily"
+ CALENDAR_DIR = DATA_DIR / "calendar"
++# ⑧ daily raw archive：tracks 数据底座（JSONL 逐日追加，随站点部署）
++ARCHIVE_DIR = DATA_DIR / "archive"
+ 
+ 
+ def load_yaml(name: str) -> dict:
+@@ -23,7 +25,7 @@ def load_yaml(name: str) -> dict:
+ 
+ 
+ def ensure_dirs() -> None:
+-    for d in (DAILY_DIR, CALENDAR_DIR, PROJECT_ROOT / "tmp"):
++    for d in (DAILY_DIR, CALENDAR_DIR, ARCHIVE_DIR, PROJECT_ROOT / "tmp"):
+         d.mkdir(parents=True, exist_ok=True)
+ 
+ 
+diff --git a/collector/jobs/archive_raw.py b/collector/jobs/archive_raw.py
+new file mode 100644
+index 0000000..5246211
+--- /dev/null
++++ b/collector/jobs/archive_raw.py
+@@ -0,0 +1,147 @@
++"""⑧ raw archive 任务：每日归档 tracks 数据底座（R7 第四优先级）。
++
++用法：
++    python -m collector.jobs.archive_raw --date auto       # 最近交易日
++    python -m collector.jobs.archive_raw --date 2026-08-14 # 指定日（历史回补）
++
++退出码：
++    0  全部成功、部分成功（可解释 SKIP），或幂等重跑（ALREADY_EXISTS）；
++       workflow 允许 stage/commit/deploy。
++    1  交易日但零新增且零已存在（全源失败，CI 告警）；
++       workflow fail-closed，禁止 stage/commit/deploy。
++    2  未分类异常（配置/日历损坏、归档写入、parent fsync、
++       strict readback、payload conflict 等）；
++       workflow fail-closed，禁止 stage/commit/deploy。
++"""
++
++from __future__ import annotations
++
++import argparse
++import sys
++import traceback
++from datetime import date
++
++from collector.archive import append_record, count_records
++from collector.calendar import is_trading_day
++from collector.jobs.common import resolve_target_date
++from collector.modules.raw_archive import (
++    _expanded_tracks,
++    collect_board_close,
++    collect_board_flow,
++    collect_limit_up_pool,
++    collect_membership,
++)
++
++KINDS = (
++    "track-board-close",
++    "track-board-flow",
++    "limit-up-pool",
++    "track-membership-snapshot",
++)
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser(description="SMI raw archive")
++    parser.add_argument(
++        "--date",
++        default="auto",
++        help="目标交易日 YYYY-MM-DD 或 auto",
++    )
++    args = parser.parse_args()
++
++    # 阶段 0：解析目标日（配置/日历损坏属未分类异常 → 2）
++    try:
++        target = resolve_target_date(args.date)
++
++        if not is_trading_day(
++            date.fromisoformat(target),
++            fallback_weekday=True,
++        ):
++            print(f"NOT_TRADING_DAY {target}")
++            return 0
++
++        tracks = _expanded_tracks()
++    except Exception:  # noqa: BLE001
++        traceback.print_exc()
++        return 2
++
++    written = 0  # 新增行
++    skipped = 0  # 可解释跳过（INVALID / 历史不支持 / 名称缺失 / 概念短路 …）
++    already = 0  # 幂等命中（ALREADY_EXISTS，视为成功重跑）
++    failed = 0   # 上游抓取异常（FETCH_FAILED，CI 告警候选）
++
++    def _collect_one(label: str, kind: str, result: dict) -> None:
++        nonlocal written, skipped, already, failed
++
++        if not result.get("ok"):
++            reason = str(result.get("reason", "?"))
++            print(f"SKIP {label} {target} reason={reason}")
++            skipped += 1
++            if reason.startswith("FETCH_FAILED"):
++                failed += 1
++            return
++
++        ok, reason = append_record(kind, result["record"])
++
++        if ok:
++            written += 1
++        elif reason == "ALREADY_EXISTS":
++            already += 1
++        else:
++            print(f"SKIP {label} {target} reason={reason}")
++            skipped += 1
++
++    # 阶段 1-4：单源失败仅 SKIP（collect 层已把异常包装为 FETCH_FAILED）
++    try:
++        for track in tracks:
++            _collect_one(
++                f"board-close {track['trackId']}/{track.get('boardCode')}",
++                "track-board-close",
++                collect_board_close(target, track),
++            )
++
++        for track in tracks:
++            _collect_one(
++                f"board-flow {track['trackId']}/{track.get('boardCode')}",
++                "track-board-flow",
++                collect_board_flow(target, track),
++            )
++
++        _collect_one(
++            "limit-up-pool",
++            "limit-up-pool",
++            collect_limit_up_pool(target),
++        )
++
++        for track in tracks:
++            _collect_one(
++                f"membership {track['trackId']}/{track.get('boardCode')}",
++                "track-membership-snapshot",
++                collect_membership(target, track),
++            )
++    except Exception:  # noqa: BLE001
++        # append_record 的持久化/严格回读/payload conflict 等未分类异常：
++        # fail-closed → 2。workflow 对非零 rc 禁止 stage/commit/deploy，
++        # 避免把 post-replace 未确认工作树发布到 Git 或 Cloudflare。
++        traceback.print_exc()
++        print("UNCLASSIFIED_FAILURE")
++        status = 2
++    else:
++        status = 0
++
++    print(
++        f"ARCHIVE_DONE {target} written={written} skipped={skipped} "
++        f"already={already} failures={failed} status={status}"
++    )
++
++    for kind in KINDS:
++        print(f"  {kind}: {count_records(kind)} records")
++
++    if status == 0 and written == 0 and already == 0 and (skipped + failed) > 0:
++        return 1  # 交易日全源失败零写入：CI 告警
++
++    return status
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/collector/modules/raw_archive.py b/collector/modules/raw_archive.py
+new file mode 100644
+index 0000000..3a4069e
+--- /dev/null
++++ b/collector/modules/raw_archive.py
+@@ -0,0 +1,411 @@
++"""⑧ raw archive 采集器：把免费数据源归一化为 JSONL 行（R7 第四优先级）。
++
++数据源（全部实测 2026-08-16）：
++- THS 板块指数历史：stock_board_industry_index_ths / stock_board_concept_index_ths
++  （symbol 用 tracks.yaml 的 index_name_ths 精确名；支持历史日）
++- THS 当日资金流：stock_fund_flow_industry / stock_fund_flow_concept
++  （即时，仅当日；条目名缺省取 index_name_ths，可用 fund_name_ths 显式覆盖）
++- 东财涨停池：stock_zt_pool_em(date)（含连板数/炸板/封板；历史窗口内可用）
++- 东财板块成分：stock_board_industry_cons_em(BK 代码)（仅当日快照；
++  概念成分接口实测被封 → 显式 CONCEPT_CONS_DISABLED 短路：不请求、
++  不伪造；接口恢复后移除该短路即可）
++
++失败语义（fail-closed）：
++- 一切上游异常（网络/接口变更/列名变更）由 @_fail_closed 包装为
++  ok=False + FETCH_FAILED:*，绝不向上抛、绝不把空/错数据写成合法行；
++- 单项失败只 SKIP 该项，不影响其余项；
++- 历史日调用仅当日接口 → HISTORICAL_*_UNSUPPORTED。
++"""
++
++from __future__ import annotations
++
++import functools
++from datetime import datetime
++from typing import Any, Callable
++
++from collector.config import load_yaml
++from collector.schema import TZ_SHANGHAI
++
++METHOD_INDEX_THS = "THS_INDEX_V1"
++METHOD_FLOW_THS = "THS_FLOW_V1"
++METHOD_ZT_POOL_EM = "EM_ZT_POOL_V1"
++METHOD_MEMBERSHIP_EM = "EM_BOARD_CONS_V1"
++
++# THS 历史指数请求起点（项目纪元；早于该日无回补意义）
++ARCHIVE_HISTORY_START = "20260101"
++
++# ST 类名称前缀（"退市"整理期前缀不计入，口径见设计文档 §39.5.5）
++_ST_NAME_PREFIXES = ("*ST", "S*ST", "SST", "ST")
++
++
++def is_st_stock_name(name: Any) -> bool:
++    """ST 识别（名称前缀，大小写不敏感）。③ tracks / sentiment 须复用同一谓词。"""
++    normalized = str(name if name is not None else "").strip().upper()
++    return normalized.startswith(_ST_NAME_PREFIXES)
++
++
++def _fail_closed(func: Callable) -> Callable:
++    """把采集函数的一切未预期异常包装为可解释失败（不向上抛）。"""
++
++    @functools.wraps(func)
++    def wrapper(*args, **kwargs):
++        try:
++            return func(*args, **kwargs)
++        except Exception as exc:  # noqa: BLE001
++            return {
++                "ok": False,
++                "reason": f"FETCH_FAILED:{type(exc).__name__}:{str(exc)[:120]}",
++                "record": None,
++            }
++
++    return wrapper
++
++
++def _is_today(trade_date: str) -> bool:
++    return trade_date == datetime.now(TZ_SHANGHAI).date().isoformat()
++
++
++def _clean_stock_code(value: Any) -> str | None:
++    """归一化 6 位数字股票代码；空/非数字/000000/非法长度返回 None。"""
++    text = str(
++        value if value is not None else ""
++    ).strip()
++
++    if not text or not text.isdigit():
++        return None
++
++    text = text.zfill(6)
++
++    if len(text) != 6 or text == "000000":
++        return None
++
++    return text
++
++
++def _expanded_tracks() -> list[dict[str, Any]]:
++    """把 tracks.yaml 展开为「单一 board 行」列表（composite 拆成子板块）。"""
++    cfg = load_yaml("tracks.yaml")
++    tracks = cfg.get("tracks", [])
++
++    expanded: list[dict[str, Any]] = []
++
++    for track in tracks:
++        if not track.get("enabled", True):
++            continue
++
++        composite = track.get("composite")
++
++        if composite:
++            for sub in composite:
++                expanded.append(
++                    {
++                        "trackId": track["id"],
++                        "trackName": track.get("name", ""),
++                        "positioning": track.get("positioning", ""),
++                        "boardType": sub.get("board_type", "concept"),
++                        "boardCode": sub["code"],
++                        "boardName": sub.get("name", ""),
++                        "indexNameThs": sub.get("index_name_ths"),
++                        "fundNameThs": sub.get("fund_name_ths"),
++                        "weight": sub.get("weight"),
++                    }
++                )
++            continue
++
++        expanded.append(
++            {
++                "trackId": track["id"],
++                "trackName": track.get("name", ""),
++                "positioning": track.get("positioning", ""),
++                "boardType": track.get("board_type", ""),
++                "boardCode": track.get("board_code", ""),
++                "boardName": track.get("expected_name", ""),
++                "indexNameThs": track.get("index_name_ths"),
++                "fundNameThs": track.get("fund_name_ths"),
++                "weight": None,
++            }
++        )
++
++    return expanded
++
++
++@_fail_closed
++def collect_board_close(
++    trade_date: str,
++    track: dict[str, Any],
++) -> dict[str, Any]:
++    """THS 板块指数当日 OHLCV（支持历史日）。"""
++    import akshare as ak
++
++    symbol = track.get("indexNameThs")
++
++    if not symbol:
++        return {"ok": False, "reason": "INDEX_NAME_THS_MISSING", "record": None}
++
++    board_type = track.get("boardType")
++
++    if board_type == "concept":
++        df = ak.stock_board_concept_index_ths(
++            symbol=symbol,
++            start_date=ARCHIVE_HISTORY_START,
++            end_date=trade_date.replace("-", ""),
++        )
++    elif board_type == "industry":
++        df = ak.stock_board_industry_index_ths(
++            symbol=symbol,
++            start_date=ARCHIVE_HISTORY_START,
++            end_date=trade_date.replace("-", ""),
++        )
++    else:
++        return {
++            "ok": False,
++            "reason": f"UNKNOWN_BOARD_TYPE:{board_type}",
++            "record": None,
++        }
++
++    if df is None or df.empty:
++        return {"ok": False, "reason": "EMPTY", "record": None}
++
++    df["日期"] = df["日期"].astype(str)
++
++    row = df[df["日期"] == trade_date]
++
++    if row.empty:
++        return {"ok": False, "reason": "DATE_NOT_FOUND", "record": None}
++
++    row = row.iloc[-1]
++
++    def num(key: str):
++        try:
++            value = float(row[key])
++        except (KeyError, TypeError, ValueError):
++            return None
++        return value if value == value else None
++
++    record = {
++        "tradeDate": trade_date,
++        "trackId": track["trackId"],
++        "trackName": track.get("trackName", ""),
++        "boardType": board_type,
++        "boardCode": track.get("boardCode", ""),
++        "boardName": track.get("boardName", ""),
++        "source": METHOD_INDEX_THS,
++        "symbolThs": symbol,
++        "open": num("开盘价"),
++        "high": num("最高价"),
++        "low": num("最低价"),
++        "close": num("收盘价"),
++        "volume": num("成交量"),
++        "amount": num("成交额"),
++    }
++
++    if record["close"] is None:
++        return {"ok": False, "reason": "CLOSE_MISSING", "record": None}
++
++    return {"ok": True, "reason": "OK", "record": record}
++
++
++@_fail_closed
++def collect_board_flow(
++    trade_date: str,
++    track: dict[str, Any],
++) -> dict[str, Any]:
++    """THS 当日资金流净额（仅当日，无免费历史）。"""
++    import akshare as ak
++
++    if not _is_today(trade_date):
++        return {
++            "ok": False,
++            "reason": "HISTORICAL_FLOW_UNSUPPORTED",
++            "record": None,
++        }
++
++    symbol = track.get("fundNameThs") or track.get("indexNameThs")
++
++    if not symbol:
++        return {"ok": False, "reason": "INDEX_NAME_THS_MISSING", "record": None}
++
++    board_type = track.get("boardType")
++    name_col = "行业"
++
++    if board_type == "concept":
++        df = ak.stock_fund_flow_concept(symbol="即时")
++    elif board_type == "industry":
++        df = ak.stock_fund_flow_industry(symbol="即时")
++    else:
++        return {
++            "ok": False,
++            "reason": f"UNKNOWN_BOARD_TYPE:{board_type}",
++            "record": None,
++        }
++
++    if df is None or df.empty:
++        return {"ok": False, "reason": "EMPTY", "record": None}
++
++    rows = df[df[name_col].astype(str) == symbol]
++
++    if rows.empty:
++        return {"ok": False, "reason": f"BOARD_NOT_FOUND:{symbol}", "record": None}
++
++    row = rows.iloc[0]
++
++    try:
++        net = float(row["净额"])
++    except (KeyError, TypeError, ValueError):
++        net = None
++
++    if net is None or net != net:
++        return {"ok": False, "reason": "NET_MISSING", "record": None}
++
++    record = {
++        "tradeDate": trade_date,
++        "trackId": track["trackId"],
++        "trackName": track.get("trackName", ""),
++        "boardType": board_type,
++        "boardCode": track.get("boardCode", ""),
++        "boardName": track.get("boardName", ""),
++        "source": METHOD_FLOW_THS,
++        "symbolThs": symbol,
++        "mainNetInflow": round(net, 2),
++        "unit": "亿元",
++    }
++
++    return {"ok": True, "reason": "OK", "record": record}
++
++
++@_fail_closed
++def collect_limit_up_pool(trade_date: str) -> dict[str, Any]:
++    """东财涨停池当日全量（支持历史窗口内回补）。"""
++    import akshare as ak
++
++    pool = ak.stock_zt_pool_em(date=trade_date.replace("-", ""))
++
++    if pool is None or pool.empty:
++        return {"ok": False, "reason": "EMPTY", "record": None}
++
++    items: list[dict[str, Any]] = []
++    dropped = 0
++
++    for _, row in pool.iterrows():
++        code = _clean_stock_code(row.get("代码"))
++
++        if code is None:
++            dropped += 1
++            continue
++
++        items.append(
++            {
++                "code": code,
++                "name": str(row.get("名称", "")),
++                "changePct": _num(row.get("涨跌幅")),
++                "close": _num(row.get("最新价")),
++                "amount": _num(row.get("成交额")),
++                "turnoverRate": _num(row.get("换手率")),
++                "sealAmount": _num(row.get("封板资金")),
++                "firstSealTime": str(row.get("首次封板时间", "") or ""),
++                "lastSealTime": str(row.get("最后封板时间", "") or ""),
++                "brokenTimes": _int(row.get("炸板次数")),
++                "limitUpStat": str(row.get("涨停统计", "") or ""),
++                "streak": _int(row.get("连板数")),
++                "industry": str(row.get("所属行业", "") or ""),
++            }
++        )
++
++    st_count = sum(1 for item in items if is_st_stock_name(item["name"]))
++
++    record = {
++        "tradeDate": trade_date,
++        "trackId": "*",
++        "boardCode": "*",
++        "source": METHOD_ZT_POOL_EM,
++        "items": items,
++        "counts": {
++            "nonStLimitUpCount": len(items) - st_count,
++            "stLimitUpCount": st_count,
++            "droppedItemCount": dropped,
++        },
++    }
++
++    return {"ok": True, "reason": "OK", "record": record}
++
++
++@_fail_closed
++def collect_membership(
++    trade_date: str,
++    track: dict[str, Any],
++) -> dict[str, Any]:
++    """东财板块成分当日快照（仅当日）。
++
++    概念成分接口实测被封：显式短路 CONCEPT_CONS_DISABLED，不请求
++    （避免反复触发反爬升级）、不伪造；接口恢复后移除短路即可。
++    """
++    import akshare as ak
++
++    if not _is_today(trade_date):
++        return {
++            "ok": False,
++            "reason": "HISTORICAL_MEMBERSHIP_UNSUPPORTED",
++            "record": None,
++        }
++
++    board_type = track.get("boardType")
++    board_code = track.get("boardCode")
++
++    if not board_code:
++        return {"ok": False, "reason": "BOARD_CODE_MISSING", "record": None}
++
++    if board_type == "industry":
++        df = ak.stock_board_industry_cons_em(symbol=board_code)
++    elif board_type == "concept":
++        return {"ok": False, "reason": "CONCEPT_CONS_DISABLED", "record": None}
++    else:
++        return {
++            "ok": False,
++            "reason": f"UNKNOWN_BOARD_TYPE:{board_type}",
++            "record": None,
++        }
++
++    if df is None or df.empty:
++        return {"ok": False, "reason": "EMPTY", "record": None}
++
++    members: list[str] = []
++    dropped = 0
++
++    for _, row in df.iterrows():
++        code = _clean_stock_code(row.get("代码"))
++
++        if code is None:
++            dropped += 1
++            continue
++
++        members.append(code)
++
++    record = {
++        "tradeDate": trade_date,
++        "trackId": track["trackId"],
++        "trackName": track.get("trackName", ""),
++        "boardType": board_type,
++        "boardCode": board_code,
++        "boardName": track.get("boardName", ""),
++        "source": METHOD_MEMBERSHIP_EM,
++        "members": members,
++        "memberCount": len(members),
++        "droppedMemberCount": dropped,
++    }
++
++    return {"ok": True, "reason": "OK", "record": record}
++
++
++def _num(value) -> float | None:
++    try:
++        number = float(value)
++    except (TypeError, ValueError):
++        return None
++    return number if number == number else None
++
++
++def _int(value) -> int | None:
++    try:
++        return int(value)
++    except (TypeError, ValueError):
++        return None
+diff --git a/collector/modules/sentiment.py b/collector/modules/sentiment.py
+index 25f4293..5639753 100644
+--- a/collector/modules/sentiment.py
++++ b/collector/modules/sentiment.py
+@@ -6,7 +6,6 @@
+ 
+ from __future__ import annotations
+ 
+-import re
+ from datetime import datetime
+ from typing import Any
+ 
+@@ -20,14 +19,10 @@ from collector.status import ModuleStatus
+ def is_st(
+     name: str,
+ ) -> bool:
+-    value = str(name or "").strip().upper()
++    """ST 判定（统一谓词：raw_archive.is_st_stock_name，见设计文档 §39.5.5）。"""
++    from collector.modules.raw_archive import is_st_stock_name
+ 
+-    return bool(
+-        re.match(
+-            r"^(?:\*ST|ST|S\*ST)",
+-            value,
+-        )
+-    )
++    return is_st_stock_name(name)
+ 
+ 
+ def _fetch_spot_counts(
+diff --git a/collector/tests/test_archive.py b/collector/tests/test_archive.py
+new file mode 100644
+index 0000000..9f9d2fe
+--- /dev/null
++++ b/collector/tests/test_archive.py
+@@ -0,0 +1,1110 @@
++# -*- coding: utf-8 -*-
++"""⑧ daily raw archive 测试：核心 append 幂等/校验 + 采集器归一化（离线）。"""
++
++from __future__ import annotations
++
++import json
++import sys
++from pathlib import Path
++from types import ModuleType
++from datetime import date
++
++import pandas as pd
++import pytest
++
++
++# ---------------------------------------------------------------------------
++# archive.append_record / read_records / count_records（纯本地，tmp_path 隔离）
++# ---------------------------------------------------------------------------
++
++def _patch_archive_dir(tmp_path, monkeypatch):
++    import collector.config as config
++    import collector.archive as archive
++
++    test_root = tmp_path / "repo"
++    test_archive = test_root / "data" / "archive"
++
++    monkeypatch.setattr(config, "PROJECT_ROOT", test_root)
++    monkeypatch.setattr(config, "DATA_DIR", test_root / "data")
++    monkeypatch.setattr(config, "DAILY_DIR", test_root / "data" / "daily")
++    monkeypatch.setattr(config, "CALENDAR_DIR", test_root / "data" / "calendar")
++    monkeypatch.setattr(config, "ARCHIVE_DIR", test_archive)
++    # archive 模块 import 时绑定了 ARCHIVE_DIR，需同步打补丁
++    monkeypatch.setattr(archive, "ARCHIVE_DIR", test_archive)
++
++    return archive
++
++
++def test_archive_append_and_read_roundtrip(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-board-close",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_INDEX_V1",
++            "open": 1985.0,
++            "high": 1990.0,
++            "low": 1929.0,
++            "close": 1937.4,
++            "volume": 100,
++            "amount": 1e9,
++        },
++    )
++
++    assert ok
++    assert reason == "APPENDED"
++
++    records = archive.read_records(
++        "track-board-close",
++        trade_date="2026-08-14",
++    )
++
++    assert len(records) == 1
++    assert records[0]["close"] == 1937.4
++    assert records[0]["kind"] == "track-board-close"
++
++    assert archive.count_records("track-board-close") == 1
++
++
++def test_archive_append_idempotent_dedupe(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    record = {
++        "tradeDate": "2026-08-14",
++        "trackId": "power",
++        "boardCode": "BK0428",
++        "source": "THS_INDEX_V1",
++        "open": 1985.0,
++        "high": 1990.0,
++        "low": 1929.0,
++        "close": 1937.4,
++        "volume": 100,
++        "amount": 1e9,
++    }
++
++    ok1, r1 = archive.append_record("track-board-close", record)
++    ok2, r2 = archive.append_record("track-board-close", record)
++
++    assert ok1 and r1 == "APPENDED"
++    assert not ok2 and r2 == "ALREADY_EXISTS"
++    assert archive.count_records("track-board-close") == 1
++
++
++def test_archive_rejects_invalid_trade_date(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-board-close",
++        {
++            "tradeDate": "08/14/2026",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_INDEX_V1",
++            "open": 1.0,
++            "high": 2.0,
++            "low": 0.5,
++            "close": 1.5,
++            "volume": 1,
++            "amount": 1,
++        },
++    )
++
++    assert not ok
++    assert reason.startswith("INVALID")
++    assert archive.count_records("track-board-close") == 0
++
++
++def test_archive_rejects_nonfinite_close(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-board-close",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_INDEX_V1",
++            "open": float("nan"),
++            "high": 2.0,
++            "low": 0.5,
++            "close": 1.5,
++            "volume": 1,
++            "amount": 1,
++        },
++    )
++
++    assert not ok
++    assert reason.startswith("INVALID")
++
++
++def test_archive_rejects_bad_limit_up_pool_codes(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "limit-up-pool",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "*",
++            "boardCode": "*",
++            "source": "EM_ZT_POOL_V1",
++            "items": [
++                {"code": "000936", "name": "A"},
++                {"code": "abc", "name": "BAD"},
++            ],
++            "counts": {
++                "nonStLimitUpCount": 1,
++                "stLimitUpCount": 0,
++            },
++        },
++    )
++
++    assert not ok
++    assert reason.startswith("INVALID")
++
++
++def test_archive_rejects_negative_counts(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "limit-up-pool",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "*",
++            "boardCode": "*",
++            "source": "EM_ZT_POOL_V1",
++            "items": [],
++            "counts": {
++                "nonStLimitUpCount": -1,
++                "stLimitUpCount": 0,
++            },
++        },
++    )
++
++    assert not ok
++    assert reason.startswith("INVALID")
++
++
++def test_archive_unknown_kind_rejected(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "not-a-kind",
++        {"tradeDate": "2026-08-14"},
++    )
++
++    assert not ok
++    assert reason.startswith("UNKNOWN_KIND")
++
++
++# ---------------------------------------------------------------------------
++# 采集器归一化（monkeypatch akshare，离线）
++# ---------------------------------------------------------------------------
++
++def _install_fake_akshare(monkeypatch):
++    fake = ModuleType("akshare")
++
++    def stock_board_concept_index_ths(
++        symbol=None,
++        start_date=None,
++        end_date=None,
++    ):
++        return pd.DataFrame({
++            "日期": [date(2026, 8, 13), date(2026, 8, 14)],
++            "开盘价": [100.0, 101.0],
++            "最高价": [102.0, 103.0],
++            "最低价": [99.0, 100.0],
++            "收盘价": [101.0, 102.5],
++            "成交量": [1000, 1100],
++            "成交额": [1e9, 1.1e9],
++        })
++
++    def stock_board_industry_index_ths(
++        symbol=None,
++        start_date=None,
++        end_date=None,
++    ):
++        return stock_board_concept_index_ths(
++            symbol=symbol,
++            start_date=start_date,
++            end_date=end_date,
++        )
++
++    def stock_fund_flow_industry(symbol=None):
++        return pd.DataFrame({
++            "行业": ["电力", "其他"],
++            "净额": [12.5, -3.0],
++        })
++
++    def stock_fund_flow_concept(symbol=None):
++        return pd.DataFrame({
++            "行业": ["同花顺中特估100", "其他"],
++            "净额": [5.0, -1.0],
++        })
++
++    def stock_zt_pool_em(date=None):
++        return pd.DataFrame({
++            "代码": ["000936", "600001"],
++            "名称": ["华西股份", "ST测试"],
++            "涨跌幅": [9.9, 5.0],
++            "最新价": [6.97, 2.0],
++            "成交额": [1e8, 2e8],
++            "换手率": [15.4, 5.0],
++            "封板资金": [4e7, 1e7],
++            "首次封板时间": ["092500", "100000"],
++            "最后封板时间": ["105703", "110000"],
++            "炸板次数": [7, 0],
++            "涨停统计": ["3/3", "1/1"],
++            "连板数": [3, 1],
++            "所属行业": ["化学纤维", "综合"],
++        })
++
++    def stock_board_industry_cons_em(symbol=None):
++        return pd.DataFrame({
++            "代码": ["600011", "600021", "600027"],
++            "名称": ["A", "B", "C"],
++        })
++
++    fake.stock_board_concept_index_ths = stock_board_concept_index_ths
++    fake.stock_board_industry_index_ths = stock_board_industry_index_ths
++    fake.stock_fund_flow_industry = stock_fund_flow_industry
++    fake.stock_fund_flow_concept = stock_fund_flow_concept
++    fake.stock_zt_pool_em = stock_zt_pool_em
++    fake.stock_board_industry_cons_em = stock_board_industry_cons_em
++
++    monkeypatch.setitem(sys.modules, "akshare", fake)
++
++
++def test_collect_board_close_ok(
++    monkeypatch,
++):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.modules.raw_archive import (
++        _expanded_tracks,
++        collect_board_close,
++    )
++
++    power = next(
++        t
++        for t in _expanded_tracks()
++        if t["trackId"] == "power"
++    )
++
++    result = collect_board_close("2026-08-14", power)
++
++    assert result["ok"]
++    assert result["record"]["close"] == 102.5
++    assert result["record"]["source"] == "THS_INDEX_V1"
++
++
++def test_collect_board_close_date_not_found(
++    monkeypatch,
++):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.modules.raw_archive import (
++        _expanded_tracks,
++        collect_board_close,
++    )
++
++    power = next(
++        t
++        for t in _expanded_tracks()
++        if t["trackId"] == "power"
++    )
++
++    result = collect_board_close("2026-08-11", power)
++
++    assert not result["ok"]
++    assert result["reason"] == "DATE_NOT_FOUND"
++
++
++def test_collect_board_flow_ok_when_today(
++    monkeypatch,
++):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.schema import TZ_SHANGHAI
++    from datetime import datetime
++
++    from collector.modules.raw_archive import (
++        _expanded_tracks,
++        collect_board_flow,
++    )
++
++    today = datetime.now(TZ_SHANGHAI).date().isoformat()
++
++    power = next(
++        t
++        for t in _expanded_tracks()
++        if t["trackId"] == "power"
++    )
++
++    result = collect_board_flow(today, power)
++
++    assert result["ok"]
++    assert result["record"]["mainNetInflow"] == 12.5
++
++
++def test_collect_board_flow_rejects_history(
++    monkeypatch,
++):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.modules.raw_archive import (
++        _expanded_tracks,
++        collect_board_flow,
++    )
++
++    power = next(
++        t
++        for t in _expanded_tracks()
++        if t["trackId"] == "power"
++    )
++
++    result = collect_board_flow("2026-08-14", power)
++
++    assert not result["ok"]
++    assert result["reason"] == "HISTORICAL_FLOW_UNSUPPORTED"
++
++
++def test_collect_limit_up_pool_ok(
++    monkeypatch,
++):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.modules.raw_archive import collect_limit_up_pool
++
++    result = collect_limit_up_pool("2026-08-14")
++
++    assert result["ok"]
++    assert result["record"]["counts"]["nonStLimitUpCount"] == 1
++    assert result["record"]["counts"]["stLimitUpCount"] == 1
++    assert len(result["record"]["items"]) == 2
++    assert result["record"]["items"][0]["streak"] == 3
++
++
++def test_collect_membership_ok_when_today(
++    monkeypatch,
++):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.schema import TZ_SHANGHAI
++    from datetime import datetime
++
++    from collector.modules.raw_archive import (
++        _expanded_tracks,
++        collect_membership,
++    )
++
++    today = datetime.now(TZ_SHANGHAI).date().isoformat()
++
++    power = next(
++        t
++        for t in _expanded_tracks()
++        if t["trackId"] == "power"
++    )
++
++    result = collect_membership(today, power)
++
++    assert result["ok"]
++    assert len(result["record"]["members"]) == 3
++    assert result["record"]["memberCount"] == 3
++
++
++def test_collect_membership_rejects_history(
++    monkeypatch,
++):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.modules.raw_archive import (
++        _expanded_tracks,
++        collect_membership,
++    )
++
++    power = next(
++        t
++        for t in _expanded_tracks()
++        if t["trackId"] == "power"
++    )
++
++    result = collect_membership("2026-08-14", power)
++
++    assert not result["ok"]
++    assert result["reason"] == "HISTORICAL_MEMBERSHIP_UNSUPPORTED"
++# ---------------------------------------------------------------------------
++# [FIX] 补充测试：并发 / 损坏行 / 边界校验 / composite / 异常包装 / ST 谓词
++# ---------------------------------------------------------------------------
++
++from concurrent.futures import ThreadPoolExecutor
++
++
++@pytest.mark.skipif(sys.platform == "win32", reason="flock only on POSIX; Windows relies on single-writer convention (sec 39.5.5)")
++def test_archive_concurrent_appends_no_loss(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    def append_one(i: int):
++        return archive.append_record(
++            "track-board-flow",
++            {
++                "tradeDate": "2026-08-14",
++                "trackId": "power",
++                "boardCode": f"BK{i:04d}",
++                "source": "THS_FLOW_V1",
++                "mainNetInflow": float(i),
++                "unit": "亿元",
++            },
++        )
++
++    with ThreadPoolExecutor(max_workers=8) as pool:
++        results = list(pool.map(append_one, range(24)))
++
++    assert all(ok for ok, _ in results)
++    assert archive.count_records("track-board-flow") == 24
++
++
++def test_archive_tolerates_corrupt_lines(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    path = archive.ARCHIVE_DIR / "track-board-close.jsonl"
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_text(
++        "{not json\n"
++        "[1,2,3]\n"
++        "\"just a string\"\n"
++        "42\n"
++        "{\"kind\":\"track-board-close\",\"tradeDate\":\"2026-08-13\","
++        "\"trackId\":\"power\",\"boardCode\":\"BK0428\","
++        "\"source\":\"THS_INDEX_V1\",\"open\":1,\"high\":2,\"low\":0.5,"
++        "\"close\":1.5,\"volume\":1,\"amount\":1}\n",
++        encoding="utf-8",
++    )
++
++    ok, reason = archive.append_record(
++        "track-board-close",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_INDEX_V1",
++            "open": 1.0,
++            "high": 2.0,
++            "low": 0.5,
++            "close": 1.5,
++            "volume": 1,
++            "amount": 1,
++        },
++    )
++
++    assert ok, reason
++    assert archive.count_records("track-board-close") == 2
++    assert len(archive.read_records("track-board-close")) == 2
++
++
++def test_archive_rejects_low_gt_high(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-board-close",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_INDEX_V1",
++            "open": 3.0,
++            "high": 2.0,
++            "low": 5.0,
++            "close": 1.5,
++            "volume": 1,
++            "amount": 1,
++        },
++    )
++
++    assert not ok
++    assert "low > high" in reason
++
++
++def test_archive_rejects_close_out_of_range(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-board-close",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_INDEX_V1",
++            "open": 1.5,
++            "high": 2.0,
++            "low": 1.0,
++            "close": 3.0,
++            "volume": 1,
++            "amount": 1,
++        },
++    )
++
++    assert not ok
++    assert "close out of" in reason
++
++
++def test_archive_high_none_rejected_not_crash(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-board-close",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_INDEX_V1",
++            "open": 1.0,
++            "high": None,
++            "low": 0.5,
++            "close": 1.5,
++            "volume": 1,
++            "amount": 1,
++        },
++    )
++
++    assert not ok
++    assert "high must be finite number" in reason
++
++
++def test_archive_rejects_nan_in_zt_item_numeric(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "limit-up-pool",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "*",
++            "boardCode": "*",
++            "source": "EM_ZT_POOL_V1",
++            "items": [
++                {"code": "000936", "name": "A", "changePct": float("nan")},
++            ],
++            "counts": {
++                "nonStLimitUpCount": 1,
++                "stLimitUpCount": 0,
++            },
++        },
++    )
++
++    assert not ok
++    assert "changePct" in reason
++
++
++def test_archive_rejects_counts_items_mismatch(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "limit-up-pool",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "*",
++            "boardCode": "*",
++            "source": "EM_ZT_POOL_V1",
++            "items": [
++                {"code": "000936", "name": "A"},
++                {"code": "600001", "name": "B"},
++            ],
++            "counts": {
++                "nonStLimitUpCount": 3,
++                "stLimitUpCount": 0,
++            },
++        },
++    )
++
++    assert not ok
++    assert "len(items)" in reason
++
++
++def test_archive_rejects_missing_track_id(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-board-flow",
++        {
++            "tradeDate": "2026-08-14",
++            "boardCode": "BK0428",
++            "source": "THS_FLOW_V1",
++            "mainNetInflow": 1.0,
++        },
++    )
++
++    assert not ok
++    assert "missing trackId" in reason
++
++
++def test_archive_rejects_member_count_mismatch(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-membership-snapshot",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "EM_BOARD_CONS_V1",
++            "members": ["600011", "600021", "600027"],
++            "memberCount": 2,
++        },
++    )
++
++    assert not ok
++    assert "memberCount" in reason
++
++
++def test_archive_serialize_failure_returns_invalid(tmp_path, monkeypatch):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    record = {
++        "tradeDate": "2026-08-14",
++        "trackId": "power",
++        "boardCode": "BK0428",
++        "source": "THS_FLOW_V1",
++        "mainNetInflow": 1.0,
++        "extraNote": float("nan"),  # 未知字段绕过行级校验，序列化必须兜底
++    }
++
++    ok, reason = archive.append_record("track-board-flow", record)
++
++    assert not ok
++    assert reason.startswith("INVALID:serialize")
++    assert archive.count_records("track-board-flow") == 0
++
++
++def test_expanded_tracks_composite(monkeypatch):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.modules.raw_archive import _expanded_tracks
++
++    rows = _expanded_tracks()
++
++    assert len(rows) == 5  # 3 个普通 track + semiconductor_ai 拆 2 子板块
++
++    semi = [r for r in rows if r["trackId"] == "semiconductor_ai"]
++    assert {r["boardCode"] for r in semi} == {"BK1036", "BK1134"}
++
++    by_code = {r["boardCode"]: r for r in semi}
++    assert by_code["BK1036"]["boardType"] == "industry"
++    assert by_code["BK1036"]["indexNameThs"] == "半导体"
++    assert by_code["BK1134"]["boardType"] == "concept"
++    assert by_code["BK1134"]["indexNameThs"] == "东数西算(算力)"
++    assert by_code["BK1036"]["weight"] == 0.5
++
++
++def test_collect_board_close_missing_index_name(monkeypatch):
++    _install_fake_akshare(monkeypatch)
++
++    from collector.modules.raw_archive import collect_board_close
++
++    track = {
++        "trackId": "x",
++        "trackName": "X",
++        "boardType": "industry",
++        "boardCode": "BK0000",
++        "boardName": "",
++        "indexNameThs": None,
++    }
++
++    result = collect_board_close("2026-08-14", track)
++
++    assert not result["ok"]
++    assert result["reason"] == "INDEX_NAME_THS_MISSING"
++
++
++def test_collect_membership_concept_disabled(monkeypatch):
++    _install_fake_akshare(monkeypatch)
++
++    from datetime import datetime
++
++    from collector.schema import TZ_SHANGHAI
++    from collector.modules.raw_archive import (
++        _expanded_tracks,
++        collect_membership,
++    )
++
++    today = datetime.now(TZ_SHANGHAI).date().isoformat()
++
++    cnsoe = next(
++        t for t in _expanded_tracks() if t["trackId"] == "dividend_cnsoe"
++    )
++
++    result = collect_membership(today, cnsoe)
++
++    assert not result["ok"]
++    assert result["reason"] == "CONCEPT_CONS_DISABLED"
++
++
++def test_collect_wraps_upstream_exception(monkeypatch):
++    fake = ModuleType("akshare")
++
++    def boom(*args, **kwargs):
++        raise RuntimeError("network down")
++
++    fake.stock_board_industry_index_ths = boom
++    fake.stock_board_concept_index_ths = boom
++    monkeypatch.setitem(sys.modules, "akshare", fake)
++
++    from collector.modules.raw_archive import (
++        _expanded_tracks,
++        collect_board_close,
++    )
++
++    power = next(t for t in _expanded_tracks() if t["trackId"] == "power")
++
++    result = collect_board_close("2026-08-14", power)
++
++    assert not result["ok"]
++    assert result["reason"].startswith("FETCH_FAILED")
++
++
++def test_collect_limit_up_pool_filters_bad_codes(monkeypatch):
++    fake = ModuleType("akshare")
++
++    def stock_zt_pool_em(date=None):
++        return pd.DataFrame({
++            "代码": ["000936", "600001", "abc", None],
++            "名称": ["华西股份", "ST测试", "坏", None],
++            "涨跌幅": [9.9, 5.0, 0.0, 0.0],
++            "最新价": [6.97, 2.0, 0.0, 0.0],
++            "成交额": [1e8, 2e8, 0.0, 0.0],
++            "换手率": [15.4, 5.0, 0.0, 0.0],
++            "封板资金": [4e7, 1e7, 0.0, 0.0],
++            "首次封板时间": ["092500", "100000", "", ""],
++            "最后封板时间": ["105703", "110000", "", ""],
++            "炸板次数": [7, 0, 0, 0],
++            "涨停统计": ["3/3", "1/1", "", ""],
++            "连板数": [3, 1, 0, 0],
++            "所属行业": ["化学纤维", "综合", "", ""],
++        })
++
++    fake.stock_zt_pool_em = stock_zt_pool_em
++    monkeypatch.setitem(sys.modules, "akshare", fake)
++
++    from collector.modules.raw_archive import collect_limit_up_pool
++
++    result = collect_limit_up_pool("2026-08-14")
++
++    assert result["ok"]
++    assert len(result["record"]["items"]) == 2
++    assert result["record"]["counts"]["droppedItemCount"] == 2
++    assert result["record"]["counts"]["nonStLimitUpCount"] == 1
++    assert result["record"]["counts"]["stLimitUpCount"] == 1
++
++
++@pytest.mark.parametrize(
++    "name,expected",
++    [
++        ("ST测试", True),
++        ("*ST广泰", True),
++        ("S*ST前锋", True),
++        ("SST华新", True),
++        ("st慧球", True),
++        ("华西股份", False),
++        ("S佳通", False),
++        ("电力", False),
++        ("", False),
++        (None, False),
++    ],
++)
++def test_is_st_stock_name(name, expected):
++    from collector.modules.raw_archive import is_st_stock_name
++
++    assert is_st_stock_name(name) is expected
++
++
++
++# ---------------------------------------------------------------------------
++# [R11.2] ChatGPT R11.1 复核回归：耐久/坏尾行/kind 分叉/零代码 sentinel
++# ---------------------------------------------------------------------------
++
++
++def test_archive_unterminated_corrupt_tail_preserves_new_record(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    path = archive.ARCHIVE_DIR / "track-board-flow.jsonl"
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_text('{"broken":', encoding="utf-8")
++
++    ok, reason = archive.append_record(
++        "track-board-flow",
++        {
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_FLOW_V1",
++            "mainNetInflow": 1.2,
++        },
++    )
++
++    assert ok and reason == "APPENDED"
++    records = archive.read_records("track-board-flow")
++    assert len(records) == 1
++    assert records[0]["trackId"] == "power"
++
++
++def test_archive_rejects_record_kind_mismatch(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    ok, reason = archive.append_record(
++        "track-board-close",
++        {
++            "kind": "track-board-flow",
++            "tradeDate": "2026-08-14",
++            "trackId": "power",
++            "boardCode": "BK0428",
++            "source": "THS_FLOW_V1",
++            "mainNetInflow": 1.2,
++        },
++    )
++
++    assert not ok
++    assert reason.startswith("INVALID:kind mismatch")
++
++
++def test_archive_retry_reconfirms_parent_fsync_after_replace_failure(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    calls = {"n": 0}
++    real_fsync_directory = archive._fsync_directory
++
++    def flaky_fsync_directory(path):
++        calls["n"] += 1
++        if calls["n"] == 1:
++            raise OSError("injected parent fsync failure")
++        return real_fsync_directory(path)
++
++    monkeypatch.setattr(
++        archive,
++        "_fsync_directory",
++        flaky_fsync_directory,
++    )
++
++    record = {
++        "tradeDate": "2026-08-14",
++        "trackId": "power",
++        "boardCode": "BK0428",
++        "source": "THS_FLOW_V1",
++        "mainNetInflow": 1.2,
++    }
++
++    with pytest.raises(OSError):
++        archive.append_record("track-board-flow", record)
++
++    ok, reason = archive.append_record(
++        "track-board-flow",
++        record,
++    )
++
++    assert not ok
++    assert reason == "ALREADY_EXISTS"
++    assert calls["n"] >= 2
++
++
++@pytest.mark.parametrize(
++    "value",
++    [
++        "000000",
++        "0",
++        0,
++    ],
++)
++def test_clean_stock_code_rejects_zero_sentinel(value):
++    from collector.modules.raw_archive import _clean_stock_code
++
++    assert _clean_stock_code(value) is None
++
++
++
++# ---------------------------------------------------------------------------
++# [R11.3] ChatGPT R11.2 复核回归：payload-aware dedupe / readback 失败重试
++# ---------------------------------------------------------------------------
++
++
++def test_archive_same_key_different_payload_is_conflict(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    base = {
++        "tradeDate": "2026-08-14",
++        "trackId": "power",
++        "boardCode": "BK0428",
++        "source": "THS_FLOW_V1",
++        "mainNetInflow": 1.2,
++    }
++
++    ok, reason = archive.append_record(
++        "track-board-flow",
++        base,
++    )
++
++    assert ok
++    assert reason == "APPENDED"
++
++    changed = dict(base)
++    changed["mainNetInflow"] = 9.9
++
++    with pytest.raises(
++        RuntimeError,
++        match="archive key conflict",
++    ):
++        archive.append_record(
++            "track-board-flow",
++            changed,
++        )
++
++
++def test_archive_readback_mismatch_retry_stays_fail_closed(
++    tmp_path,
++    monkeypatch,
++):
++    archive = _patch_archive_dir(tmp_path, monkeypatch)
++
++    record = {
++        "tradeDate": "2026-08-14",
++        "trackId": "power",
++        "boardCode": "BK0428",
++        "source": "THS_FLOW_V1",
++        "mainNetInflow": 1.2,
++    }
++
++    real_replace = archive.os.replace
++    injected = {"done": False}
++
++    def corrupt_after_replace(src, dst):
++        real_replace(src, dst)
++
++        if injected["done"]:
++            return
++
++        injected["done"] = True
++
++        path = Path(dst)
++        obj = json.loads(
++            path.read_text(
++                encoding="utf-8",
++            ).strip()
++        )
++
++        obj["mainNetInflow"] = 999.0
++
++        path.write_text(
++            json.dumps(
++                obj,
++                ensure_ascii=False,
++                separators=(",", ":"),
++            )
++            + "\n",
++            encoding="utf-8",
++        )
++
++    monkeypatch.setattr(
++        archive.os,
++        "replace",
++        corrupt_after_replace,
++    )
++
++    with pytest.raises(
++        RuntimeError,
++        match="strict readback mismatch",
++    ):
++        archive.append_record(
++            "track-board-flow",
++            record,
++        )
++
++    monkeypatch.setattr(
++        archive.os,
++        "replace",
++        real_replace,
++    )
++
++    with pytest.raises(
++        RuntimeError,
++        match="archive key conflict",
++    ):
++        archive.append_record(
++            "track-board-flow",
++            record,
++        )
++
++
++
++# ---------------------------------------------------------------------------
++# [R11.4] ChatGPT R11.3 复核回归：workflow 发布门禁合约（rc!=0 禁止 build/deploy）
++# ---------------------------------------------------------------------------
++
++
++def test_archive_workflow_nonzero_rc_cannot_build_or_deploy():
++    root = Path(__file__).resolve().parents[2]
++    workflow = (
++        root
++        / ".github"
++        / "workflows"
++        / "archive-raw.yml"
++    ).read_text(encoding="utf-8")
++
++    archive_gate = "steps.archive.outputs.exit_code == '0'"
++
++    for step_name in (
++        "Setup Node",
++        "Install web dependencies",
++        "Type check",
++        "Build",
++        "Deploy to Cloudflare Pages",
++    ):
++        marker = f"- name: {step_name}"
++        start = workflow.index(marker)
++        next_step = workflow.find("\n      - name:", start + len(marker))
++
++        block = (
++            workflow[start:]
++            if next_step < 0
++            else workflow[start:next_step]
++        )
++
++        assert archive_gate in block, (
++            f"{step_name} must be gated by archive exit_code == 0"
++        )
++
++    propagate = workflow.index("- name: Propagate archive failure")
++    setup_node = workflow.index("- name: Setup Node")
++
++    assert propagate < setup_node
+diff --git a/config/tracks.yaml b/config/tracks.yaml
+index 24375a0..9e2788a 100644
+--- a/config/tracks.yaml
++++ b/config/tracks.yaml
+@@ -1,3 +1,8 @@
++# 赛道配置（③ tracks 采集器与 ⑧ daily raw archive 共用）
++# index_name_ths：同花顺板块指数接口（stock_board_industry/concept_index_ths）使用的
++# 精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该赛道归档
++# UNAVAILABLE（fail-closed，不伪造）。
++
+ tracks:
+   - id: dividend_cnsoe
+     name: 高股息中特估
+@@ -5,6 +10,7 @@ tracks:
+     board_type: concept
+     board_code: BK1139
+     expected_name: 中特估
++    index_name_ths: 同花顺中特估100
+     positioning: 高股息/央国企价值
+ 
+   - id: power
+@@ -13,6 +19,7 @@ tracks:
+     board_type: industry
+     board_code: BK0428
+     expected_name: 电力
++    index_name_ths: 电力
+     positioning: 公用事业/高股息
+ 
+   - id: healthcare
+@@ -21,6 +28,7 @@ tracks:
+     board_type: industry
+     board_code: BK1216
+     expected_name: 医药生物
++    index_name_ths: 生物制品
+     positioning: 防御+成长
+ 
+   - id: semiconductor_ai
+@@ -30,11 +38,20 @@ tracks:
+     composite:
+       - code: BK1036
+         name: 半导体
++        board_type: industry
++        index_name_ths: 半导体
+         weight: 0.5
+       - code: BK1134
+         name: 算力概念
++        board_type: concept
++        index_name_ths: 东数西算(算力)
+         weight: 0.5
+     positioning: 科技成长
+ 
+ rps:
+   universe: eastmoney_supported_track_boards
++# fund_name_ths（可选，track 与 composite 子项均可配）：THS 当日资金流接口
++# （stock_fund_flow_industry/concept，symbol="即时"）返回"行业"列中的条目名。
++# 缺省回退 index_name_ths；若该指数名不在资金流条目中（如特色指数
++# "同花顺中特估100"），须显式配置 fund_name_ths，否则每日 SKIP
++# BOARD_NOT_FOUND（fail-closed，不伪造）。
+diff --git a/docs/SMI-V1-Design-V1.1.md b/docs/SMI-V1-Design-V1.1.md
+index 9304e30..c0baeb8 100644
+--- a/docs/SMI-V1-Design-V1.1.md
++++ b/docs/SMI-V1-Design-V1.1.md
+@@ -4805,6 +4805,88 @@ enabled = false
+ 
+ ---
+ 
++---
++
++# 39.5 daily raw archive（⑧ tracks 数据底座）
++
++> 2026-08-16 落地。目的：从上线日起自建 tracks 所需历史（R7 第四优先级），
++> 使 continuousInflowDays / MA / RPS / excessReturn 等在若干交易日后自然可计算，
++> 无需购买历史资金流。
++
++## 39.5.1 归档集（web/public/data/archive/*.jsonl）
++
++| 文件 | 内容 | 数据源 | 历史支持 |
++|---|---|---|---|
++| track-board-close.jsonl | 赛道板块指数当日 OHLCV（每 track 一行；composite 拆子板块） | THS stock_board_industry/concept_index_ths（index_name_ths 精确名） | 支持历史回补 |
++| track-board-flow.jsonl | 赛道板块当日主力资金净额（亿元） | THS stock_fund_flow_industry/concept（即时） | 仅当日 |
++| limit-up-pool.jsonl | 当日全市场涨停池（含连板数/炸板/封板/涨停统计） | 东财 stock_zt_pool_em(date) | 窗口内历史 |
++| track-membership-snapshot.jsonl | 赛道板块成分快照（当日成分代码列表） | 东财 stock_board_industry_cons_em(BK) | 仅当日；行业板块可用，概念板块显式 CONCEPT_CONS_DISABLED（成分接口实测被封：不请求、不伪造；接口恢复后移除短路） |
++
++## 39.5.2 行结构、幂等与并发
++
++- 每行自包含 JSON（JSONL，UTF-8）：tradeDate/capturedAt/kind/source 为公共字段，
++  kind 专属校验见 collector/archive.py::_validate_line；
++- 追加键 = (tradeDate, trackId, boardCode)。同 key 命中后先重新确认 parent-directory
++  durability；现存可解析记录必须恰 1 行且重新通过行级校验。仅当现存记录与候选记录的
++  业务 payload 一致（capturedAt 不参与比较）时返回 ALREADY_EXISTS；同 key 不同 payload、
++  重复 key 或现存记录校验失败均视为完整性冲突并 fail-closed；
++  track-* 三类行 trackId/boardCode 必填非空；
++- 原子写（持锁事务）：跨进程 flock（`*.lock`，不入库）内完成
++  payload-aware dedupe/冲突检查 → 读全文 → 坏尾行缺失换行修复 → 追加 →
++  tmp 写入 + file fsync → os.replace → parent-directory fsync → strict readback。
++  只有 canonical 回读与 expected 完全一致后才返回 APPENDED；Windows 本地无 fcntl
++  退化为无锁，须遵守 §39.5.5 单写者约定；
++- 行级校验失败拒绝写入并记 reason，覆盖：非规范日期、非有限数值（含
++  limit-up-pool items 内部数值字段）、非法 6 位代码、负计数、
++  OHLC 区间（low≤open/close≤high）、counts 与 len(items) 一致、
++  memberCount 与 len(members) 一致、序列化异常（INVALID:serialize）；
++- 读取容错：非 JSON / 非 JSON 对象的损坏行静默跳过（其键不参与 dedupe）；
++- 数据源失败（异常/空/名称缺失/历史不支持）→ SKIP + reason
++  （异常统一包装为 FETCH_FAILED:*），绝不写伪造行、绝不向上抛。
++
++## 39.5.3 采集任务与调度
++
++- python -m collector.jobs.archive_raw --date auto|YYYY-MM-DD；
++- GitHub Actions archive-raw.yml：工作日 16:35 CST cron（close-snapshot 之后），
++  同 concurrency group，变更自动 commit + deploy；
++- 历史回补：--date 指定日，board-close/limit-up-pool 可补，flow/membership 记
++  HISTORICAL_*_UNSUPPORTED（fail-closed）；
++- 退出码：0 = 成功/部分成功/幂等重跑；1 = 交易日零新增且零已存在
++  （全源失败，CI 告警）；2 = 未分类异常（含归档持久化/严格回读/payload conflict，
++  fail-closed）。
++- 发布门禁：仅 archive_raw exit 0 允许 stage/commit/build/deploy。
++  exit 1/2 时 Commit 被跳过，随后 Propagate archive failure 在任何 Node/Build/Deploy
++  步骤之前传播原始非零退出码；全部 web/deploy 步骤自身还显式要求
++  steps.archive.outputs.exit_code == '0'。workflow_dispatch 的 deploy=true 仅允许在 rc=0
++  时覆盖"无数据变化不部署"，不得覆盖 transaction safety gate。
++  部分数据源 FETCH_FAILED 但已有 verified 新增行时，archive_raw 状态仍为 0，
++  因此合法部分结果仍会正常提交和部署；
++- workflow：git add 仅纳入 archive 目录顶层 `*.jsonl`；`*.tmp-*` / `*.lock`
++  同时由命名规则与 .gitignore 保持在 Git 发布边界之外；push 冲突
++  pull --rebase 重试至多 3 次；
++- THS 历史指数请求起点常量 ARCHIVE_HISTORY_START=20260101。
++
++## 39.5.4 与 ③ tracks 采集器的关系
++
++- ③ 采集器只消费 archive（不直接抓上游），保证历史口径一致；
++- MA/RPS/excess ← track-board-close；mainNetInflow/连续天数 ← track-board-flow；
++  limitUpCount/rate/ladder ← limit-up-pool；redStockRatio ← membership + 当日行情；
++- composite 赛道（semiconductor_ai）按子板块（BK1036 行业 + BK1134 概念）各归档一行，
++  聚合逻辑由 ③ 负责。
++
++## 39.5.5 并发与口径约定
++
++- 单写者约定：archive JSONL 的合法写入者仅 archive-raw job（CI 由
++  concurrency group `smi-data-write-*` 串行化）；Linux/macOS 附加 flock
++  防本地手动并发。Windows 本地开发禁止并发写 archive。
++- ST 谓词统一：collector.modules.raw_archive::is_st_stock_name
++  （前缀 *ST / S*ST / SST / ST，大小写不敏感）；③ tracks 与 sentiment
++  模块必须复用同一谓词，不得各自实现。"退市"整理期前缀不计入 ST
++  （如需调整须三处同步）。
++- flow 条目名：资金流接口条目名缺省取 index_name_ths，可用
++  fund_name_ths 显式覆盖（指数名 ≠ 资金流条目名的场景）。
++
++---
+ # 40. V1.1 修订记录
+ 
+ 相对 V1.0，本版锁定以下变化：
+diff --git a/web/public/data/archive/limit-up-pool.jsonl b/web/public/data/archive/limit-up-pool.jsonl
+new file mode 100644
+index 0000000..6db9261
+--- /dev/null
++++ b/web/public/data/archive/limit-up-pool.jsonl
+@@ -0,0 +1 @@
++{"tradeDate":"2026-08-14","trackId":"*","boardCode":"*","source":"EM_ZT_POOL_V1","items":[{"code":"000936","name":"华西股份","changePct":9.936908721923828,"close":6.97,"amount":951168432.0,"turnoverRate":15.45145320892334,"sealAmount":43942490.0,"firstSealTime":"092500","lastSealTime":"105703","brokenTimes":7,"limitUpStat":"3/3","streak":3,"industry":"化学纤维"},{"code":"001260","name":"坤泰股份","changePct":9.985734939575195,"close":23.13,"amount":29927907.0,"turnoverRate":1.1251304149627686,"sealAmount":336990222.0,"firstSealTime":"092500","lastSealTime":"092500","brokenTimes":0,"limitUpStat":"3/3","streak":3,"industry":"汽车零部"},{"code":"002172","name":"澳洋健康","changePct":9.927360534667969,"close":4.54,"amount":86716415.0,"turnoverRate":2.496342420578003,"sealAmount":136260236.0,"firstSealTime":"092500","lastSealTime":"092500","brokenTimes":0,"limitUpStat":"3/3","streak":3,"industry":"医疗服务"},{"code":"002907","name":"华森制药","changePct":10.021629333496094,"close":15.26,"amount":82440807.0,"turnoverRate":1.6087384223937988,"sealAmount":131789754.0,"firstSealTime":"092500","lastSealTime":"092500","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"中药Ⅱ"},{"code":"300684","name":"中石科技","changePct":20.007125854492188,"close":67.36,"amount":286464768.0,"turnoverRate":2.0788166522979736,"sealAmount":1043006079.0,"firstSealTime":"092500","lastSealTime":"092500","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"电子化学"},{"code":"600613","name":"神奇制药","changePct":9.948541641235352,"close":6.41,"amount":80085303.0,"turnoverRate":2.606569290161133,"sealAmount":149224114.0,"firstSealTime":"092501","lastSealTime":"092501","brokenTimes":0,"limitUpStat":"2/2","streak":2,"industry":"化学制药"},{"code":"002724","name":"海洋王","changePct":10.064934730529785,"close":6.78,"amount":133662850.0,"turnoverRate":3.474034070968628,"sealAmount":100147380.0,"firstSealTime":"093000","lastSealTime":"093000","brokenTimes":0,"limitUpStat":"2/2","streak":2,"industry":"照明设备"},{"code":"600645","name":"中源协和","changePct":10.0,"close":22.33,"amount":998376160.0,"turnoverRate":9.664213180541992,"sealAmount":36212985.0,"firstSealTime":"093004","lastSealTime":"130131","brokenTimes":2,"limitUpStat":"1/1","streak":1,"industry":"生物制品"},{"code":"603025","name":"大豪科技","changePct":10.0,"close":15.18,"amount":315161424.0,"turnoverRate":1.8822494745254517,"sealAmount":41358517.0,"firstSealTime":"093044","lastSealTime":"093556","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"自动化设"},{"code":"603330","name":"天洋新材","changePct":9.989701271057129,"close":10.68,"amount":268205504.0,"turnoverRate":6.239995956420898,"sealAmount":93635436.0,"firstSealTime":"093047","lastSealTime":"093047","brokenTimes":0,"limitUpStat":"3/3","streak":3,"industry":"塑料"},{"code":"002418","name":"康盛股份","changePct":10.0,"close":4.07,"amount":327087280.0,"turnoverRate":7.112495422363281,"sealAmount":32913683.0,"firstSealTime":"093100","lastSealTime":"093133","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"家电零部"},{"code":"002322","name":"理工能科","changePct":10.033726692199707,"close":13.05,"amount":322804112.0,"turnoverRate":7.146337985992432,"sealAmount":39990420.0,"firstSealTime":"093130","lastSealTime":"100745","brokenTimes":1,"limitUpStat":"2/2","streak":2,"industry":"软件开发"},{"code":"603118","name":"共进股份","changePct":10.025062561035156,"close":17.56,"amount":1949605840.0,"turnoverRate":14.306023597717285,"sealAmount":92147856.0,"firstSealTime":"093244","lastSealTime":"095220","brokenTimes":6,"limitUpStat":"2/2","streak":2,"industry":"通信设备"},{"code":"002951","name":"金时科技","changePct":10.006064414978027,"close":18.14,"amount":292007984.0,"turnoverRate":4.059518814086914,"sealAmount":40624530.0,"firstSealTime":"093330","lastSealTime":"093700","brokenTimes":2,"limitUpStat":"1/1","streak":1,"industry":"其他电源"},{"code":"603725","name":"天安新材","changePct":9.982014656066895,"close":12.23,"amount":382505872.0,"turnoverRate":10.377007484436035,"sealAmount":54258150.0,"firstSealTime":"093452","lastSealTime":"112117","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"家居用品"},{"code":"300404","name":"博济医药","changePct":20.0,"close":17.34,"amount":1320038768.0,"turnoverRate":27.531600952148438,"sealAmount":73662452.0,"firstSealTime":"093518","lastSealTime":"094403","brokenTimes":5,"limitUpStat":"2/2","streak":2,"industry":"医疗服务"},{"code":"603989","name":"艾华集团","changePct":10.003334045410156,"close":32.99,"amount":1385909312.0,"turnoverRate":10.679523468017578,"sealAmount":181963800.0,"firstSealTime":"093530","lastSealTime":"095812","brokenTimes":3,"limitUpStat":"1/1","streak":1,"industry":"元件"},{"code":"603095","name":"越剑智能","changePct":10.014727592468262,"close":14.94,"amount":119247990.0,"turnoverRate":3.1818652153015137,"sealAmount":46371190.0,"firstSealTime":"093542","lastSealTime":"093542","brokenTimes":0,"limitUpStat":"3/2","streak":1,"industry":"专用设备"},{"code":"600198","name":"大唐电信","changePct":9.957924842834473,"close":7.84,"amount":416085824.0,"turnoverRate":4.127470970153809,"sealAmount":89303872.0,"firstSealTime":"093623","lastSealTime":"095429","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"通信设备"},{"code":"603186","name":"华正新材","changePct":9.998686790466309,"close":167.55,"amount":1538855232.0,"turnoverRate":6.021432876586914,"sealAmount":382164795.0,"firstSealTime":"093730","lastSealTime":"093730","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"元件"},{"code":"002774","name":"快意电梯","changePct":10.031347274780273,"close":17.55,"amount":192939695.0,"turnoverRate":3.9952523708343506,"sealAmount":39743730.0,"firstSealTime":"093827","lastSealTime":"093827","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"专用设备"},{"code":"600288","name":"大恒科技","changePct":9.983360290527344,"close":13.22,"amount":638464912.0,"turnoverRate":11.26071834564209,"sealAmount":88612258.0,"firstSealTime":"094135","lastSealTime":"100138","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"软件开发"},{"code":"600272","name":"开开实业","changePct":10.0,"close":17.6,"amount":765437952.0,"turnoverRate":28.152097702026367,"sealAmount":28960448.0,"firstSealTime":"094400","lastSealTime":"094509","brokenTimes":1,"limitUpStat":"7/5","streak":1,"industry":"医药商业"},{"code":"603382","name":"海阳科技","changePct":9.978991508483887,"close":20.94,"amount":143352481.0,"turnoverRate":6.053785800933838,"sealAmount":26683486.0,"firstSealTime":"094438","lastSealTime":"094438","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"化学纤维"},{"code":"002651","name":"利君股份","changePct":9.960680961608887,"close":8.39,"amount":146682212.0,"turnoverRate":3.1547133922576904,"sealAmount":61353074.0,"firstSealTime":"094500","lastSealTime":"094500","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"航空装备"},{"code":"000950","name":"重药控股","changePct":9.965035438537598,"close":6.29,"amount":370880608.0,"turnoverRate":3.5107946395874023,"sealAmount":36496448.0,"firstSealTime":"094630","lastSealTime":"094630","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"医药商业"},{"code":"601609","name":"金田股份","changePct":10.050251007080078,"close":10.95,"amount":636052608.0,"turnoverRate":3.424924612045288,"sealAmount":59572850.0,"firstSealTime":"094731","lastSealTime":"094828","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"工业金属"},{"code":"000831","name":"中国稀土","changePct":9.99819564819336,"close":60.95,"amount":5416567552.0,"turnoverRate":8.536320686340332,"sealAmount":99880776.0,"firstSealTime":"095321","lastSealTime":"140918","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"小金属"},{"code":"301130","name":"西点药业","changePct":19.992219924926758,"close":30.85,"amount":319398208.0,"turnoverRate":17.97522735595703,"sealAmount":8101981.0,"firstSealTime":"095548","lastSealTime":"142627","brokenTimes":10,"limitUpStat":"1/1","streak":1,"industry":"化学制药"},{"code":"600186","name":"莲花控股","changePct":9.972553253173828,"close":12.02,"amount":3518677936.0,"turnoverRate":16.884313583374023,"sealAmount":198537753.0,"firstSealTime":"100256","lastSealTime":"111014","brokenTimes":2,"limitUpStat":"1/1","streak":1,"industry":"调味发酵"},{"code":"300862","name":"蓝盾光电","changePct":19.994924545288086,"close":47.29,"amount":3494569136.0,"turnoverRate":51.68534851074219,"sealAmount":31282287.0,"firstSealTime":"101357","lastSealTime":"130951","brokenTimes":5,"limitUpStat":"5/5","streak":5,"industry":"通用设备"},{"code":"603089","name":"正裕工业","changePct":10.045146942138672,"close":9.75,"amount":58832130.0,"turnoverRate":2.576307535171509,"sealAmount":13255125.0,"firstSealTime":"101502","lastSealTime":"101553","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"汽车零部"},{"code":"688662","name":"富信科技","changePct":20.0,"close":98.4,"amount":1687193488.0,"turnoverRate":15.519938468933105,"sealAmount":98358180.0,"firstSealTime":"101547","lastSealTime":"130120","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"其他电子"},{"code":"002081","name":"金 螳 螂","changePct":9.979209899902344,"close":5.29,"amount":2648471264.0,"turnoverRate":19.718482971191406,"sealAmount":93738440.0,"firstSealTime":"101648","lastSealTime":"110906","brokenTimes":1,"limitUpStat":"3/3","streak":3,"industry":"装修装饰"},{"code":"002811","name":"郑中设计","changePct":10.02921199798584,"close":11.3,"amount":93690499.0,"turnoverRate":3.0483005046844482,"sealAmount":50357320.0,"firstSealTime":"102227","lastSealTime":"102227","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"装修装饰"},{"code":"002658","name":"雪迪龙","changePct":10.026738166809082,"close":8.23,"amount":183961901.0,"turnoverRate":6.40809440612793,"sealAmount":85697895.0,"firstSealTime":"102433","lastSealTime":"102433","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"环保设备"},{"code":"301419","name":"阿莱德","changePct":20.0,"close":37.62,"amount":437866176.0,"turnoverRate":12.307891845703125,"sealAmount":166475572.0,"firstSealTime":"103142","lastSealTime":"103142","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"通信设备"},{"code":"603618","name":"杭电股份","changePct":10.018416404724121,"close":29.87,"amount":3281343152.0,"turnoverRate":16.374359130859375,"sealAmount":152178689.0,"firstSealTime":"103542","lastSealTime":"130845","brokenTimes":2,"limitUpStat":"1/1","streak":1,"industry":"电网设备"},{"code":"603083","name":"剑桥科技","changePct":10.0,"close":185.9,"amount":7130649344.0,"turnoverRate":14.435185432434082,"sealAmount":308142820.0,"firstSealTime":"104111","lastSealTime":"134017","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"通信设备"},{"code":"603079","name":"圣达生物","changePct":10.008203506469727,"close":13.41,"amount":116588443.0,"turnoverRate":4.73806095123291,"sealAmount":67033385.0,"firstSealTime":"104402","lastSealTime":"104641","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"化学制品"},{"code":"688485","name":"九州一轨","changePct":20.00665855407715,"close":72.1,"amount":1278614816.0,"turnoverRate":12.252981185913086,"sealAmount":1875393.0,"firstSealTime":"104558","lastSealTime":"145301","brokenTimes":2,"limitUpStat":"1/1","streak":1,"industry":"轨交设备"},{"code":"603177","name":"德创环保","changePct":10.0,"close":10.23,"amount":96993120.0,"turnoverRate":4.789756774902344,"sealAmount":39937920.0,"firstSealTime":"110157","lastSealTime":"110157","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"环境治理"},{"code":"002820","name":"桂发祥","changePct":9.978307723999023,"close":10.14,"amount":133831257.0,"turnoverRate":6.880239486694336,"sealAmount":34831711.0,"firstSealTime":"110724","lastSealTime":"110724","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"休闲食品"},{"code":"300929","name":"华骐环保","changePct":19.97146987915039,"close":16.82,"amount":201531334.0,"turnoverRate":10.33465576171875,"sealAmount":42214751.0,"firstSealTime":"131227","lastSealTime":"131227","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"环境治理"},{"code":"002766","name":"索菱股份","changePct":10.024450302124023,"close":4.5,"amount":314007472.0,"turnoverRate":8.475851058959961,"sealAmount":128417400.0,"firstSealTime":"131618","lastSealTime":"131618","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"汽车零部"},{"code":"000620","name":"盈新发展","changePct":10.181818008422852,"close":3.03,"amount":1582394880.0,"turnoverRate":11.621870040893555,"sealAmount":120398913.0,"firstSealTime":"133400","lastSealTime":"133400","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"房地产开"},{"code":"600353","name":"旭光电子","changePct":9.996455192565918,"close":31.03,"amount":2071321648.0,"turnoverRate":8.366385459899902,"sealAmount":224740981.0,"firstSealTime":"133952","lastSealTime":"133952","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"其他电子"},{"code":"603881","name":"数据港","changePct":10.0,"close":29.04,"amount":2801935888.0,"turnoverRate":11.826971054077148,"sealAmount":219449326.0,"firstSealTime":"134420","lastSealTime":"134420","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"通信服务"},{"code":"600769","name":"祥龙电业","changePct":9.993337631225586,"close":16.51,"amount":311436784.0,"turnoverRate":5.263253211975098,"sealAmount":31218759.0,"firstSealTime":"135138","lastSealTime":"135138","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"环境治理"},{"code":"688286","name":"敏芯股份","changePct":20.008962631225586,"close":53.56,"amount":615181952.0,"turnoverRate":15.568446159362793,"sealAmount":93812214.0,"firstSealTime":"135140","lastSealTime":"135140","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"半导体"},{"code":"920083","name":"金戈新材","changePct":29.974571228027344,"close":40.89,"amount":327160848.0,"turnoverRate":23.33405303955078,"sealAmount":17181773.0,"firstSealTime":"135254","lastSealTime":"135254","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"非金属材"},{"code":"002989","name":"中天精装","changePct":10.02169132232666,"close":25.36,"amount":233359651.0,"turnoverRate":4.849835395812988,"sealAmount":80256792.0,"firstSealTime":"135630","lastSealTime":"135630","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"装修装饰"},{"code":"002645","name":"华宏科技","changePct":9.984639167785645,"close":21.48,"amount":1049041072.0,"turnoverRate":7.395096778869629,"sealAmount":89854706.0,"firstSealTime":"135648","lastSealTime":"135648","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"环保设备"},{"code":"600487","name":"亨通光电","changePct":10.008733749389648,"close":62.98,"amount":19196727552.0,"turnoverRate":12.971772193908691,"sealAmount":844234933.0,"firstSealTime":"135906","lastSealTime":"144909","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"通信设备"},{"code":"300017","name":"网宿科技","changePct":20.013851165771484,"close":17.33,"amount":7662499072.0,"turnoverRate":20.30423927307129,"sealAmount":258819494.0,"firstSealTime":"141454","lastSealTime":"141454","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"IT服务Ⅱ"},{"code":"603629","name":"利通电子","changePct":10.0,"close":137.5,"amount":8869939456.0,"turnoverRate":18.828998565673828,"sealAmount":303949250.0,"firstSealTime":"141943","lastSealTime":"142025","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"消费电子"},{"code":"600815","name":"厦工股份","changePct":9.944750785827637,"close":3.98,"amount":429874256.0,"turnoverRate":6.415205001831055,"sealAmount":26070194.0,"firstSealTime":"142019","lastSealTime":"142019","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"工程机械"},{"code":"002628","name":"成都路桥","changePct":10.099010467529297,"close":5.56,"amount":291031616.0,"turnoverRate":7.267792701721191,"sealAmount":31730263.0,"firstSealTime":"142109","lastSealTime":"142109","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"基础建设"},{"code":"003031","name":"中瓷电子","changePct":10.004228591918945,"close":130.08,"amount":1631796080.0,"turnoverRate":3.8439314365386963,"sealAmount":161724561.0,"firstSealTime":"142630","lastSealTime":"142630","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"通信设备"},{"code":"603115","name":"海星股份","changePct":10.00257396697998,"close":85.45,"amount":1370645136.0,"turnoverRate":6.817030429840088,"sealAmount":110093780.0,"firstSealTime":"142648","lastSealTime":"142648","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"元件"},{"code":"002988","name":"豪美新材","changePct":10.009443283081055,"close":23.3,"amount":134563035.0,"turnoverRate":2.4202754497528076,"sealAmount":56458230.0,"firstSealTime":"143409","lastSealTime":"143409","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"工业金属"},{"code":"600829","name":"人民同泰","changePct":10.04651165008545,"close":11.83,"amount":565271888.0,"turnoverRate":8.787772178649902,"sealAmount":62722660.0,"firstSealTime":"144204","lastSealTime":"144204","brokenTimes":0,"limitUpStat":"1/1","streak":1,"industry":"医药商业"},{"code":"300120","name":"经纬辉开","changePct":19.94818687438965,"close":9.26,"amount":903252368.0,"turnoverRate":20.489761352539062,"sealAmount":27958718.0,"firstSealTime":"145354","lastSealTime":"145527","brokenTimes":1,"limitUpStat":"1/1","streak":1,"industry":"光学光电"}],"counts":{"nonStLimitUpCount":63,"stLimitUpCount":0,"droppedItemCount":0},"kind":"limit-up-pool","capturedAt":"2026-08-16T09:59:22+08:00"}
+diff --git a/web/public/data/archive/track-board-close.jsonl b/web/public/data/archive/track-board-close.jsonl
+new file mode 100644
+index 0000000..944d0c6
+--- /dev/null
++++ b/web/public/data/archive/track-board-close.jsonl
+@@ -0,0 +1,5 @@
++{"tradeDate":"2026-08-14","trackId":"dividend_cnsoe","trackName":"高股息中特估","boardType":"concept","boardCode":"BK1139","boardName":"中特估","source":"THS_INDEX_V1","symbolThs":"同花顺中特估100","open":1147.248,"high":1148.932,"low":1141.035,"close":1143.644,"volume":5863165500.0,"amount":89450025000.0,"kind":"track-board-close","capturedAt":"2026-08-16T09:59:12+08:00"}
++{"tradeDate":"2026-08-14","trackId":"power","trackName":"电力","boardType":"industry","boardCode":"BK0428","boardName":"电力","source":"THS_INDEX_V1","symbolThs":"电力","open":1985.042,"high":1985.042,"low":1929.858,"close":1937.423,"volume":7285549100.0,"amount":50894916000.0,"kind":"track-board-close","capturedAt":"2026-08-16T09:59:14+08:00"}
++{"tradeDate":"2026-08-14","trackId":"healthcare","trackName":"医药生物","boardType":"industry","boardCode":"BK1216","boardName":"医药生物","source":"THS_INDEX_V1","symbolThs":"生物制品","open":6407.462,"high":6524.524,"low":6337.381,"close":6434.033,"volume":799826080.0,"amount":19217643000.0,"kind":"track-board-close","capturedAt":"2026-08-16T09:59:16+08:00"}
++{"tradeDate":"2026-08-14","trackId":"semiconductor_ai","trackName":"半导体/AI算力","boardType":"industry","boardCode":"BK1036","boardName":"半导体","source":"THS_INDEX_V1","symbolThs":"半导体","open":16781.913,"high":16922.316,"low":16525.826,"close":16871.327,"volume":3260528400.0,"amount":281840430000.0,"kind":"track-board-close","capturedAt":"2026-08-16T09:59:17+08:00"}
++{"tradeDate":"2026-08-14","trackId":"semiconductor_ai","trackName":"半导体/AI算力","boardType":"concept","boardCode":"BK1134","boardName":"算力概念","source":"THS_INDEX_V1","symbolThs":"东数西算(算力)","open":2197.352,"high":2210.138,"low":2170.601,"close":2208.332,"volume":15136265000.0,"amount":366278190000.0,"kind":"track-board-close","capturedAt":"2026-08-16T09:59:20+08:00"}
