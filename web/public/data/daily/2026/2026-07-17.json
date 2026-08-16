@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-07-17",
   "generatedAt": "2026-08-14T01:22:34+08:00",
-  "updatedAt": "2026-08-15T21:31:50+08:00",
-  "revision": 3,
+  "updatedAt": "2026-08-16T15:02:53+08:00",
+  "revision": 4,
   "overallStatus": "FINAL",
   "generationReason": "TURNOVER_CHAIN_RECONCILE",
   "market": "CN_A",
@@ -96,13 +96,16 @@
       ],
       "unit": "亿元",
       "turnoverToday": 26549.58,
-      "turnoverPrevious": null,
-      "turnoverDelta": null,
-      "turnoverChangePct": null,
-      "volumeState": "UNKNOWN",
-      "previousMethod": null,
-      "comparisonStatus": "PREVIOUS_UNAVAILABLE",
-      "method": "LEGACY_UNKNOWN"
+      "turnoverPrevious": 24035.65,
+      "turnoverDelta": 2513.93,
+      "turnoverChangePct": 10.46,
+      "volumeState": "EXPANSION",
+      "previousMethod": "LEGACY_UNKNOWN",
+      "comparisonStatus": "COMPARABLE",
+      "method": "LEGACY_UNKNOWN",
+      "rawLegacyExceptions": {
+        "previousUnavailableBeforeCanonicalization": true
+      }
     },
     "sentiment": {
       "status": "FINAL",
@@ -115,10 +118,17 @@
       "flatCount": 40.0,
       "suspendedCount": null,
       "nonStLimitUpCount": 25.0,
-      "stLimitUpCount": 25.0,
+      "stLimitUpCount": 10.0,
       "nonStLimitDownCount": 180.0,
-      "stLimitDownCount": 180.0,
-      "brokenLimitCount": 45.0
+      "stLimitDownCount": 32.0,
+      "brokenLimitCount": 45.0,
+      "limitSealRatePct": 43.75,
+      "maxLimitUpStreak": "2连板",
+      "correctionReason": "LEGACY_DUPLICATED_FIELD_CORRECTED_FROM_XLSX",
+      "rawLegacy": {
+        "stLimitUpCount": 25.0,
+        "stLimitDownCount": 180.0
+      }
     },
     "sectorPerformance": {
       "status": "FINAL",
@@ -748,7 +758,7 @@
       "sentiment": "上涨 482.0 家、下跌 5001.0 家，非ST涨停 25.0 家，下跌家数占优。",
       "fundFlow": "行业主力净流入居前：电力、银行、石油石化；行业主力净流出居前：医药生物、电子、通信。",
       "margin": "两融总余额 28139.01 亿元，较前一交易日减少 442.55 亿元。",
-      "trackConclusion": "有效监测赛道中 0 条达标、0 条观察、0 条规避。",
+      "trackConclusion": "四条监测赛道：高股息/中特估（90分，核心防御主线）、电力(火电/水电)（80分，次主线/轮动主线）、医药生物(创新药/CRO)（10分，一日游脉冲/回避）、半导体/CPO/AI算力（5分，主跌浪/坚决回避）；防御主线与次主线继续有效，成长赛道整体退潮。",
       "marketEnvironment": "沪深两市成交额 26549.58 亿元；暂无可比较的前一交易日快照。",
       "northbound": "本日北向字段来自 Legacy Excel，仅用于还原原始报表，不纳入官方连续序列。",
       "riskWarning": "本数据仅供市场信息参考，不构成投资建议。"
