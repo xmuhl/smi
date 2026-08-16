@@ -1464,10 +1464,21 @@ def test_validator_turnover_lineage_negative_cases():
 
     import pytest
 
-    from collector.validators.schema import validate_snapshot
+    from collector.validators.schema import (
+        LIVE_INDEX_CODES,
+        validate_snapshot,
+    )
 
     base = _load_legacy_baseline()
     base["meta"]["legacy"] = False
+    # P0.2：legacy 基线现含 9 项（新增科创综合 000680，不在 LIVE_INDEX_CODES 集合）；
+    # 本测试关注 turnover 血缘契约，非 legacy 视角的指数集合必须与 LIVE_INDEX_CODES
+    # 一致，故剔除 legacy 扩展项后再继续（不改变测试原意）。
+    base["modules"]["marketIndex"]["items"] = [
+        item
+        for item in base["modules"]["marketIndex"].get("items", [])
+        if str(item.get("code")) in LIVE_INDEX_CODES
+    ]
     base["modules"]["turnover"]["method"] = "SH_SZ_A_NO_B_NO_BJ_V1"
 
     # COMPARABLE 但 previous 为 null -> REJECT
@@ -2950,3 +2961,157 @@ def test_validator_reference_boundary_decimal():
 
     with pytest.raises(ValueError):
         validate_snapshot(invalid)
+
+
+def _raise(exc):
+    """构造一个恒抛指定异常的假 akshare 回调。"""
+    raise exc
+
+
+def _fake_sse_margin_frame():
+    """单行 SSE 两融汇总（真实列名，金额单位元）。"""
+    return pd.DataFrame(
+        {
+            "融资余额": [1.0e11],
+            "融资买入额": [2.0e10],
+            "融券余量金额": [3.0e11],
+            "融资融券余额": [4.0e11],
+        }
+    )
+
+
+def _fake_szse_not_published_error():
+    """akshare 对未披露 SZSE 日期（空表赋 6 列）抛出的特征 ValueError。"""
+    return ValueError(
+        "Length mismatch: Expected axis has 0 elements, "
+        "new values have 6 elements"
+    )
+
+
+def _patch_margin_reference(monkeypatch, ref):
+    """把 _latest_published_reference 替换为固定 dict / None，
+    避免依赖磁盘 daily 文件。"""
+    import collector.modules.margin as margin
+
+    monkeypatch.setattr(
+        margin,
+        "_latest_published_reference",
+        lambda trade_date: ref,
+    )
+
+
+def test_margin_szse_not_published_d0(
+    monkeypatch,
+):
+    """D0：SZSE 尚未披露（Length mismatch/0 elements）→ PENDING + 人性化错误。"""
+    import akshare
+
+    import collector.modules.margin as margin
+
+    _patch_margin_reference(
+        monkeypatch,
+        {
+            "dataDate": "2026-08-13",
+            "financingBalance": 100.0,
+            "securitiesLendingBalance": 5.0,
+            "marginBalance": 105.0,
+        },
+    )
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_margin_sse",
+        lambda **kwargs: _fake_sse_margin_frame(),
+    )
+    monkeypatch.setattr(
+        akshare,
+        "stock_margin_szse",
+        lambda **kwargs: _raise(
+            _fake_szse_not_published_error()
+        ),
+    )
+
+    result = margin.collect_margin(
+        "2026-08-14",
+        is_t1=False,
+    )
+
+    assert result["status"] == "PENDING"
+    assert any(
+        "not published" in e for e in result["errors"]
+    )
+    # 原始异常类型进 warnings，不混进 errors
+    assert "ValueError" in result["warnings"]
+    # 参考值仍照常附加，不崩溃
+    assert result["latestPublishedReference"][
+        "dataDate"
+    ] == "2026-08-13"
+
+
+def test_margin_szse_not_published_t1(
+    monkeypatch,
+):
+    """t1：SZSE 尚未披露 → STALE + SZSE_NOT_YET_PUBLISHED（可重试）。"""
+    import akshare
+
+    import collector.modules.margin as margin
+
+    _patch_margin_reference(monkeypatch, None)
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_margin_sse",
+        lambda **kwargs: _fake_sse_margin_frame(),
+    )
+    monkeypatch.setattr(
+        akshare,
+        "stock_margin_szse",
+        lambda **kwargs: _raise(
+            _fake_szse_not_published_error()
+        ),
+    )
+
+    result = margin.collect_margin(
+        "2026-08-14",
+        is_t1=True,
+    )
+
+    assert result["status"] == "STALE"
+    assert any(
+        "SZSE_NOT_YET_PUBLISHED" in e
+        for e in result["errors"]
+    )
+
+
+def test_margin_szse_generic_error_kept(
+    monkeypatch,
+):
+    """通用异常仍走原分支：is_t1=False → PENDING，errors 含消息原文。"""
+    import akshare
+
+    import collector.modules.margin as margin
+
+    _patch_margin_reference(monkeypatch, None)
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_margin_sse",
+        lambda **kwargs: _fake_sse_margin_frame(),
+    )
+
+    def boom(**kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        akshare,
+        "stock_margin_szse",
+        boom,
+    )
+
+    result = margin.collect_margin(
+        "2026-08-14",
+        is_t1=False,
+    )
+
+    assert result["status"] == "PENDING"
+    assert any("boom" in e for e in result["errors"])

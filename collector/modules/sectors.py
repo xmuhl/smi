@@ -244,6 +244,266 @@ def _fetch_board_rank(
     raise ValueError(f"unknown sector source: {source}")
 
 
+# ---------------------------------------------------------------------------
+# 历史回补分支（P1b）：THS 板块历史指数 → 任意历史交易日行业/概念 TOP5/BOTTOM5
+# ---------------------------------------------------------------------------
+#
+# 接口实测（2026-08；akshare 1.18.88）：
+#   ak.stock_board_industry_name_ths()  -> DataFrame[name, code]（约 90 行）
+#   ak.stock_board_concept_name_ths()   -> DataFrame[name, code]（约 375 行）
+#   ak.stock_board_industry_index_ths(symbol=<板块名>, start_date, end_date)
+#       -> DataFrame[日期,开盘价,最高价,最低价,收盘价,成交量,成交额]
+#   ak.stock_board_concept_index_ths(...)  同上（概念板块）
+# 注意：两个指数接口的 symbol 必须为单个板块精确名，symbol="全部行业" 会抛
+# KeyError；因此须先取板块名全量，再逐只拉取其历史指数序列（start_date 取
+# D-40 日历日以覆盖 D-1 前日，akshare 内部按年切片请求）。D-1 即该板块历史
+# 序列中紧邻 D 的上一交易日行。
+# ---------------------------------------------------------------------------
+
+# 历史回补口径名（页面按 method 标注）
+THS_HISTORICAL_METHOD = "THS_HISTORICAL_INDEX"
+
+# 指数回看窗口（日历日）：需覆盖 D-1 前日，40 天对跨假期已足够
+_THS_HISTORY_WINDOW_DAYS = 40
+
+
+def _board_close_change_pct(
+    index_df,
+    trade_date: str,
+) -> float | None:
+    """板块指数历史序列 → D 日相对 D-1（该序列前一交易日）涨跌幅(%)。
+
+    计算口径：
+        changePct(D) = (close(D) / close(D-1) - 1) * 100，round(2)。
+    任一前置不满足（无 D 行 / 无前一行 / 收盘缺失或为 0 / NaN）→ 返回 None，
+    由调用方跳过该板块。
+    """
+    if (
+        index_df is None
+        or index_df.empty
+        or "日期" not in index_df.columns
+        or "收盘价" not in index_df.columns
+    ):
+        return None
+
+    rows: list[tuple[str, float]] = []
+
+    for _, row in index_df.iterrows():
+        try:
+            date_s = str(row["日期"]).strip()
+            close = float(row["收盘价"])
+        except (TypeError, ValueError):
+            continue
+
+        if not date_s or close != close:
+            continue
+
+        rows.append((date_s, close))
+
+    # 按日期升序；紧邻 D 的上一行即该板块的前一交易日
+    rows.sort(key=lambda item: item[0])
+
+    dates = [item[0] for item in rows]
+    closes = [item[1] for item in rows]
+
+    idx: int | None = None
+
+    for i, date_s in enumerate(dates):
+        if date_s == trade_date:
+            idx = i
+
+    if idx is None:
+        return None
+
+    if idx < 1:
+        return None
+
+    prev_close = closes[idx - 1]
+    close_d = closes[idx]
+
+    if (
+        prev_close == 0
+        or prev_close != prev_close
+        or close_d != close_d
+    ):
+        return None
+
+    return round((close_d / prev_close - 1) * 100, 2)
+
+
+def _ths_historical_board_rank(
+    board_type: str,
+    trade_date: str,
+) -> dict[str, Any]:
+    """拉取某一侧（industry/concept）全部板块在 D 日的涨跌幅并排序。
+
+    返回 dict：
+        ok/True|False、reason、top5/bottom5（entries，含 name/changePct）、
+        warnings、skipped（无法定位 D 或前一交易日的板块计数）。
+    侧级全失败（板块名单为空或全部板块无有效 D 数据）→ ok=False，调用方据此
+    保持该侧 UNAVAILABLE 语义，绝不伪造。
+    """
+    from datetime import datetime, timedelta
+
+    import akshare as ak
+
+    day = datetime.strptime(trade_date, "%Y-%m-%d").date()
+    start_date = (day - timedelta(days=_THS_HISTORY_WINDOW_DAYS)).strftime("%Y%m%d")
+    end_date = trade_date.replace("-", "")
+
+    if board_type == "industry":
+        name_df = ak.stock_board_industry_name_ths()
+        index_fn = ak.stock_board_industry_index_ths
+    elif board_type == "concept":
+        name_df = ak.stock_board_concept_name_ths()
+        index_fn = ak.stock_board_concept_index_ths
+    else:
+        raise ValueError(f"unknown historical board type: {board_type}")
+
+    if name_df is None or name_df.empty or "name" not in name_df.columns:
+        return {
+            "ok": False,
+            "reason": f"{board_type}: empty THS name list",
+            "top5": [],
+            "bottom5": [],
+            "warnings": [],
+            "skipped": 0,
+        }
+
+    names = [str(value) for value in name_df["name"]]
+
+    entries: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    skipped = 0
+
+    for name in names:
+        try:
+            index_df = index_fn(
+                symbol=name,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        except Exception as exc:  # noqa: BLE001
+            skipped += 1
+            warnings.append(
+                f"{board_type}:{name}:FETCH_FAILED:{type(exc).__name__}"
+            )
+            continue
+
+        pct = _board_close_change_pct(index_df, trade_date)
+
+        if pct is None:
+            skipped += 1
+            continue
+
+        entries.append(
+            {
+                "name": name,
+                "code": "",
+                "changePct": pct,
+            }
+        )
+
+    if not entries:
+        return {
+            "ok": False,
+            "reason": f"{board_type}: no valid board rows for {trade_date}",
+            "top5": [],
+            "bottom5": [],
+            "warnings": warnings,
+            "skipped": skipped,
+        }
+
+    warnings.append(f"{board_type}:skipped={skipped}")
+
+    return {
+        "ok": True,
+        "reason": "OK",
+        "top5": sorted(
+            entries,
+            key=lambda item: item["changePct"],
+            reverse=True,
+        )[:5],
+        "bottom5": sorted(
+            entries,
+            key=lambda item: item["changePct"],
+        )[:5],
+        "warnings": warnings,
+        "skipped": skipped,
+    }
+
+
+def _collect_sectors_historical(
+    trade_date: str,
+) -> dict[str, Any]:
+    """历史回补入口：行业/概念各取全部板块 D 日涨跌幅前5/跌幅前5。
+
+    - 拉取抛异常（网络/封锁）→ fail-closed：UNAVAILABLE +
+      reason=THS_HISTORICAL_FETCH_FAILED + errors 摘要，不得半成品 FINAL；
+    - 行业或概念任一侧全部拉取失败 → 该侧保持 UNAVAILABLE 语义，整体不伪造
+      FINAL，原因记入 errors/sourceWarnings。
+    """
+    result: dict[str, Any] = {
+        "status": ModuleStatus.UNAVAILABLE.value,
+        "dataDate": trade_date,
+        "source": ["THS"],
+        "method": THS_HISTORICAL_METHOD,
+        "reason": None,
+        "industryTop5": [],
+        "industryBottom5": [],
+        "conceptTop5": [],
+        "conceptBottom5": [],
+        "errors": [],
+        "sourceWarnings": [],
+    }
+
+    try:
+        industry = _ths_historical_board_rank(
+            board_type="industry",
+            trade_date=trade_date,
+        )
+        concept = _ths_historical_board_rank(
+            board_type="concept",
+            trade_date=trade_date,
+        )
+    except Exception as exc:  # noqa: BLE001
+        result["reason"] = "THS_HISTORICAL_FETCH_FAILED"
+        result["errors"].append(
+            "THS_HISTORICAL_FETCH_FAILED: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return result
+
+    # 任一侧拿不到 D 全量 → 该侧 UNAVAILABLE，整体不伪造 FINAL
+    if not industry["ok"] or not concept["ok"]:
+        for key, side in (
+            ("industry", industry),
+            ("concept", concept),
+        ):
+            if not side["ok"]:
+                result["errors"].append(
+                    f"{key}: {side['reason']}"
+                )
+                result["sourceWarnings"].extend(
+                    side.get("warnings", [])
+                )
+
+        result["reason"] = "THS_HISTORICAL_UNAVAILABLE"
+        return result
+
+    result["sourceWarnings"] = (
+        industry.get("warnings", [])
+        + concept.get("warnings", [])
+    )
+    result["industryTop5"] = industry["top5"]
+    result["industryBottom5"] = industry["bottom5"]
+    result["conceptTop5"] = concept["top5"]
+    result["conceptBottom5"] = concept["bottom5"]
+    result["status"] = ModuleStatus.FINAL.value
+    result["reason"] = None
+    return result
+
+
 def collect_sectors(
     trade_date: str,
 ) -> dict[str, Any]:
@@ -256,16 +516,8 @@ def collect_sectors(
     ).date().isoformat()
 
     if trade_date != today:
-        return {
-            "status": ModuleStatus.UNAVAILABLE.value,
-            "dataDate": trade_date,
-            "method": "EASTMONEY",
-            "reason": "HISTORICAL_BOARD_RANK_NOT_SUPPORTED",
-            "industryTop5": [],
-            "industryBottom5": [],
-            "conceptTop5": [],
-            "conceptBottom5": [],
-        }
+        # 历史回补分支：THS 板块历史指数 → D 日行业/概念 TOP5/BOTTOM5。
+        return _collect_sectors_historical(trade_date)
 
     result: dict[str, Any] = {
         "status": ModuleStatus.FINAL.value,

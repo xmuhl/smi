@@ -47,17 +47,84 @@ def collect_margin(
             result["latestPublishedReference"] = _latest_reference
         return result
 
+    def _unpublished(
+        exchange: str,
+        *,
+        exc: Exception | None = None,
+    ) -> dict[str, Any]:
+        """交易所尚未披露（T+1 发布 / 周末顺延）时的降级结果。
+
+        - D0（is_t1=False）保持 PENDING，前端照常展示最近已披露参考值；
+          原始异常类型写入 warnings，绝不把难懂的 pandas 报错混进 errors。
+        - t1（is_t1=True）置 STALE，保留后续 t1-reconcile 可重试语义。
+        """
+        if is_t1:
+            return _attach_reference(
+                {
+                    **base,
+                    "status": ModuleStatus.STALE.value,
+                    "errors": [
+                        f"{exchange}_NOT_YET_PUBLISHED:{trade_date}"
+                    ],
+                }
+            )
+
+        warnings = list(base.get("warnings", []))
+        if exc is not None:
+            warnings.append(type(exc).__name__)
+
+        return _attach_reference(
+            {
+                **base,
+                "status": ModuleStatus.PENDING.value,
+                "errors": [
+                    f"{exchange} margin not published "
+                    f"for {trade_date} (T+1 disclosure)"
+                ],
+                "warnings": warnings,
+            }
+        )
+
     try:
         sse = ak.stock_margin_sse(
             start_date=yyyymmdd,
             end_date=yyyymmdd,
         )
 
+    except Exception as exc:  # noqa: BLE001
+        return _attach_reference(
+            {
+                **base,
+                "status": (
+                    ModuleStatus.ERROR.value
+                    if is_t1
+                    else ModuleStatus.PENDING.value
+                ),
+                "errors": [str(exc)],
+            }
+        )
+
+    # SSE 侧：返回空表（未披露）也按“未披露”处理，避免 _last_row 之后静默缺数。
+    if sse is None or sse.empty:
+        return _unpublished("SSE")
+
+    try:
         szse = ak.stock_margin_szse(
             date=yyyymmdd
         )
 
     except Exception as exc:  # noqa: BLE001
+        # SZSE 对未披露日返回空表，akshare 内部赋 6 列导致
+        # ValueError("Length mismatch: Expected axis has 0 elements...")。
+        # 命中即视为“尚未披露”，而非一般性抓取失败。
+        if (
+            isinstance(exc, ValueError)
+            and "Length mismatch" in str(exc)
+            and "0 elements" in str(exc)
+        ):
+            return _unpublished("SZSE", exc=exc)
+
+        # 未命中的其它异常仍走通用 except 分支（保持现有行为）。
         return _attach_reference(
             {
                 **base,
