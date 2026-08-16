@@ -8,7 +8,7 @@
 - referenceXlsx: A股收盘全景_20260717.xlsx
 - referenceSnapshot: web/public/data/daily/2026/2026-07-17.json
 - priority: **referenceXlsx > canonicalSnapshot > rawLegacySnapshot**（参考级字段以 XLSX 为权威；快照中 XLSX 未覆盖字段次之；raw Legacy 仅作溯源）
-- rejectedPlaceholders: 暂无、待补、占位、TBD、N/A、nan、null、（无）、None、无数据
+- rejectedPlaceholders: 暂无、待补、占位、TBD、N/A、nan、null、（无）、None、无数据、未知
 
 通用约束：除备注明确允许外，各模块 `requiredStatus` 均为 `FINAL`；数值一律取自范本 XLSX，不得编造。所有模块的 `dataDate/asOf/publishedAt <= tradeDate`（防 look-ahead）。
 
@@ -16,7 +16,7 @@
 
 ## 1-宽基指数收盘数据 — `marketIndex`
 
-- **ruleId**：`marketIndex_V2`（ruleVersion=1）　**requiredStatus**：FINAL
+- **ruleId**：`marketIndex_V2`（ruleVersion=2）　**requiredStatus**：FINAL
 - **XLSX 列**：指数名称 / 收盘点位 / 当日涨跌幅
 
 **模块级字段**：
@@ -28,7 +28,8 @@
 | source | 字符串 |
 
 **items 列表**：minItems=6，uniqueBy=`code`
-- 必需代码：000001、399001、399006、000688、000300、899050
+- 必需代码：000001、399001、399006、000688、000300、899050（requiredCodes 保持 6 核心）
+- referenceNamesMin：**9**（参考日须能同时匹配全部 9 个范本指数名称，fail-on-missing，缺任一即 FAIL）
 
 | 字段 | 校验 |
 | --- | --- |
@@ -40,13 +41,13 @@
 **渲染规则 displayRules**：
 
 - 必须渲染 items 列表，每条展示指数名称(name)、收盘点位(close，2 位小数)、当日涨跌幅(changePct，带 +/− 与红绿配色)；过滤 name 为空或 null 的项。
-- 至少展示 6 个核心宽基指数（000001/399001/399006/000688/000300/899050）；范本日须能同时展示 9 项（另含国证1000 399311、国证2000 399303、科创综合）。
+- 至少展示 6 个核心宽基指数（000001/399001/399006/000688/000300/899050）；范本日须能同时展示 9 项（上证指数、深证成指、创业板指、科创50、沪深300、北证50、国证1000、国证2000、科创综合），所有 9 个 referenceNamesMin 名称必须全部渲染，缺失任一即 FAIL。
 - 面板标题为『宽基指数』，并显示模块状态徽章(StatusBadge)。
 - items 内 code 不得重复，dataDate 必须等于所选交易日 tradeDate，close 必须 > 0。
 
 **口径注释 notes**：
 
-referenceAssertions 按指数名称固化 close/changePct 精确值。close>0、changePct 有限；code 唯一。最小必须出现 000001/399001/399006/000688/000300/899050 六项，close/changePct 均为有限数值；不允许重复 code；dataDate==tradeDate。
+referenceAssertions 按指数名称固化 close/changePct 精确值，共 9 项（上证指数/深证成指/创业板指/科创50/沪深300/北证50/国证1000/国证2000/科创综合）；items.referenceNamesMin=9，即参考日须能同时匹配全部 9 个范本指数名称（fail-on-missing，缺任一即 FAIL）。close>0、changePct 有限；code 唯一。最小必须出现 000001/399001/399006/000688/000300/899050 六项核心代码（requiredCodes），close/changePct 均为有限数值；不允许重复 code；dataDate==tradeDate。
 
 **参考断言 referenceAssertions（2026-07-17，须精确匹配）**：
 
@@ -95,7 +96,7 @@ referenceAssertions 按指数名称固化 close/changePct 精确值。close>0、
 
 ## 2-两市成交量 — `turnover`
 
-- **ruleId**：`turnover_V2`（ruleVersion=1）　**requiredStatus**：FINAL
+- **ruleId**：`turnover_V2`（ruleVersion=2）　**requiredStatus**：FINAL
 - **XLSX 列**：统计项 / 数值 / 备注
 
 **模块级字段**：
@@ -113,16 +114,23 @@ referenceAssertions 按指数名称固化 close/changePct 精确值。close>0、
 | crossMethodReferencePrevious | 有限数值，(可选) |
 | crossMethodReferenceDelta | 有限数值，(可选) |
 | crossMethodReferenceChangePct | 有限数值，(可选) |
+| crossMethodReference | 对象(object)，(可选)，PREVIOUS_METHOD_MISMATCH 时 required |
+| ↳ previous | 有限数值，required |
+| ↳ delta | 有限数值，required |
+| ↳ changePct | 有限数值，required |
+| ↳ nonComparable | 布尔，required，必须==true |
+| ↳ currentMethod | 字符串，required |
+| ↳ previousMethod | 字符串，required |
 
 **渲染规则 displayRules**：
 
 - 必须渲染四个格子：当日合计(turnoverToday)、前一交易日(turnoverPrevious)、增减金额(turnoverDelta)+变化幅度(turnoverChangePct)、量能定性(volumeState：EXPANSION→放量/CONTRACTION→缩量/FLAT→平量)。
-- comparisonStatus=PREVIOUS_METHOD_MISMATCH 时，跨口径参考值必须用独立字段(带 nonComparable=true)展示，页面显著标注『跨口径参考（非同一口径，不可与正常环比比较）』，不得写入正常 turnoverPrevious/Delta/ChangePct。
+- comparisonStatus=PREVIOUS_METHOD_MISMATCH 时，必须渲染结构化块 crossMethodReference{previous,delta,changePct,nonComparable=true,currentMethod,previousMethod}，显著标注『跨口径参考（非同一口径，不可与正常环比比较）』，不得写入正常 turnoverPrevious/Delta/ChangePct；crossMethodReference 缺失即 FAIL。
 - 单位统一为 亿元。
 
 **口径注释 notes**：
 
-comparisonStatus 状态机：COMPARABLE=method==previousMethod 且 turnoverPrevious>0、delta/pct 有限且满足算术恒等；PREVIOUS_UNAVAILABLE=previousMethod 为 null 且三个环比字段全为 null、volumeState=UNKNOWN；PREVIOUS_METHOD_MISMATCH=previousMethod 非 null 且 !=method，环比字段为 null、volumeState=UNKNOWN，允许存在 crossMethodReferencePrevious/Delta/ChangePct 且带 nonComparable=true。禁止按具体日期特判；通用方法边界处理。Legacy 参考日 07-17 仅限 method=LEGACY_UNKNOWN 时，turnoverToday/Previous/Delta/ChangePct/volumeState 由 referenceAssertions 精确断言（26549.58/24035.65/+2513.93/+10.46/EXPANSION），不再允许『字段缺失即 PASS』。
+comparisonStatus 状态机：COMPARABLE=method==previousMethod 且 turnoverPrevious>0、delta/pct 有限且满足算术恒等；PREVIOUS_UNAVAILABLE=previousMethod 为 null 且三个环比字段全为 null、volumeState=UNKNOWN；PREVIOUS_METHOD_MISMATCH=previousMethod 非 null 且 !=method，此时必须携带结构化块 crossMethodReference{previous,delta,changePct,nonComparable=true,currentMethod,previousMethod}，nonComparable 必须严格等于 true，三项数值成组出现并满足内部算术关系，禁止写入正常 turnoverPrevious/Delta/ChangePct。禁止按具体日期特判；通用方法边界处理。Legacy 参考日 07-17 仅限 method=LEGACY_UNKNOWN 时，turnoverToday/Previous/Delta/ChangePct/volumeState 由 referenceAssertions 精确断言（26549.58/24035.65/+2513.93/+10.46/EXPANSION），不再允许『字段缺失即 PASS』。
 
 **参考断言 referenceAssertions（2026-07-17，须精确匹配）**：
 
@@ -634,7 +642,7 @@ industry/concept/stock 六类 TOP10 各必须 minItems=10，不放松门禁。it
 
 ## 6-北向资金数据 — `northbound`
 
-- **ruleId**：`northbound_V2`（ruleVersion=1）　**requiredStatus**：FINAL
+- **ruleId**：`northbound_V2`（ruleVersion=2）　**requiredStatus**：FINAL
 - **XLSX 列**：一、北向资金整体流向（合计/沪股通/深股通净流入） / 二、北向净买入TOP10 / 净卖出TOP10 / 三、主力&北向资金重合个股（同步流入/同步流出）
 
 **模块级字段**：
@@ -644,6 +652,17 @@ industry/concept/stock 六类 TOP10 各必须 minItems=10，不放松门禁。it
 | mode | 枚举，取值[POST_20240819_LEGACY_IMPORTED/POST_20240819_OFFICIAL_REPLACEMENT] |
 | sourceSystem | 字符串 |
 | officialDisclosureCompatible | 枚举，取值[true/false]，(可选) |
+| quarterlyHolding | 对象(object)，(可选)，OFFICIAL_REPLACEMENT 时 required |
+| ↳ status | 枚举，required，取值[FINAL] |
+| ↳ asOf | 日期字符串(dateString)，required |
+| ↳ publishedAt | 日期字符串(dateString)，required |
+| ↳ items | 数组，required，minItems=1 |
+| ↳ items[].code | 字符串，required |
+| ↳ items[].hkexStockCode | 字符串，required |
+| ↳ items[].name | 字符串，required |
+| ↳ items[].shareholding | 非负有限数值，required |
+| ↳ items[].pctOfIssued | 非负整数，required |
+| ↳ items[].market | 枚举，required，取值[沪股通/深股通] |
 
 **榜单 lists**：
 
@@ -655,12 +674,12 @@ industry/concept/stock 六类 TOP10 各必须 minItems=10，不放松门禁。it
 **渲染规则 displayRules**：
 
 - Legacy 分支（POST_20240819_LEGACY_IMPORTED）：顶部必须显示『历史口径已变更』通知，说明北向字段来自原 Excel Legacy 导入、不作为官方连续序列；必须渲染合计/沪股通/深股通净流入(legacyImportedFields)及净买入/净卖出 TOP10。
-- Official 分支（POST_20240819_OFFICIAL_REPLACEMENT）：必须展示 quarterlyHolding（dict、status=FINAL、items 非空且逐项含 code/hkexStockCode/name/shareholding/pctOfIssued/market、asOf<=selectedDate、publishedAt<=selectedDate 防 look-ahead）；可选 dailyOfficialActivity 块，仅承载官方成交总额/笔数与十大活跃证券，不得推导净流入。
+- Official 分支（POST_20240819_OFFICIAL_REPLACEMENT）：必须展示 quarterlyHolding.field（dict、status=FINAL、items 非空且逐项含 code/hkexStockCode/name/shareholding/pctOfIssued/market）；asOf 与 publishedAt 为 required dateString，须存在且 asOf<=selectedDate、publishedAt<=selectedDate（防 look-ahead，缺任一即 FAIL）；可选 dailyOfficialActivity 块，仅承载官方成交总额/笔数与十大活跃证券，不得推导净流入。
 - 页面须显著注明『官方已停止日度净流入披露，以下为官方替代口径（point-in-time），不与 Legacy 净流入连续比较』。
 
 **口径注释 notes**：
 
-mode 严格枚举：POST_20240819_LEGACY_IMPORTED（07-17 参考日使用）或 POST_20240819_OFFICIAL_REPLACEMENT。OFFICIAL_REPLACEMENT 分支：模块 status=FINAL、quarterlyHolding 为 dict 且 status=FINAL、items 非空且逐项 schema 合法、asOf<=selectedDate、publishedAt<=selectedDate（防 look-ahead）。可选 dailyOfficialActivity 块仅含官方成交总额/笔数与前十大成交活跃证券，不得推导净流入。Legacy 分支：legacyImportedFields.totalNetInflow/shanghaiNetInflow/shenzhenNetInflow 精确断言 -156.32/-68.54/-87.78。若未来采用非官方估算，只能放独立 estimated 分支，isOfficial=false、标明模型/误差/来源，不作为官方口径验收门禁的替代。
+mode 严格枚举：POST_20240819_LEGACY_IMPORTED（07-17 参考日使用）或 POST_20240819_OFFICIAL_REPLACEMENT。OFFICIAL_REPLACEMENT 分支：模块 status=FINAL、quarterlyHolding 为 dict 且 status=FINAL、items 非空且逐项 schema 合法；asOf 与 publishedAt 均为 required（kind=dateString，用 date/datetime 解析后比较，不用裸字符串），二者必须存在且满足 asOf<=tradeDate 且 publishedAt<=tradeDate（防 look-ahead）；缺任一字段即 FAIL。可选 dailyOfficialActivity 块仅含官方成交总额/笔数与前十大成交活跃证券，不得推导净流入。Legacy 分支：legacyImportedFields.totalNetInflow/shanghaiNetInflow/shenzhenNetInflow 精确断言 -156.32/-68.54/-87.78。若未来采用非官方估算，只能放独立 estimated 分支，isOfficial=false、标明模型/误差/来源，不作为官方口径验收门禁的替代。
 
 **参考断言 referenceAssertions（2026-07-17，须精确匹配）**：
 
@@ -802,7 +821,7 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
 
 ## 8-主赛道每日监测表 — `tracks`
 
-- **ruleId**：`tracks_V2`（ruleVersion=1）　**requiredStatus**：FINAL
+- **ruleId**：`tracks_V2`（ruleVersion=2）　**requiredStatus**：FINAL
 - **XLSX 列**：监测日期 / 板块名称 / 板块定位 / 近5日成交额排名 / 今日主力净流入(亿) / 连续净流入天数 / 5/10/20日多头排列 / 60日RPS数值 / 近10日跑赢沪深300 / 板块涨停家数 / 连板梯队完整度 / 红盘个股占比 / 核心催化逻辑 / 业绩兑现情况 / 综合达标率 / 最终判定
 
 **模块级字段**：
@@ -810,15 +829,15 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
 | 字段 | 校验 |
 | --- | --- |
 | configVersion | 字符串 |
-| effectiveFrom | 字符串 |
-| effectiveTo | 字符串 |
-| sourceSystem | 字符串 |
+| effectiveFrom | 字符串，required；coversTradeDate：effectiveFrom<=tradeDate |
+| effectiveTo | 字符串，required；coversTradeDate：tradeDate<=effectiveTo |
+| sourceSystem | 字符串，required |
 
 **items 列表**：minItems=4，uniqueBy=`trackId`
 
 | 字段 | 校验 |
 | --- | --- |
-| date | 字符串 |
+| date | 字符串，equalsTradeDate：必须==tradeDate |
 | trackId | 字符串 |
 | trackName | 字符串 |
 | positioning | 字符串 |
@@ -830,9 +849,9 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
 | excessReturn20d | 枚举，取值[是/否] |
 | limitUpCount | 非负整数 |
 | ladderCompleteness | 字符串，>= 1 字符 |
-| redStockRatio | 百分比字符串(如 85%) |
-| coreCatalyst | 字符串，>= 2 字符，需含中文 |
-| earningsRealization | 字符串，>= 2 字符，需含中文 |
+| redStockRatio | 百分比字符串(如 85%)，按百分比数值解析，min 0 / max 100 |
+| coreCatalyst | 字符串，>= 2 字符，需含中文，noPlaceholders=true（不得为空/占位词） |
+| earningsRealization | 字符串，>= 2 字符，需含中文，noPlaceholders=true（不得为空/占位词） |
 | score | 有限数值，范围 0~100 |
 | decision | 枚举，取值[核心防御主线/次主线/主跌浪/退潮主线/观察/达标/规避/数据不足] |
 
@@ -845,7 +864,7 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
 
 **口径注释 notes**：
 
-16 列硬目标不放松。items minItems=4。每列 typed 规则见 items.fields：turnoverRank finitePositive、mainNetInflow finite、continuousInflowDays nonNegativeInt、maAlignment 枚举[是,否]、rps60 0~100、excessReturn20d 枚举[是,否]、limitUpCount nonNegativeInt、ladderCompleteness 非空字符串（如『2连板』/『无连板』）、redStockRatio 形如『NN%』、coreCatalyst/earningsRealization 非空中文且不在 rejectedPlaceholders、score 0~100 finite、decision 非空枚举（核心防御主线/次主线/主跌浪/退潮主线/观察/达标/规避/数据不足）。模块级 configVersion/effectiveFrom/effectiveTo 必填，避免配置倒灌历史日期。综合达标率(score)与最终判定(decision)须可由输入指标+规则版本推导。历史行情可派生（近5日排名/均线/RPS/超额/红盘占比）、资金流时间序列（净流入/连续天数）、涨停池/成分（涨停数/梯队）、配置定性列（定位/催化/业绩，versioned config）、派生输出（score/decision），均须记录来源与窗口成熟条件，未成熟不得给完整 PASS。
+16 列硬目标不放松。items minItems=4。每列 typed 规则见 items.fields：date==tradeDate（equalsTradeDate）；turnoverRank finitePositive、mainNetInflow finite、continuousInflowDays nonNegativeInt、maAlignment 枚举[是,否]、rps60 0~100、excessReturn20d 枚举[是,否]、limitUpCount nonNegativeInt、ladderCompleteness 非空字符串（如『2连板』/『无连板』）、redStockRatio 为百分比数值（min 0/max 100，按百分比数值解析）、coreCatalyst/earningsRealization 非空中文且 noPlaceholders=true（不在 rejectedPlaceholders）、score 0~100 finite、decision 非空枚举（核心防御主线/次主线/主跌浪/退潮主线/观察/达标/规避/数据不足）。模块级 configVersion/effectiveFrom/effectiveTo/sourceSystem 必填，effectiveFrom<=tradeDate<=effectiveTo（coversTradeDate），避免配置倒灌历史日期。score/decision 由 score_tracks（规则版本化重算器）按输入指标+规则版本重算一致，非 legacy 直接透传；对 legacy 来源同样需用规则版本重算校验一致性。历史行情可派生（近5日排名/均线/RPS/超额/红盘占比）、资金流时间序列（净流入/连续天数）、涨停池/成分（涨停数/梯队）、配置定性列（定位/催化/业绩，versioned config）、派生输出（score/decision），均须记录来源与窗口成熟条件，未成熟不得给完整 PASS。
 
 **参考断言 referenceAssertions（2026-07-17，须精确匹配）**：
 
@@ -930,7 +949,7 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
 
 ## 9-综合总结 — `summary`
 
-- **ruleId**：`summary_V2`（ruleVersion=1）　**requiredStatus**：FINAL
+- **ruleId**：`summary_V2`（ruleVersion=2）　**requiredStatus**：FINAL
 - **XLSX 列**：一、指数与量能总结 / 二、市场情绪总结 / 三、资金流向总结 / 四、赛道监测结论 / 五、操作建议 / 风险提示
 
 **模块级字段**：
@@ -954,14 +973,24 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
 
 **口径注释 notes**：
 
-8 段 required（indexAndTurnover/sentiment/fundFlow/trackConclusion/marketEnvironment/northbound/margin/riskWarning），每段 string、minChars>=10、中文字符占比>=0.5、不含 rejectedPlaceholders；riskWarning 必须含『不构成投资建议』。依赖完整性：当依赖模块（如 tracks）为 FINAL 且 items 非空时，trackConclusion 必须提及赛道判定且与 items 数量/判定一致（结构化事实一致性由验收器对数字做抽查，文本仅做上述最小约束）。依赖模块非 FINAL/替代口径时，summary 必须显式包含『不可用/口径替代』说明，不得生成貌似完整的结论。
+8 段 required（indexAndTurnover/sentiment/fundFlow/trackConclusion/marketEnvironment/northbound/margin/riskWarning），每段 string、minChars>=10、中文字符占比>=0.5、不含 rejectedPlaceholders；riskWarning 必须含『不构成投资建议』。summaryFacts 声明结构化事实锚点（见下方 summaryFacts），验收器须将其与底层模块逐字段比对：marketEnvironment 锚 turnover（COMPARABLE 时禁用『暂无/无可比较/暂无可比较/不可比』等词，量能词按 volumeState 映射 EXPANSION→放量/CONTRACTION→缩量/FLAT→平量/UNKNOWN→量能不明）；trackConclusion 锚 tracks（FINAL 且 items 非空时 4 赛道名前缀全部提及且与数量/判定一致）；margin 段锚 margin（FINAL 反映余额与净变动方向，PENDING 显式『待次日回补』）；northbound 段锚 northbound（LEGACY 标注口径变更、OFFICIAL 体现 point-in-time）。依赖模块非 FINAL/替代口径时，summary 必须显式包含『不可用/口径替代』说明，不得生成貌似完整的结论。
+
+**结构化事实锚点 summaryFacts**：
+
+- **marketEnvironment（锚 turnover）**：comparisonStatus=COMPARABLE 时禁用词清单 `[暂无/无可比较/暂无可比较/不可比/无上一交易日]`；量能词映射 `volumeState→词`：`EXPANSION→放量`、`CONTRACTION→缩量`、`FLAT→平量`、`UNKNOWN→量能不明`。
+- **trackConclusion（锚 tracks）**：当 tracks 为 FINAL 且 items 非空时，必须覆盖全部 4 条赛道；4 个赛道名前缀（高股息/中特估、电力/火电/水电、医药生物/创新药/CRO、半导体/CPO/AI算力）全部须被提及，且与 items 数量/最终判定(decision)一致。
+- **margin（锚 margin）**：FINAL 反映融资/融券/总余额与净变动方向；PENDING 显式『待次日回补/今日暂缺』。
+- **northbound（锚 northbound）**：LEGACY 须体现净流入/流出方向并标注口径已变更；OFFICIAL 体现 point-in-time。
 
 **参考断言 referenceAssertions（2026-07-17，须精确匹配）**：
 
 ```json
 {
   "segmentCount": 8,
-  "riskWarningMustContain": "不构成投资建议"
+  "riskWarningMustContain": "不构成投资建议",
+  "marketEnvironmentMustNotContain": ["暂无", "不可比", "无可比较"],
+  "marketEnvironmentMustContain": "放量",
+  "marketEnvironmentMustContainReason": "volumeState=EXPANSION（07-17 turnover 精确断言量能为 EXPANSION）"
 }
 ```
 
@@ -969,20 +998,36 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
 
 ## 跨模块不变量 crossModuleInvariants
 
-- **INV-DATE-LOOKAHEAD**：所有模块的 dataDate/asOf/publishedAt/latestPublishedReference.dataDate 均不得晚于所选交易日 tradeDate，禁止 look-ahead。
-- **INV-UNIT-亿元**：turnover/fundFlow/northbound/margin 金额单位统一为亿元；fundFlow 的 netInflowYi 含义为主力净流入（亿元），正为流入负为流出。
-- **INV-LIST-SORT-SIGN**：榜单唯一性/排序/符号：items/lists 内 uniqueBy 字段不重复；Top 列表按数值降序、Bottom 列表按升序（或规定方向）；fundFlow 流入全>0、流出全<0，northbound netBuy>0、netSell<0。
-- **INV-MARGIN-IDENTITY**：marginBalance == financingBalance + securitiesLendingBalance（容差 0.05）；marginBalanceChange == 当日 marginBalance - 前一交易日 FINAL marginBalance（容差 0.01）。
-- **INV-TURNOVER-IDENTITY**：COMPARABLE 态下 turnoverDelta == turnoverToday - turnoverPrevious（容差 0.01）；turnoverChangePct == turnoverDelta / turnoverPrevious * 100（容差 0.01）。
-- **INV-SENTIMENT-WIDTH**：riseCount + fallCount + flatCount >= 4000（市场宽度完整性），三类均须为有限数值。
-- **INV-ENUM-SOURCE-METHOD**：各模块 source/method/mode/comparisonStatus/volumeState/maAlignment/excessReturn20d/decision 必须满足标准枚举；source 与 method 标识口径来源。
-- **INV-REF-EXACT**：参考日 2026-07-17 的各模块 referenceAssertions 必须逐项匹配精确值（容差按字段规定）；referenceAssertions 中任一字段在参考日不满足即该模块 FAIL，不得以 Legacy 字段缺失豁免。
-- **INV-NORTHBOUND-PIT**：northbound 的 official replacement 必须 point-in-time：quarterlyHolding.asOf<=selectedDate 且 quarterlyHolding.publishedAt<=selectedDate；不得把运行时最新季度持仓倒灌历史选择日。
+共 **9** 条。每条必须实际产出对应的 invariant result（set(standard.crossModuleInvariants.ids)==set(运行结果 keys)，缺失即 FAIL），并有独立 mutation 覆盖；`enforce` 描述生效范围。
 
+- **INV-DATE-LOOKAHEAD**：所有模块的 dataDate/asOf/publishedAt/latestPublishedReference.dataDate 均不得晚于所选交易日 tradeDate，禁止 look-ahead。
+  - **enforce**：递归检查——所有模块顶层 dataDate/asOf/publishedAt/latestPublishedReference.dataDate 及 nested 时序字段（如 tracks.items.date、northbound.quarterlyHolding.asOf/publishedAt）必须 <= tradeDate；任一字段晚于 tradeDate 即 FAIL；缺失的不在比较范围时按该字段结构 required 规则处理。
+- **INV-UNIT-亿元**：turnover/fundFlow/northbound/margin 金额单位统一为亿元；fundFlow 的 netInflowYi 含义为主力净流入（亿元），正为流入负为流出。
+  - **enforce**：金额字段必须有 unit=亿元 或等价亿元数值域声明；**unit 缺失即 FAIL**（不得仅当 unit 存在且错误时才失败）。
+- **INV-LIST-SORT-SIGN**：榜单唯一性/排序/符号：items/lists 内 uniqueBy 字段不重复；Top 列表按数值降序、Bottom 列表按升序（或规定方向）；fundFlow 流入全>0、流出全<0，northbound netBuy>0、netSell<0。
+  - **enforce**：对每个声明的榜单 lists/items 校验 uniqueBy 互不重复、Top 降序/Bottom 升序、符号约束；排序/符号/唯一性任一违反即 FAIL。
+- **INV-MARGIN-IDENTITY**：marginBalance == financingBalance + securitiesLendingBalance（容差 0.05）；marginBalanceChange == 当日 marginBalance - 前一交易日 FINAL marginBalance（容差 0.01）。
+  - **enforce**：任一恒等不成立即 FAIL；前一交易日缺失时不得记 note 放行，须按 PENDING 规则判定。
+- **INV-TURNOVER-IDENTITY**：COMPARABLE 态下 turnoverDelta == turnoverToday - turnoverPrevious（容差 0.01）；turnoverChangePct == turnoverDelta / turnoverPrevious * 100（容差 0.01）。
+  - **enforce**：comparisonStatus=COMPARABLE 时上述两恒等任一不成立即 FAIL。
+- **INV-SENTIMENT-WIDTH**：riseCount + fallCount + flatCount >= 4000（市场宽度完整性），三类均须为有限数值。
+  - **enforce**：riseCount+fallCount+flatCount>=4000 且三类皆为有限数值；不满足（含任一缺失/非有限）即 FAIL。
+- **INV-ENUM-SOURCE-METHOD**：各模块 source/method/mode/comparisonStatus/volumeState/maAlignment/excessReturn20d/decision 必须满足标准枚举；source 与 method 标识口径来源。
+  - **enforce**：各字段必须命中 `spec.allowedEnums` 允许枚举清单；任一不合法即 FAIL。允许枚举清单：
+    - turnover.method=`[LEGACY_UNKNOWN]`；turnover.comparisonStatus=`[COMPARABLE/PREVIOUS_UNAVAILABLE/PREVIOUS_METHOD_MISMATCH]`；turnover.volumeState=`[EXPANSION/CONTRACTION/FLAT/UNKNOWN]`
+    - marketIndex.source=`[TONGDAXIN_LEGACY/SINA/EASTMONEY]`
+    - sectorPerformance.method=`[TONGDAXIN_LEGACY/EASTMONEY]`
+    - fundFlow.method=`[TONGDAXIN_LEGACY/EASTMONEY]`
+    - northbound.mode=`[POST_20240819_LEGACY_IMPORTED/POST_20240819_OFFICIAL_REPLACEMENT]`
+    - tracks.sourceSystem=`[TONGDAXIN_LEGACY/SELF]`；tracks.maAlignment=`[是/否]`；tracks.excessReturn20d=`[是/否]`；tracks.decision=`[核心防御主线/次主线/主跌浪/退潮主线/观察/达标/规避/数据不足]`
+- **INV-REF-EXACT**：参考日 2026-07-17 的各模块 referenceAssertions 必须逐项匹配精确值（容差按字段规定）；referenceAssertions 中任一字段在参考日不满足即该模块 FAIL，不得以 Legacy 字段缺失豁免。
+  - **enforce**：逐项精确匹配且 **fail-on-missing**（缺 actual 即 FAIL，禁止 continue 跳过）；declaredAssertions 必须==consumedAssertions，未消费 assertion 直接 FAIL/exit。
+- **INV-NORTHBOUND-PIT**：northbound 的 official replacement 必须 point-in-time：quarterlyHolding.asOf<=selectedDate 且 quarterlyHolding.publishedAt<=selectedDate；不得把运行时最新季度持仓倒灌历史选择日。
+  - **enforce**：mode=OFFICIAL_REPLACEMENT 时 asOf 与 publishedAt 必须存在（required dateString）且 asOf<=selectedDate、publishedAt<=selectedDate；缺失或晚于 selectedDate 均返回失败，不得只拦未来值。
 ## 报告溯源 reportProvenance
 
 验收报告必须包含：`repoCommit`、`standardSha256`、`acceptorSha256`、`manifestSha256`、`schemaVersion`、`perDateSnapshotSha256`、`pythonVersion`、`generatedAt`。
 
 ## 占位词 rejectedPlaceholders
 
-`暂无`、`待补`、`占位`、`TBD`、`N/A`、`nan`、`null`、`（无）`、`None`、`无数据` 一律视为占位/无效值，不得作为通过依据。
+`暂无`、`待补`、`占位`、`TBD`、`N/A`、`nan`、`null`、`（无）`、`None`、`无数据`、`未知` 一律视为占位/无效值，不得作为通过依据。

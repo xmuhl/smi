@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-07-17",
   "generatedAt": "2026-08-14T01:22:34+08:00",
-  "updatedAt": "2026-08-16T15:02:53+08:00",
-  "revision": 4,
+  "updatedAt": "2026-08-16T16:20:43.851270+08:00",
+  "revision": 6,
   "overallStatus": "FINAL",
   "generationReason": "TURNOVER_CHAIN_RECONCILE",
   "market": "CN_A",
@@ -84,6 +84,14 @@
           "close": 9271.69,
           "previousClose": null,
           "changePct": -6.16,
+          "source": "TONGDAXIN_LEGACY"
+        },
+        {
+          "name": "科创综合",
+          "close": 1938.77,
+          "changePct": -8.13,
+          "code": "000680",
+          "previousClose": null,
           "source": "TONGDAXIN_LEGACY"
         }
       ]
@@ -759,8 +767,8 @@
       "fundFlow": "行业主力净流入居前：电力、银行、石油石化；行业主力净流出居前：医药生物、电子、通信。",
       "margin": "两融总余额 28139.01 亿元，较前一交易日减少 442.55 亿元。",
       "trackConclusion": "四条监测赛道：高股息/中特估（90分，核心防御主线）、电力(火电/水电)（80分，次主线/轮动主线）、医药生物(创新药/CRO)（10分，一日游脉冲/回避）、半导体/CPO/AI算力（5分，主跌浪/坚决回避）；防御主线与次主线继续有效，成长赛道整体退潮。",
-      "marketEnvironment": "沪深两市成交额 26549.58 亿元；暂无可比较的前一交易日快照。",
-      "northbound": "本日北向字段来自 Legacy Excel，仅用于还原原始报表，不纳入官方连续序列。",
+      "marketEnvironment": "市场环境：前一交易日两市成交额 24035.65 亿元，本日 26549.58 亿元，较前日放量 2513.93 亿元（+10.46%），量能定性为放量；三大指数集体大跌，市场恐慌情绪明显，风险偏好显著收缩。",
+      "northbound": "北向资金净流出 156.32 亿元（沪股通 -68.54 亿元、深股通 -87.78 亿元）；本日北向字段来自 Legacy Excel，仅用于还原原始报表，不纳入官方连续序列。",
       "riskWarning": "本数据仅供市场信息参考，不构成投资建议。"
     }
   },

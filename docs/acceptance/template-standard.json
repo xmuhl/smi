@@ -8,7 +8,7 @@
     "marketIndex": {
       "displayLabel": "1-宽基指数收盘数据",
       "ruleId": "marketIndex_V2",
-      "ruleVersion": 1,
+      "ruleVersion": 2,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "指数名称",
@@ -67,20 +67,21 @@
             "kind": "finite",
             "required": true
           }
-        ]
+        ],
+        "referenceNamesMin": 9
       },
       "displayRules": [
         "必须渲染 items 列表，每条展示指数名称(name)、收盘点位(close，2 位小数)、当日涨跌幅(changePct，带 +/− 与红绿配色)；过滤 name 为空或 null 的项。",
-        "至少展示 6 个核心宽基指数（000001/399001/399006/000688/000300/899050）；范本日须能同时展示 9 项（另含国证1000 399311、国证2000 399303、科创综合）。",
+        "至少展示 6 个核心宽基指数（000001/399001/399006/000688/000300/899050）；范本日须能同时展示 9 项（上证指数、深证成指、创业板指、科创50、沪深300、北证50、国证1000、国证2000、科创综合），所有 9 个 referenceNamesMin 名称必须全部渲染，缺失任一即 FAIL。",
         "面板标题为『宽基指数』，并显示模块状态徽章(StatusBadge)。",
         "items 内 code 不得重复，dataDate 必须等于所选交易日 tradeDate，close 必须 > 0。"
       ],
-      "notes": "referenceAssertions 按指数名称固化 close/changePct 精确值。close>0、changePct 有限；code 唯一。最小必须出现 000001/399001/399006/000688/000300/899050 六项，close/changePct 均为有限数值；不允许重复 code；dataDate==tradeDate。"
+      "notes": "referenceAssertions 按指数名称固化 close/changePct 精确值，共 9 项（上证指数/深证成指/创业板指/科创50/沪深300/北证50/国证1000/国证2000/科创综合）；items.referenceNamesMin=9，即参考日须能同时匹配全部 9 个范本指数名称（fail-on-missing，缺任一即 FAIL）。close>0、changePct 有限；code 唯一。最小必须出现 000001/399001/399006/000688/000300/899050 六项核心代码（requiredCodes），close/changePct 均为有限数值；不允许重复 code；dataDate==tradeDate。"
     },
     "turnover": {
       "displayLabel": "2-两市成交量",
       "ruleId": "turnover_V2",
-      "ruleVersion": 1,
+      "ruleVersion": 2,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "统计项",
@@ -153,14 +154,53 @@
           "name": "crossMethodReferenceChangePct",
           "kind": "finite",
           "required": false
+        },
+        {
+          "name": "crossMethodReference",
+          "kind": "object",
+          "required": false,
+          "subFields": [
+            {
+              "name": "previous",
+              "kind": "finite",
+              "required": true
+            },
+            {
+              "name": "delta",
+              "kind": "finite",
+              "required": true
+            },
+            {
+              "name": "changePct",
+              "kind": "finite",
+              "required": true
+            },
+            {
+              "name": "nonComparable",
+              "kind": "boolean",
+              "required": true,
+              "const": true
+            },
+            {
+              "name": "currentMethod",
+              "kind": "string",
+              "required": true
+            },
+            {
+              "name": "previousMethod",
+              "kind": "string",
+              "required": true
+            }
+          ],
+          "requiredCondition": "PREVIOUS_METHOD_MISMATCH 时，crossMethodReference 为 required 且必须整体存在（previous/delta/changePct/nonComparable=true/currentMethod/previousMethod）；nonComparable 必须严格等于 true；三项数值须成组出现并满足内部算术关系；不得写入正常 turnoverPrevious/Delta/ChangePct。"
         }
       ],
       "displayRules": [
         "必须渲染四个格子：当日合计(turnoverToday)、前一交易日(turnoverPrevious)、增减金额(turnoverDelta)+变化幅度(turnoverChangePct)、量能定性(volumeState：EXPANSION→放量/CONTRACTION→缩量/FLAT→平量)。",
-        "comparisonStatus=PREVIOUS_METHOD_MISMATCH 时，跨口径参考值必须用独立字段(带 nonComparable=true)展示，页面显著标注『跨口径参考（非同一口径，不可与正常环比比较）』，不得写入正常 turnoverPrevious/Delta/ChangePct。",
+        "comparisonStatus=PREVIOUS_METHOD_MISMATCH 时，必须渲染结构化块 crossMethodReference{previous,delta,changePct,nonComparable=true,currentMethod,previousMethod}，显著标注『跨口径参考（非同一口径，不可与正常环比比较）』，不得写入正常 turnoverPrevious/Delta/ChangePct；crossMethodReference 缺失即 FAIL。",
         "单位统一为 亿元。"
       ],
-      "notes": "comparisonStatus 状态机：COMPARABLE=method==previousMethod 且 turnoverPrevious>0、delta/pct 有限且满足算术恒等；PREVIOUS_UNAVAILABLE=previousMethod 为 null 且三个环比字段全为 null、volumeState=UNKNOWN；PREVIOUS_METHOD_MISMATCH=previousMethod 非 null 且 !=method，环比字段为 null、volumeState=UNKNOWN，允许存在 crossMethodReferencePrevious/Delta/ChangePct 且带 nonComparable=true。禁止按具体日期特判；通用方法边界处理。Legacy 参考日 07-17 仅限 method=LEGACY_UNKNOWN 时，turnoverToday/Previous/Delta/ChangePct/volumeState 由 referenceAssertions 精确断言（26549.58/24035.65/+2513.93/+10.46/EXPANSION），不再允许『字段缺失即 PASS』。"
+      "notes": "comparisonStatus 状态机：COMPARABLE=method==previousMethod 且 turnoverPrevious>0、delta/pct 有限且满足算术恒等；PREVIOUS_UNAVAILABLE=previousMethod 为 null 且三个环比字段全为 null、volumeState=UNKNOWN；PREVIOUS_METHOD_MISMATCH=previousMethod 非 null 且 !=method，此时必须携带结构化块 crossMethodReference{previous,delta,changePct,nonComparable=true,currentMethod,previousMethod}，nonComparable 必须严格等于 true，三项数值成组出现并满足内部算术关系，禁止写入正常 turnoverPrevious/Delta/ChangePct。禁止按具体日期特判；通用方法边界处理。Legacy 参考日 07-17 仅限 method=LEGACY_UNKNOWN 时，turnoverToday/Previous/Delta/ChangePct/volumeState 由 referenceAssertions 精确断言（26549.58/24035.65/+2513.93/+10.46/EXPANSION），不再允许『字段缺失即 PASS』。"
     },
     "sentiment": {
       "displayLabel": "3-市场情绪指标",
@@ -536,7 +576,7 @@
     "northbound": {
       "displayLabel": "6-北向资金数据",
       "ruleId": "northbound_V2",
-      "ruleVersion": 1,
+      "ruleVersion": 2,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "一、北向资金整体流向（合计/沪股通/深股通净流入）",
@@ -566,6 +606,74 @@
             true,
             false
           ]
+        },
+        {
+          "name": "quarterlyHolding",
+          "kind": "object",
+          "required": false,
+          "subFields": [
+            {
+              "name": "status",
+              "kind": "enum",
+              "required": true,
+              "enumValues": [
+                "FINAL"
+              ]
+            },
+            {
+              "name": "asOf",
+              "kind": "dateString",
+              "required": true
+            },
+            {
+              "name": "publishedAt",
+              "kind": "dateString",
+              "required": true
+            },
+            {
+              "name": "items",
+              "kind": "array",
+              "required": true,
+              "minItems": 1,
+              "itemFields": [
+                {
+                  "name": "code",
+                  "kind": "string",
+                  "required": true
+                },
+                {
+                  "name": "hkexStockCode",
+                  "kind": "string",
+                  "required": true
+                },
+                {
+                  "name": "name",
+                  "kind": "string",
+                  "required": true
+                },
+                {
+                  "name": "shareholding",
+                  "kind": "finiteNonNegative",
+                  "required": true
+                },
+                {
+                  "name": "pctOfIssued",
+                  "kind": "nonNegativeInt",
+                  "required": true
+                },
+                {
+                  "name": "market",
+                  "kind": "enum",
+                  "required": true,
+                  "enumValues": [
+                    "沪股通",
+                    "深股通"
+                  ]
+                }
+              ]
+            }
+          ],
+          "requiredCondition": "mode=POST_20240819_OFFICIAL_REPLACEMENT 时，quarterlyHolding 为 required（dict 且 status=FINAL、items 非空且逐项 schema 合法）；asOf 与 publishedAt 均为 required dateString，缺任一即 FAIL，且必须满足 asOf<=tradeDate 且 publishedAt<=tradeDate（防 look-ahead，用 date/datetime 解析后比较，不用裸字符串）。"
         }
       ],
       "lists": {
@@ -592,15 +700,15 @@
       },
       "displayRules": [
         "Legacy 分支（POST_20240819_LEGACY_IMPORTED）：顶部必须显示『历史口径已变更』通知，说明北向字段来自原 Excel Legacy 导入、不作为官方连续序列；必须渲染合计/沪股通/深股通净流入(legacyImportedFields)及净买入/净卖出 TOP10。",
-        "Official 分支（POST_20240819_OFFICIAL_REPLACEMENT）：必须展示 quarterlyHolding（dict、status=FINAL、items 非空且逐项含 code/hkexStockCode/name/shareholding/pctOfIssued/market、asOf<=selectedDate、publishedAt<=selectedDate 防 look-ahead）；可选 dailyOfficialActivity 块，仅承载官方成交总额/笔数与十大活跃证券，不得推导净流入。",
+        "Official 分支（POST_20240819_OFFICIAL_REPLACEMENT）：必须展示 quarterlyHolding.field（dict、status=FINAL、items 非空且逐项含 code/hkexStockCode/name/shareholding/pctOfIssued/market）；asOf 与 publishedAt 为 required dateString，须存在且 asOf<=selectedDate、publishedAt<=selectedDate（防 look-ahead，缺任一即 FAIL）；可选 dailyOfficialActivity 块，仅承载官方成交总额/笔数与十大活跃证券，不得推导净流入。",
         "页面须显著注明『官方已停止日度净流入披露，以下为官方替代口径（point-in-time），不与 Legacy 净流入连续比较』。"
       ],
-      "notes": "mode 严格枚举：POST_20240819_LEGACY_IMPORTED（07-17 参考日使用）或 POST_20240819_OFFICIAL_REPLACEMENT。OFFICIAL_REPLACEMENT 分支：模块 status=FINAL、quarterlyHolding 为 dict 且 status=FINAL、items 非空且逐项 schema 合法、asOf<=selectedDate、publishedAt<=selectedDate（防 look-ahead）。可选 dailyOfficialActivity 块仅含官方成交总额/笔数与前十大成交活跃证券，不得推导净流入。Legacy 分支：legacyImportedFields.totalNetInflow/shanghaiNetInflow/shenzhenNetInflow 精确断言 -156.32/-68.54/-87.78。若未来采用非官方估算，只能放独立 estimated 分支，isOfficial=false、标明模型/误差/来源，不作为官方口径验收门禁的替代。"
+      "notes": "mode 严格枚举：POST_20240819_LEGACY_IMPORTED（07-17 参考日使用）或 POST_20240819_OFFICIAL_REPLACEMENT。OFFICIAL_REPLACEMENT 分支：模块 status=FINAL、quarterlyHolding 为 dict 且 status=FINAL、items 非空且逐项 schema 合法；asOf 与 publishedAt 均为 required（kind=dateString，用 date/datetime 解析后比较，不用裸字符串），二者必须存在且满足 asOf<=tradeDate 且 publishedAt<=tradeDate（防 look-ahead）；缺任一字段即 FAIL。可选 dailyOfficialActivity 块仅含官方成交总额/笔数与前十大成交活跃证券，不得推导净流入。Legacy 分支：legacyImportedFields.totalNetInflow/shanghaiNetInflow/shenzhenNetInflow 精确断言 -156.32/-68.54/-87.78。若未来采用非官方估算，只能放独立 estimated 分支，isOfficial=false、标明模型/误差/来源，不作为官方口径验收门禁的替代。"
     },
     "margin": {
       "displayLabel": "7-两融数据",
       "ruleId": "margin_V2",
-      "ruleVersion": 1,
+      "ruleVersion": 2,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "融资余额（亿元）",
@@ -625,22 +733,34 @@
         {
           "name": "financingBalance",
           "kind": "finiteNonNegative",
-          "required": true
+          "required": true,
+          "skipStates": [
+            "PENDING"
+          ]
         },
         {
           "name": "securitiesLendingBalance",
           "kind": "finiteNonNegative",
-          "required": true
+          "required": true,
+          "skipStates": [
+            "PENDING"
+          ]
         },
         {
           "name": "marginBalance",
           "kind": "finiteNonNegative",
-          "required": true
+          "required": true,
+          "skipStates": [
+            "PENDING"
+          ]
         },
         {
           "name": "marginBalanceChange",
           "kind": "finite",
-          "required": true
+          "required": true,
+          "skipStates": [
+            "PENDING"
+          ]
         }
       ],
       "displayRules": [
@@ -653,7 +773,7 @@
     "tracks": {
       "displayLabel": "8-主赛道每日监测表",
       "ruleId": "tracks_V2",
-      "ruleVersion": 1,
+      "ruleVersion": 2,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "监测日期",
@@ -682,12 +802,14 @@
         {
           "name": "effectiveFrom",
           "kind": "string",
-          "required": true
+          "required": true,
+          "coversTradeDate": true
         },
         {
           "name": "effectiveTo",
           "kind": "string",
-          "required": true
+          "required": true,
+          "coversTradeDate": true
         },
         {
           "name": "sourceSystem",
@@ -702,7 +824,8 @@
           {
             "name": "date",
             "kind": "string",
-            "required": true
+            "required": true,
+            "equalsTradeDate": true
           },
           {
             "name": "trackId",
@@ -773,21 +896,26 @@
           {
             "name": "redStockRatio",
             "kind": "percentString",
-            "required": true
+            "required": true,
+            "min": 0,
+            "max": 100,
+            "percentageNumeric": true
           },
           {
             "name": "coreCatalyst",
             "kind": "string",
             "required": true,
             "minChars": 2,
-            "cjkRequired": true
+            "cjkRequired": true,
+            "noPlaceholders": true
           },
           {
             "name": "earningsRealization",
             "kind": "string",
             "required": true,
             "minChars": 2,
-            "cjkRequired": true
+            "cjkRequired": true,
+            "noPlaceholders": true
           },
           {
             "name": "score",
@@ -819,12 +947,12 @@
         "sourceSystem=TONGDAXIN_LEGACY 时页脚展示『数据口径：通达信 Legacy（历史导入）』；主力净流入按正负红绿配色。",
         "score（综合达标率）按 0~100 百分比渲染；decision（最终判定）用 decisionText 归一化文案。"
       ],
-      "notes": "16 列硬目标不放松。items minItems=4。每列 typed 规则见 items.fields：turnoverRank finitePositive、mainNetInflow finite、continuousInflowDays nonNegativeInt、maAlignment 枚举[是,否]、rps60 0~100、excessReturn20d 枚举[是,否]、limitUpCount nonNegativeInt、ladderCompleteness 非空字符串（如『2连板』/『无连板』）、redStockRatio 形如『NN%』、coreCatalyst/earningsRealization 非空中文且不在 rejectedPlaceholders、score 0~100 finite、decision 非空枚举（核心防御主线/次主线/主跌浪/退潮主线/观察/达标/规避/数据不足）。模块级 configVersion/effectiveFrom/effectiveTo 必填，避免配置倒灌历史日期。综合达标率(score)与最终判定(decision)须可由输入指标+规则版本推导。历史行情可派生（近5日排名/均线/RPS/超额/红盘占比）、资金流时间序列（净流入/连续天数）、涨停池/成分（涨停数/梯队）、配置定性列（定位/催化/业绩，versioned config）、派生输出（score/decision），均须记录来源与窗口成熟条件，未成熟不得给完整 PASS。"
+      "notes": "16 列硬目标不放松。items minItems=4。每列 typed 规则见 items.fields：date==tradeDate（equalsTradeDate）；turnoverRank finitePositive、mainNetInflow finite、continuousInflowDays nonNegativeInt、maAlignment 枚举[是,否]、rps60 0~100、excessReturn20d 枚举[是,否]、limitUpCount nonNegativeInt、ladderCompleteness 非空字符串（如『2连板』/『无连板』）、redStockRatio 为百分比数值（min 0/max 100，按百分比数值解析）、coreCatalyst/earningsRealization 非空中文且 noPlaceholders=true（不在 rejectedPlaceholders）、score 0~100 finite、decision 非空枚举（核心防御主线/次主线/主跌浪/退潮主线/观察/达标/规避/数据不足）。模块级 configVersion/effectiveFrom/effectiveTo/sourceSystem 必填，effectiveFrom<=tradeDate<=effectiveTo（coversTradeDate），避免配置倒灌历史日期。score/decision 由 score_tracks（规则版本化重算器）按输入指标+规则版本重算一致，非 legacy 直接透传；对 legacy 来源同样需用规则版本重算校验一致性。历史行情可派生（近5日排名/均线/RPS/超额/红盘占比）、资金流时间序列（净流入/连续天数）、涨停池/成分（涨停数/梯队）、配置定性列（定位/催化/业绩，versioned config）、派生输出（score/decision），均须记录来源与窗口成熟条件，未成熟不得给完整 PASS。"
     },
     "summary": {
       "displayLabel": "9-综合总结",
       "ruleId": "summary_V2",
-      "ruleVersion": 1,
+      "ruleVersion": 2,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "一、指数与量能总结",
@@ -905,7 +1033,40 @@
         "margin/marketEnvironment/northbound 三个块仅在字段存在时渲染（v-if），标题分别为 两融/市场环境/北向资金。",
         "风险提示块使用黄色左边框样式突出，且必须包含『不构成投资建议』。"
       ],
-      "notes": "8 段 required（indexAndTurnover/sentiment/fundFlow/trackConclusion/marketEnvironment/northbound/margin/riskWarning），每段 string、minChars>=10、中文字符占比>=0.5、不含 rejectedPlaceholders；riskWarning 必须含『不构成投资建议』。依赖完整性：当依赖模块（如 tracks）为 FINAL 且 items 非空时，trackConclusion 必须提及赛道判定且与 items 数量/判定一致（结构化事实一致性由验收器对数字做抽查，文本仅做上述最小约束）。依赖模块非 FINAL/替代口径时，summary 必须显式包含『不可用/口径替代』说明，不得生成貌似完整的结论。"
+      "notes": "8 段 required（indexAndTurnover/sentiment/fundFlow/trackConclusion/marketEnvironment/northbound/margin/riskWarning），每段 string、minChars>=10、中文字符占比>=0.5、不含 rejectedPlaceholders；riskWarning 必须含『不构成投资建议』。summaryFacts 声明结构化事实锚点（见 summaryFacts 字段），验收器须将其与底层模块逐字段比对：marketEnvironment 锚 turnover（COMPARABLE 时禁用『暂无/无可比较/暂无可比较/不可比』等词，量能词按 volumeState 映射 EXPANSION→放量/CONTRACTION→缩量/FLAT→平量/UNKNOWN→量能不明）；trackConclusion 锚 tracks（FINAL 且 items 非空时 4 赛道名前缀全部提及且与数量/判定一致）；margin 段锚 margin（FINAL 反映余额与净变动方向，PENDING 显式『待次日回补』）；northbound 段锚 northbound（LEGACY 标注口径变更、OFFICIAL 体现 point-in-time）。依赖模块非 FINAL/替代口径时，summary 必须显式包含『不可用/口径替代』说明，不得生成貌似完整的结论。",
+      "summaryFacts": {
+        "marketEnvironment": {
+          "anchor": "turnover",
+          "comparisonStatusRule": {
+            "status": "COMPARABLE",
+            "forbiddenWords": [
+              "暂无",
+              "无可比较",
+              "暂无可比较",
+              "不可比",
+              "无上一交易日"
+            ],
+            "volumeWordMap": {
+              "EXPANSION": "放量",
+              "CONTRACTION": "缩量",
+              "FLAT": "平量",
+              "UNKNOWN": "量能不明"
+            }
+          }
+        },
+        "trackConclusion": {
+          "anchor": "tracks",
+          "rule": "当 tracks 为 FINAL 且 items 非空时，trackConclusion 必须覆盖全部 4 条赛道；4 个赛道名前缀（高股息/中特估、电力/火电/水电、医药生物/创新药/CRO、半导体/CPO/AI算力）全部须被提及，且与 items 数量/最终判定(decision)一致。"
+        },
+        "margin": {
+          "anchor": "margin",
+          "rule": "margin 段必须与 margin 模块结构化事实一致：当模块为 FINAL 时，需反映融资余额/融券余额/两融总余额/净变动符号方向；模块为 PENDING 时须显式包含『待次日回补/今日暂缺』且不得伪装成当日 FINAL 结论。"
+        },
+        "northbound": {
+          "anchor": "northbound",
+          "rule": "northbound 段必须与 northbound 模块一致：LEGACY 分支须体现净流入/净流出方向并标注口径已变更；OFFICIAL 分支须体现 point-in-time 口径且不得把官方日度净流入当作连续序列。"
+        }
+      }
     }
   },
   "referenceAssertions": {
@@ -1427,7 +1588,7 @@
           "红盘个股占比": "85%",
           "核心催化逻辑": "高股息防御属性、资金抱团避险",
           "业绩兑现情况": "业绩稳定、分红率高",
-          "综合达标率": 90.0,
+          "综合达标率": 90,
           "最终判定": "核心防御主线"
         },
         "电力_火电_水电": {
@@ -1445,7 +1606,7 @@
           "红盘个股占比": "90%",
           "核心催化逻辑": "夏季用电高峰、电改政策催化",
           "业绩兑现情况": "业绩确定性强、电价上浮",
-          "综合达标率": 80.0,
+          "综合达标率": 80,
           "最终判定": "次主线/轮动主线"
         },
         "医药生物_创新药_CRO": {
@@ -1463,7 +1624,7 @@
           "红盘个股占比": "5%",
           "核心催化逻辑": "无明显催化、业绩不及预期",
           "业绩兑现情况": "CXO海外订单不及预期",
-          "综合达标率": 10.0,
+          "综合达标率": 10,
           "最终判定": "一日游脉冲/回避"
         },
         "半导体_CPO_AI算力": {
@@ -1481,13 +1642,20 @@
           "红盘个股占比": "3%",
           "核心催化逻辑": "无明显催化、获利盘兑现",
           "业绩兑现情况": "业绩兑现不及预期、估值过高",
-          "综合达标率": 5.0,
+          "综合达标率": 5,
           "最终判定": "主跌浪/坚决回避"
         }
       },
       "summary": {
         "segmentCount": 8,
-        "riskWarningMustContain": "不构成投资建议"
+        "riskWarningMustContain": "不构成投资建议",
+        "marketEnvironmentMustNotContain": [
+          "暂无",
+          "不可比",
+          "无可比较"
+        ],
+        "marketEnvironmentMustContain": "放量",
+        "marketEnvironmentMustContainReason": "volumeState=EXPANSION（07-17 turnover 精确断言量能为 EXPANSION）"
       }
     }
   },
@@ -1498,7 +1666,8 @@
       "spec": {
         "rule": "dataDate<=tradeDate AND asOf<=tradeDate AND publishedAt<=tradeDate",
         "enforce": "所有模块"
-      }
+      },
+      "enforce": "递归检查：所有模块顶层 dataDate/asOf/publishedAt/latestPublishedReference.dataDate 及 nested 时序字段（如 tracks.items.date、northbound.quarterlyHolding.asOf/publishedAt）必须<=tradeDate；任一字段晚于 tradeDate 即 FAIL；缺失的不在比较范围内则按该字段结构 required 规则处理。"
     },
     {
       "id": "INV-UNIT-亿元",
@@ -1511,7 +1680,8 @@
           "northbound",
           "margin"
         ]
-      }
+      },
+      "enforce": "turnover/fundFlow/northbound/margin 金额字段必须有 unit=亿元 或等价亿元数值域声明；unit 缺失即 FAIL（不得仅当 unit 存在且错误时才失败）。"
     },
     {
       "id": "INV-LIST-SORT-SIGN",
@@ -1522,7 +1692,8 @@
         "bottomDirection": "asc",
         "inflowSign": "positive",
         "outflowSign": "negative"
-      }
+      },
+      "enforce": "对每个声明的榜单 lists/items 校验：uniqueBy 字段互不重复、Top 降序/Bottom 升序、符号约束（fundFlow 流入>0/流出<0、northbound netBuy>0/netSell<0）；排序/符号/唯一性任一违反即 FAIL。"
     },
     {
       "id": "INV-MARGIN-IDENTITY",
@@ -1532,7 +1703,8 @@
         "tolerance": 0.05,
         "changeIdentity": "marginBalanceChange == today.marginBalance - prev.marginBalance",
         "changeTolerance": 0.01
-      }
+      },
+      "enforce": "marginBalance==financingBalance+securitiesLendingBalance（容差0.05）且 marginBalanceChange==当日 marginBalance-前一日 FINAL marginBalance（容差0.01）；任一恒等不成立即 FAIL；前一交易日缺失时不得记 note 放行，须按 PENDING 规则判定。"
     },
     {
       "id": "INV-TURNOVER-IDENTITY",
@@ -1542,7 +1714,8 @@
         "tolerance": 0.01,
         "pctIdentity": "turnoverChangePct == delta/previous*100",
         "pctTolerance": 0.01
-      }
+      },
+      "enforce": "comparisonStatus=COMPARABLE 时 turnoverDelta==turnoverToday-turnoverPrevious（容差0.01）且 turnoverChangePct==delta/previous*100（容差0.01）；不满足即 FAIL。"
     },
     {
       "id": "INV-SENTIMENT-WIDTH",
@@ -1554,7 +1727,8 @@
           "fallCount",
           "flatCount"
         ]
-      }
+      },
+      "enforce": "riseCount+fallCount+flatCount>=4000 且三类皆为有限数值；不满足（含任一缺失/非有限）即 FAIL。"
     },
     {
       "id": "INV-ENUM-SOURCE-METHOD",
@@ -1569,8 +1743,76 @@
           "maAlignment",
           "excessReturn20d",
           "decision"
-        ]
-      }
+        ],
+        "allowedEnums": {
+          "turnover": {
+            "method": [
+              "LEGACY_UNKNOWN"
+            ],
+            "comparisonStatus": [
+              "COMPARABLE",
+              "PREVIOUS_UNAVAILABLE",
+              "PREVIOUS_METHOD_MISMATCH"
+            ],
+            "volumeState": [
+              "EXPANSION",
+              "CONTRACTION",
+              "FLAT",
+              "UNKNOWN"
+            ]
+          },
+          "marketIndex": {
+            "source": [
+              "TONGDAXIN_LEGACY",
+              "SINA",
+              "EASTMONEY"
+            ]
+          },
+          "sectorPerformance": {
+            "method": [
+              "TONGDAXIN_LEGACY",
+              "EASTMONEY"
+            ]
+          },
+          "fundFlow": {
+            "method": [
+              "TONGDAXIN_LEGACY",
+              "EASTMONEY"
+            ]
+          },
+          "northbound": {
+            "mode": [
+              "POST_20240819_LEGACY_IMPORTED",
+              "POST_20240819_OFFICIAL_REPLACEMENT"
+            ]
+          },
+          "tracks": {
+            "sourceSystem": [
+              "TONGDAXIN_LEGACY",
+              "SELF"
+            ],
+            "maAlignment": [
+              "是",
+              "否"
+            ],
+            "excessReturn20d": [
+              "是",
+              "否"
+            ],
+            "decision": [
+              "核心防御主线",
+              "次主线",
+              "主跌浪",
+              "退潮主线",
+              "观察",
+              "达标",
+              "规避",
+              "数据不足"
+            ]
+          }
+        }
+      },
+      "enforce": "各模块 source/method/mode/comparisonStatus/volumeState/maAlignment/excessReturn20d/decision/ladderCompleteness 必须命中标准枚举清单（见 spec.allowedEnums）；任一不合法即 FAIL。"
     },
     {
       "id": "INV-REF-EXACT",
@@ -1578,7 +1820,8 @@
       "spec": {
         "date": "2026-07-17",
         "mode": "exact-value match"
-      }
+      },
+      "enforce": "参考日 2026-07-17 各模块 referenceAssertions 逐项精确匹配（fail-on-missing，缺 actual 即 FAIL，禁止 continue 跳过）；declaredAssertions 必须==consumedAssertions，未消费 assertion 直接 FAIL/exit。"
     },
     {
       "id": "INV-NORTHBOUND-PIT",
@@ -1586,7 +1829,8 @@
       "spec": {
         "field": "quarterlyHolding",
         "rule": "asOf<=selectedDate AND publishedAt<=selectedDate"
-      }
+      },
+      "enforce": "mode=OFFICIAL_REPLACEMENT 时 quarterlyHolding.asOf 与 publishedAt 必须存在（required dateString）且 asOf<=selectedDate 且 publishedAt<=selectedDate；字段缺失或晚于 selectedDate 均返回失败，不得只拦未来值。"
     }
   ],
   "reportProvenance": {
@@ -1611,6 +1855,7 @@
     "null",
     "（无）",
     "None",
-    "无数据"
+    "无数据",
+    "未知"
   ]
 }
