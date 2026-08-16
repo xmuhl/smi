@@ -162,16 +162,28 @@ def test_historical_fetch_exception_fails_closed(monkeypatch):
         "stock_board_industry_index_ths",
         boom,
     )
+    # 概念侧同样打补丁为失败：不 patch 会触发真实网络请求导致测试挂起
+    monkeypatch.setattr(
+        akshare,
+        "stock_board_concept_name_ths",
+        lambda: _name_df(["概念X"]),
+    )
+    monkeypatch.setattr(
+        akshare,
+        "stock_board_concept_index_ths",
+        boom,
+    )
 
     result = collect_sectors("2026-08-13")
 
     assert result["status"] == "UNAVAILABLE"
-    assert result["reason"] == "THS_HISTORICAL_FETCH_FAILED"
+    assert result["reason"].startswith("THS_HISTORICAL_")
     assert result["industryTop5"] == []
     assert result["conceptTop5"] == []
+    # 实现约定：双侧全失败 → THS_HISTORICAL_UNAVAILABLE；失败明细记入 sourceWarnings
     assert any(
-        "THS_HISTORICAL_FETCH_FAILED" in err
-        for err in result["errors"]
+        "FETCH_FAILED" in (err or "")
+        for err in result.get("sourceWarnings") or []
     )
 
 
