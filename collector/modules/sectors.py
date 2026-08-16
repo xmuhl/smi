@@ -266,6 +266,10 @@ THS_HISTORICAL_METHOD = "THS_HISTORICAL_INDEX"
 # 指数回看窗口（日历日）：需覆盖 D-1 前日，40 天对跨假期已足够
 _THS_HISTORY_WINDOW_DAYS = 40
 
+# 逐板块历史拉取的受控并发度：6 线程为保守值，防触发 THS 限流；
+# 串行 465 请求/天实测 20+ 分钟，受控并发显著缩短回补耗时。
+_THS_HIST_CONCURRENCY = 6
+
 
 def _board_close_change_pct(
     index_df,
@@ -331,6 +335,81 @@ def _board_close_change_pct(
     return round((close_d / prev_close - 1) * 100, 2)
 
 
+def _fetch_th_boards_concurrent(
+    *,
+    board_type: str,
+    names: list[str],
+    start_date: str,
+    end_date: str,
+    trade_date: str,
+) -> tuple[dict[str, dict[str, Any]], list[str], int]:
+    """受控并发拉取全部板块历史指数并计算 D 日涨跌幅。
+
+    用 ThreadPoolExecutor 以 _THS_HIST_CONCURRENCY=6 并发调度，替代逐板块
+    串行请求，显著缩短回补耗时（串行 465 请求/天实测 20+ 分钟）。6 线程为
+    保守值防限流。板块名清单已在调用方串行取得（1 次请求），此处仅并发拉
+    取各家历史序列。
+
+    - akshare 线程安全未知 → 每个工作函数内独立 import akshare，不共享状态；
+    - 线程内仍 try/except fail-closed：单个板块拉取失败/无有效 D 数据计入
+      skipped，不中断整侧；
+    - warnings/skipped 由线程返回 (name, outcome) 元组，主线程串行汇总，
+      避免列表并发写竞态；
+    - 结果收集顺序不依赖提交/完成顺序：主线程按 name 重建 dict，排序在
+      top5/bottom5 阶段统一进行。
+
+    返回 (entry_by_name, warnings, skipped)。
+    """
+
+    def _fetch_one(name: str) -> tuple[str, tuple[str, Any]]:
+        # 独立 import akshare：并发安全保守，且沿用现有函数内 import 风格。
+        import akshare as ak
+
+        fn = (
+            ak.stock_board_industry_index_ths
+            if board_type == "industry"
+            else ak.stock_board_concept_index_ths
+        )
+        try:
+            index_df = fn(
+                symbol=name,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return (name, ("FETCH_FAILED", type(exc).__name__))
+        return (name, ("OK", index_df))
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    entry_by_name: dict[str, dict[str, Any]] = {}
+    warnings: list[str] = []
+    skipped = 0
+
+    with ThreadPoolExecutor(max_workers=_THS_HIST_CONCURRENCY) as executor:
+        for name, (status, payload) in executor.map(_fetch_one, names):
+            if status == "FETCH_FAILED":
+                skipped += 1
+                warnings.append(
+                    f"{board_type}:{name}:FETCH_FAILED:{payload}"
+                )
+                continue
+
+            pct = _board_close_change_pct(payload, trade_date)
+
+            if pct is None:
+                skipped += 1
+                continue
+
+            entry_by_name[name] = {
+                "name": name,
+                "code": "",
+                "changePct": pct,
+            }
+
+    return entry_by_name, warnings, skipped
+
+
 def _ths_historical_board_rank(
     board_type: str,
     trade_date: str,
@@ -353,10 +432,8 @@ def _ths_historical_board_rank(
 
     if board_type == "industry":
         name_df = ak.stock_board_industry_name_ths()
-        index_fn = ak.stock_board_industry_index_ths
     elif board_type == "concept":
         name_df = ak.stock_board_concept_name_ths()
-        index_fn = ak.stock_board_concept_index_ths
     else:
         raise ValueError(f"unknown historical board type: {board_type}")
 
@@ -372,37 +449,15 @@ def _ths_historical_board_rank(
 
     names = [str(value) for value in name_df["name"]]
 
-    entries: list[dict[str, Any]] = []
-    warnings: list[str] = []
-    skipped = 0
+    entry_by_name, warnings, skipped = _fetch_th_boards_concurrent(
+        board_type=board_type,
+        names=names,
+        start_date=start_date,
+        end_date=end_date,
+        trade_date=trade_date,
+    )
 
-    for name in names:
-        try:
-            index_df = index_fn(
-                symbol=name,
-                start_date=start_date,
-                end_date=end_date,
-            )
-        except Exception as exc:  # noqa: BLE001
-            skipped += 1
-            warnings.append(
-                f"{board_type}:{name}:FETCH_FAILED:{type(exc).__name__}"
-            )
-            continue
-
-        pct = _board_close_change_pct(index_df, trade_date)
-
-        if pct is None:
-            skipped += 1
-            continue
-
-        entries.append(
-            {
-                "name": name,
-                "code": "",
-                "changePct": pct,
-            }
-        )
+    entries = list(entry_by_name.values())
 
     if not entries:
         return {
