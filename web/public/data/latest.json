@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-14",
   "generatedAt": "2026-08-14T18:04:47+08:00",
-  "updatedAt": "2026-08-16T00:35:11+08:00",
-  "revision": 7,
+  "updatedAt": "2026-08-16T18:27:36.882519+08:00",
+  "revision": 8,
   "overallStatus": "PARTIAL_PENDING",
   "generationReason": "D0_REFERENCE_BACKFILL",
   "market": "CN_A",
@@ -642,7 +642,7 @@
     "northbound": {
       "status": "FINAL",
       "dataDate": "2026-08-14",
-      "mode": "POST_20240819_QUARTERLY_ONLY",
+      "mode": "POST_20240819_OFFICIAL_REPLACEMENT",
       "source": [
         "HKEX"
       ],
@@ -668,7 +668,7 @@
       "quarterlyHolding": {
         "status": "FINAL",
         "asOf": "2026-06-30",
-        "publishedAt": null,
+        "publishedAt": "2026-07-07",
         "items": [
           {
             "code": "688001",
@@ -35136,7 +35136,8 @@
           }
         ]
       },
-      "errors": []
+      "errors": [],
+      "sourceSystem": "HKEX"
     },
     "margin": {
       "status": "PENDING",
@@ -35290,7 +35291,7 @@
       "fundFlow": "行业主力净流入居前：通信设备、小金属、通信服务；行业主力净流出居前：电力、证券、化学制药。",
       "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-08-13）总余额 26673.45 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。",
-      "marketEnvironment": "沪深两市成交额 21422.77 亿元，较前一交易日 -16.11%，缩量。",
+      "marketEnvironment": "沪深两市成交额 21422.77 亿元，较前一交易日（25538.2 亿元）减少 4115.43 亿元（-16.11%），缩量。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",
       "riskWarning": "待披露：margin。 当前不可用：tracks。 本数据仅供市场信息参考，不构成投资建议。"
     }
