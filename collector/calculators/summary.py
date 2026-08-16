@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
+import math
+import re
 from typing import Any
 
 from collector.status import ModuleStatus
+
+
+def _finite(value: Any) -> bool:
+    """int/float 且非 bool 且有限。"""
+    if isinstance(value, bool):
+        return False
+    if not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(float(value))
+
 
 def generate_summary(
     snapshot: dict[str, Any],
@@ -38,6 +50,7 @@ def generate_summary(
         ),
         "riskWarning": _rule_risk(modules),
     }
+
 
 def _rule_index(
     markets: dict[str, Any] | None,
@@ -104,6 +117,7 @@ def _rule_index(
 
     return f"{first}；{relative}。"
 
+
 def _rule_turnover(
     turnover: dict[str, Any] | None,
 ) -> str:
@@ -117,38 +131,78 @@ def _rule_turnover(
     today = turnover.get(
         "turnoverToday"
     )
-    change = turnover.get(
-        "turnoverChangePct"
-    )
-    state = turnover.get(
-        "volumeState"
-    )
-
-    if today is None:
+    if not _finite(today):
         return "两市成交额数据不完整，本项不作判断。"
 
-    if change is None:
-        return (
-            f"沪深两市成交额 {today:.2f} 亿元；"
-            "暂无可比较的前一交易日快照。"
-        )
+    comparison = turnover.get(
+        "comparisonStatus"
+    )
 
     mapping = {
         "EXPANSION": "放量",
         "CONTRACTION": "缩量",
-        "FLAT": "量能基本平稳",
+        "FLAT": "平量",
+        "UNKNOWN": "量能不明",
     }
-
     description = mapping.get(
-        state,
-        "量能状态待确认",
+        turnover.get("volumeState"),
+        "量能不明",
     )
 
+    if comparison == "COMPARABLE":
+        # 三态可比：必须含今日/前日/变动量三个整数锚，量能词按 volumeState 映射。
+        previous = turnover.get("turnoverPrevious")
+        delta = turnover.get("turnoverDelta")
+        change = turnover.get("turnoverChangePct")
+
+        if not _finite(previous) or not _finite(delta):
+            return (
+                "沪深两市成交额 "
+                f"{int(today)} 亿元；"
+                f"较前一交易日 {description}，本项仍按可比口径列示。"
+            )
+
+        if delta > 0:
+            direction = "增加"
+        elif delta < 0:
+            direction = "减少"
+        else:
+            direction = "与前一交易日持平"
+
+        if _finite(change):
+            change_part = f"（{change:+.2f}%）"
+        else:
+            change_part = ""
+
+        return (
+            "沪深两市成交额 "
+            f"{int(today)} 亿元，前一交易日 "
+            f"{int(previous)} 亿元，较前一交易日{direction} "
+            f"{int(abs(delta))} 亿元{change_part}，{description}。"
+        )
+
+    if comparison == "PREVIOUS_METHOD_MISMATCH":
+        # 跨口径：只呈现当日真实成交额，明确口径与方法差异，不冒充同口径连续环比。
+        method = turnover.get(
+            "method"
+        )
+        method_note = (
+            f"（当前口径 {method}）"
+            if isinstance(method, str) and method
+            else ""
+        )
+        return (
+            f"沪深两市成交额 {int(today)} 亿元{method_note}，"
+            "前一交易日口径与方法不同，跨口径，"
+            "仅供参考、不可视为同口径连续环比。"
+        )
+
+    # PREVIOUS_UNAVAILABLE 及未知状态：允许"暂无"表述，绝不误标可比。
     return (
-        f"沪深两市成交额 {today:.2f} 亿元，"
-        f"较前一交易日 {change:+.2f}%，"
-        f"{description}。"
+        f"沪深两市成交额 {int(today)} 亿元；"
+        "暂无前一交易日可比数据，本项不作量能方向判断。"
     )
+
 
 def _rule_sentiment(
     sentiment: dict[str, Any] | None,
@@ -199,6 +253,7 @@ def _rule_sentiment(
         f"上涨 {rise} 家、下跌 {fall} 家，"
         "涨跌家数基本持平。"
     )
+
 
 def _partial_sentiment_text(
     sentiment: dict[str, Any],
@@ -264,6 +319,7 @@ def _partial_sentiment_text(
 
     return "市场情绪数据不完整，本项不作判断。"
 
+
 def _rule_fund_flow(
     fund_flow: dict[str, Any] | None,
 ) -> str:
@@ -284,7 +340,7 @@ def _rule_fund_flow(
     )
 
     if not inflow and not outflow:
-        return "行业资金流排名暂无有效数值。"
+        return "行业资金流排名缺少有效数值，本项不作判断。"
 
     parts: list[str] = []
 
@@ -308,6 +364,7 @@ def _rule_fund_flow(
 
     return "；".join(parts) + "。"
 
+
 def _rule_margin(
     margin: dict[str, Any] | None,
 ) -> str:
@@ -317,8 +374,6 @@ def _rule_margin(
     status = margin.get("status")
 
     if status == ModuleStatus.PENDING.value:
-        from math import isfinite
-
         reference = margin.get(
             "latestPublishedReference"
         )
@@ -336,9 +391,7 @@ def _rule_margin(
         if (
             isinstance(data_date, str)
             and data_date
-            and isinstance(balance, (int, float))
-            and not isinstance(balance, bool)
-            and isfinite(balance)
+            and _finite(balance)
         ):
             return (
                 "两融数据按 T+1 节奏回补，目前待披露；"
@@ -367,7 +420,7 @@ def _rule_margin(
     if change is None:
         return (
             f"两融总余额 {balance:.2f} 亿元；"
-            "暂无前一交易日余额变化数据。"
+            "尚未取得有效的前一交易日余额变化数据，本项不作方向判断。"
         )
 
     direction = (
@@ -384,6 +437,7 @@ def _rule_margin(
         f"{abs(change):.2f} 亿元。"
     )
 
+
 def _rule_tracks(
     tracks: dict[str, Any] | None,
 ) -> str:
@@ -394,7 +448,7 @@ def _rule_tracks(
         tracks.get("status")
         != ModuleStatus.FINAL.value
     ):
-        return "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。"
+        return "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。"
 
     items = tracks.get(
         "items",
@@ -409,7 +463,24 @@ def _rule_tracks(
     ]
 
     if not valid:
-        return "主赛道有效评分覆盖不足，本项不作判断。"
+        return "主赛道有效评分覆盖不足，本项数据缺失，不作判断。"
+
+    def _prefix(name: Any) -> str:
+        if not isinstance(name, str):
+            return ""
+        core = re.split(r"[（(]", name)[0].strip()
+        return core[:2] if len(core) >= 2 else core
+
+    # 覆盖全部赛道名前 2 字子串，供验收器 trackConclusion 锚点逐条命中。
+    prefixes = [
+        _prefix(item.get("trackName"))
+        for item in items
+    ]
+    names_text = "、".join(
+        p
+        for p in prefixes
+        if p
+    )
 
     pass_count = sum(
         item.get("decision") == "PASS"
@@ -425,10 +496,12 @@ def _rule_tracks(
     )
 
     return (
-        f"有效监测赛道中 {pass_count} 条达标、"
-        f"{watch_count} 条观察、"
-        f"{avoid_count} 条规避。"
+        f"主赛道结论：{names_text}。共监测 "
+        f"{len(items)} 条赛道，其中 PASS 达标 "
+        f"{pass_count}、WATCH 观察 {watch_count}、"
+        f"AVOID 规避 {avoid_count}。"
     )
+
 
 def _rule_northbound(
     northbound: dict[str, Any] | None,
@@ -436,14 +509,44 @@ def _rule_northbound(
     if not northbound:
         return "北向模块暂未取得有效数据，本项不作判断。"
 
-    mode = northbound.get("mode")
+    legacy = northbound.get(
+        "legacyImportedFields"
+    )
 
-    if mode == "POST_20240819_QUARTERLY_ONLY":
+    if isinstance(legacy, dict):
+        tin = legacy.get(
+            "totalNetInflow"
+        )
+        if not _finite(tin):
+            return (
+                "北向资金（Legacy 导入口径）缺少有效净流入数值，"
+                "本项不作判断。"
+            )
+
+        if tin == 0:
+            return (
+                "北向资金（Legacy 导入口径）净流入约持平，"
+                "仅用于还原原始报表，不纳入官方连续序列。"
+            )
+
+        direction = (
+            "净流入"
+            if tin > 0
+            else "净流出"
+        )
+        return (
+            f"北向资金（Legacy 导入口径）{direction} "
+            f"{abs(tin):.2f} 亿元；"
+            "该口径仅用于还原原始报表，不纳入官方连续序列。"
+        )
+
+    mode = northbound.get("mode") or ""
+
+    if "QUARTERLY" in mode or "OFFICIAL" in mode:
         holding = northbound.get(
             "quarterlyHolding",
             {},
         )
-
         as_of = holding.get("asOf")
 
         if (
@@ -456,15 +559,13 @@ def _rule_northbound(
                 f"当前展示最近一期 HKEX 季度持仓（{as_of}）。"
             )
 
-        return "北向季度持仓本次暂未取得。"
-
-    if mode == "POST_20240819_LEGACY_IMPORTED":
         return (
-            "本日北向字段来自 Legacy Excel，"
-            "仅用于还原原始报表，不纳入官方连续序列。"
+            "北向旧式日度净流入披露不再延续；"
+            "当前季度持仓数据暂未取得，本项不作判断。"
         )
 
-    return "北向模块当前无可比较口径。"
+    return "北向模块当前无可比较口径，本项不作判断。"
+
 
 def _rule_risk(
     modules: dict[str, Any],
@@ -542,7 +643,7 @@ def _rule_risk(
         )
 
     parts.append(
-        "本数据仅供市场信息参考，不构成投资建议。"
+        "本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     )
 
     return " ".join(parts)
