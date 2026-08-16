@@ -172,6 +172,7 @@ export interface MarginModule extends ModuleBase {
 }
 
 export interface TrackItem {
+  date: string;
   trackId: string;
   trackName: string;
   positioning: string;
