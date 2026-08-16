@@ -1,0 +1,298 @@
+{
+  "version": 1,
+  "referenceDate": "2026-07-17",
+  "referenceXlsx": "A股收盘全景_20260717.xlsx",
+  "referenceSnapshot": "web/public/data/daily/2026/2026-07-17.json",
+  "modules": {
+    "marketIndex": {
+      "displayLabel": "1-宽基指数收盘数据",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "指数名称",
+        "收盘点位",
+        "当日涨跌幅"
+      ],
+      "snapshotFields": [
+        "items",
+        "dataDate",
+        "source",
+        "status"
+      ],
+      "itemFields": [
+        "code",
+        "name",
+        "close",
+        "changePct"
+      ],
+      "minItems": 6,
+      "panel": "MarketIndexPanel.vue",
+      "notes": "快照 items 每项含 code/name/close/previousClose/changePct/source，必检字段为 code/name/close/changePct。最小 6 项（上证000001/深证399001/创业板399006/科创50 000688/沪深300 000300/北证50 899050，代码以快照为准）；范本 07-17 快照实际有 8 项，另含国证1000(399311)/国证2000(399303) 与 xlsx 中的科创综合扩大项。previousClose 均为 null（Legacy 导入）。"
+    },
+    "turnover": {
+      "displayLabel": "2-两市成交量",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "当日两市合计成交额",
+        "前一交易日成交额",
+        "成交额增减金额",
+        "成交变化幅度",
+        "量能定性"
+      ],
+      "snapshotFields": [
+        "turnoverToday",
+        "turnoverPrevious",
+        "turnoverDelta",
+        "turnoverChangePct",
+        "volumeState"
+      ],
+      "itemFields": [],
+      "minItems": null,
+      "panel": "TurnoverPanel.vue",
+      "notes": "当日 FINAL 时 turnoverToday/turnoverDelta/turnoverChangePct 必须为有限数值；范本 07-17 为 TONGDAXIN_LEGACY 导入，previousMethod=LEGACY_UNKNOWN、volumeState=UNKNOWN、turnoverPrevious/turnoverDelta/turnoverChangePct 均为 null 且 comparisonStatus=PREVIOUS_UNAVAILABLE，此例外写在此处以供验收识别（非 Legacy 日期不得为 null）。unit=亿元。"
+    },
+    "sentiment": {
+      "displayLabel": "3-市场情绪指标",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "全市场上涨家数",
+        "全市场下跌家数",
+        "平盘家数",
+        "非ST涨停数量",
+        "ST涨停数量",
+        "非ST跌停数量",
+        "ST跌停数量",
+        "炸板数量",
+        "涨停封板率",
+        "市场最高连板高度"
+      ],
+      "snapshotFields": [
+        "riseCount",
+        "fallCount",
+        "flatCount",
+        "nonStLimitUpCount",
+        "stLimitUpCount",
+        "nonStLimitDownCount",
+        "stLimitDownCount",
+        "brokenLimitCount"
+      ],
+      "itemFields": [],
+      "minItems": null,
+      "panel": "SentimentPanel.vue",
+      "notes": "范本快照 stLimitUpCount 与 nonStLimitUpCount 均为 25、stLimitDownCount 与 nonStLimitDownCount 均为 180，这是 Legacy 导入的字段重复；以 xlsx 为准（非ST涨停25 / ST涨停10 / 非ST跌停180 / ST跌停32），验收时应识别并按 xlsx 校正，不得把重复当作口径。范本快照未展开封板率/最高连板高度，二者仅存在于 xlsx。"
+    },
+    "sectorPerformance": {
+      "displayLabel": "4-板块行情表现",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "一、通达信行业板块-涨幅前5/跌幅前5",
+        "二、通达信概念板块-涨幅前5/跌幅前5"
+      ],
+      "snapshotFields": [
+        "industryTop5",
+        "industryBottom5",
+        "conceptTop5",
+        "conceptBottom5"
+      ],
+      "itemFields": [
+        "name",
+        "changePct"
+      ],
+      "minItems": 5,
+      "panel": "SectorPanel.vue",
+      "notes": "行业/概念各保留涨幅前5与前5/跌幅后5（xlsx 为一页左右两栏），快照 industryTop5/industryBottom5/conceptTop5/conceptBottom5 每项含 name/changePct；每类至少 5 项。method=TONGDAXIN_LEGACY，页面底部展示‘数据口径：通达信 Legacy（历史导入）’。"
+    },
+    "fundFlow": {
+      "displayLabel": "5-主力资金流向",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "一、行业板块-主力净流入TOP10/净流出TOP10",
+        "二、概念板块-主力净流入TOP10/净流出TOP10",
+        "三、个股-主力净流入TOP10/净流出TOP10"
+      ],
+      "snapshotFields": [
+        "industryInflowTop10",
+        "industryOutflowTop10",
+        "conceptInflowTop10",
+        "conceptOutflowTop10",
+        "stockInflowTop10",
+        "stockOutflowTop10"
+      ],
+      "itemFields": [
+        "name",
+        "netInflowYi"
+      ],
+      "minItems": 10,
+      "panel": "FundFlowPanel.vue",
+      "notes": "主力口径为大单+特大单（通达信标准，单位亿元）；快照每项含 name/netInflowYi，净流出项 netInflowYi 为负值；industry/concept/stock 三类各流入 TOP10 与流出 TOP10，每类 at least 10 项。"
+    },
+    "northbound": {
+      "displayLabel": "6-北向资金数据",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "一、北向资金整体流向（合计/沪股通/深股通净流入）",
+        "二、北向净买入TOP10个股/净卖出TOP10个股",
+        "三、主力&北向资金重合个股（同步流入/同步流出）"
+      ],
+      "snapshotFields": [
+        "legacyNetFlow",
+        "legacyImportedFields",
+        "dailyTurnover",
+        "quarterlyHolding"
+      ],
+      "itemFields": [],
+      "minItems": null,
+      "panel": "NorthboundPanel.vue",
+      "notes": "官方日度披露自 2024-08-19 起停止；范本为 Legacy 导入（mode=POST_20240819_LEGACY_IMPORTED），dailyTurnover/quarterlyHolding/legacyNetFlow 均为 UNAVAILABLE，真实数值在 legacyImportedFields（totalNetInflow/shanghaiNetInflow/shenzhenNetInflow/netBuyTop10/netSellTop10/sameDirectionIn/sameDirectionOut）。非 Legacy 日期页面必须展示‘最近官方披露（季度持仓）+ 日度已停发’的诚实标注（POST_20240819_QUARTERLY_ONLY），不得伪造日度数字，且 legacy 字段 excludeFromOfficialTimeSeries/excludeFromTrackScoring 均为 true。"
+    },
+    "margin": {
+      "displayLabel": "7-两融数据",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "融资余额（亿元）",
+        "融券余额（亿元）",
+        "两融总余额（亿元）",
+        "较前一交易日余额变动（亿元）",
+        "融资净买入（亿元）",
+        "融券净卖出（亿元）"
+      ],
+      "snapshotFields": [
+        "financingBalance",
+        "securitiesLendingBalance",
+        "marginBalance",
+        "marginBalanceChange",
+        "financingNetBuyAmount",
+        "legacySecuritiesLendingNetSellAmount"
+      ],
+      "itemFields": [],
+      "minItems": null,
+      "panel": "MarginPanel.vue",
+      "notes": "交易所 T+1 披露：当日快照允许 status=PENDING 并带 latestPublishedReference（最近已披露参考值，可能为 T-1 或更早回退），次日 t1-reconcile 后必须 FINAL。范本为 FINAL（Legacy）：financingBalance=27927.01、securitiesLendingBalance=212.0、marginBalance=28139.01、marginBalanceChange=-442.55、financingNetBuyAmount.value=-450（LEGACY）、legacySecuritiesLendingNetSellAmount.value=7.45（LEGACY）、marginTradeAmount=3902.79、marginTradeSharePct=14.7。FINAL 时必检前三者为有限数值。"
+    },
+    "tracks": {
+      "displayLabel": "8-主赛道每日监测表",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "监测日期",
+        "板块名称",
+        "板块定位",
+        "近5日成交额排名",
+        "今日主力净流入(亿)",
+        "连续净流入天数",
+        "5/10/20日多头排列",
+        "60日RPS数值",
+        "近10日跑赢沪深300",
+        "板块涨停家数",
+        "连板梯队完整度",
+        "红盘个股占比",
+        "核心催化逻辑",
+        "业绩兑现情况",
+        "综合达标率",
+        "最终判定"
+      ],
+      "snapshotFields": [
+        "items",
+        "configVersion",
+        "sourceSystem",
+        "dataDate",
+        "status"
+      ],
+      "itemFields": [
+        "trackId",
+        "trackName",
+        "positioning",
+        "turnoverRank",
+        "mainNetInflow",
+        "continuousInflowDays",
+        "maAlignment",
+        "rps60",
+        "excessReturn20d",
+        "limitUpCount",
+        "ladderCompleteness",
+        "redStockRatio",
+        "coreCatalyst",
+        "earningsRealization",
+        "score",
+        "decision"
+      ],
+      "minItems": 4,
+      "panel": "TrackMonitorPanel.vue",
+      "notes": "需 4 条赛道：高股息_中特估 / 电力_火电_水电 / 医药生物_创新药_CRO / 半导体_CPO_AI算力。快照 items 每行含上述 16 字段（另含 date/coveragePct）；页面只渲染可展示列（赛道/定位/主力净流入/连流入/RPS60/涨停/综合分/判定）。xlsx 中‘综合达标率/最终判定’以百分比/判定文本形式，快照对应 score（综合分）与 decision。"
+    },
+    "summary": {
+      "displayLabel": "9-综合总结",
+      "requiredStatus": "FINAL",
+      "xlsxColumns": [
+        "一、指数与量能总结",
+        "二、市场情绪总结",
+        "三、资金流向总结",
+        "四、赛道监测结论",
+        "五、操作建议",
+        "风险提示"
+      ],
+      "snapshotFields": [
+        "indexAndTurnover",
+        "sentiment",
+        "fundFlow",
+        "trackConclusion",
+        "marketEnvironment",
+        "northbound",
+        "margin",
+        "riskWarning"
+      ],
+      "itemFields": [],
+      "minItems": null,
+      "panel": "SummaryPanel.vue",
+      "notes": "每段必须是非空中文文本；快照为 RULE_ENGINE_V1 生成，含 indexAndTurnover/sentiment/fundFlow/margin/trackConclusion/marketEnvironment/northbound/riskWarning。页面渲染块：指数与量能/市场情绪/资金流向/两融/赛道监测/北向资金/市场环境/风险提示；margin/marketEnvironment/northbound 仅在存在时显示（v-if）。"
+    }
+  },
+  "displayRules": {
+    "marketIndex": [
+      "必须渲染 items 列表，每条展示指数名称(name)、收盘点位(close，2 位小数)、当日涨跌幅(changePct，带 +/- 与红绿配色)；过滤 name 为 'nan' 或空值的项。",
+      "最小展示 6 个核心指数；范本日须能同时展示 8 项（含国证1000/国证2000）。",
+      "面板标题为‘宽基指数’，并显示模块状态徽章(StatusBadge)。"
+    ],
+    "turnover": [
+      "必须渲染四格：当日合计(turnoverToday)、前一交易日(turnoverPrevious)、增减金额(turnoverDelta)+变化幅度(turnoverChangePct)、量能定性(volumeState，放量/缩量/平量)。",
+      "量能定性按 volumeState 映射 EXPANSION/上调、CONTRACTION/下调、否则平量；不足时显示占位符。",
+      "单格单位显示为 亿元；前日/增减在 Legacy 范本中允许为‘—’（null）。"
+    ],
+    "sentiment": [
+      "必须渲染三格：上涨家数(riseCount)/下跌家数(fallCount)、非ST涨停(nonStLimitUpCount)/ST涨停(stLimitUpCount)、非ST跌停(nonStLimitDownCount)/ST跌停(stLimitDownCount)。",
+      "炸板数量(brokenLimitCount)与平盘家数(flatCount)以提示行渲染（若非空）。",
+      "数值缺失时显示‘—’占位。"
+    ],
+    "sectorPerformance": [
+      "必须提供行业/概念两个 Tab，默认行业；每个 Tab 渲染涨幅榜 TOP5(upList) 与跌幅榜 TOP5(downList) 双栏表格。",
+      "每行展示板块名称(name)与当日涨跌幅(changePct，带红绿配色)。",
+      "method=TONGDAXIN_LEGACY 时页脚展示‘数据口径：通达信 Legacy（历史导入）’。"
+    ],
+    "fundFlow": [
+      "必须提供行业/概念/个股三个 Tab，默认行业；每个 Tab 渲染净流入 TOP10(inList) 与净流出 TOP10(outList) 双栏表格。",
+      "每行展示名称(name)与净流入额(netInflowYi，单位亿元，带 +/- 与红绿配色)。",
+      "页脚展示单位‘亿元’与口径（通达信 Legacy / 东方财富）。"
+    ],
+    "northbound": [
+      "mode=POST_20240819_LEGACY_IMPORTED 时顶部必须显示‘历史口径已变更’通知，说明北向字段来自原 Excel Legacy 导入、不作为官方连续序列。",
+      "Legacy 分支必须渲染合计/沪股通/深股通净流入(legacyImportedFields.totalNetInflow/shanghaiNetInflow/shenzhenNetInflow)。",
+      "必须渲染净买入 TOP10 与净卖出 TOP10（legacyImportedFields.netBuyTop10/netSellTop10）。",
+      "存在 sameDirectionIn/sameDirectionOut 时渲染‘主力×北向同步流入/流出’提示；无 Legacy 时须渲染季度持仓(quarterlyHolding)或‘日度已停发’诚实标注。"
+    ],
+    "margin": [
+      "status=PENDING 时顶部显示‘两融数据 T+1 披露，今日暂缺，待次日回补’通知。",
+      "非 FINAL 且存在 latestPublishedReference 时渲染最近已披露参考（融资/融券/合计）。",
+      "必须渲染四格：融资余额(financingBalance)、融券余额(securitiesLendingBalance)、两融总余额(marginBalance)及变动(marginBalanceChange)、融资净买入(financingNetBuyAmount.value)。",
+      "页脚渲染两融成交额(marginTradeAmount.value)与占比(marginTradeSharePct.value)及质量标注（LEGACY/派生/估算）。"
+    ],
+    "tracks": [
+      "必须渲染赛道表格，列：赛道(trackName)/定位(positioning)/主力净流入(mainNetInflow)/连续流入天数(continuousInflowDays)/RPS60(rps60)/涨停数(limitUpCount)/综合分(score)/判定(decision)。",
+      "至少 4 条赛道；空列表时显示‘暂无赛道数据’。",
+      "sourceSystem=TONGDAXIN_LEGACY 时页脚展示‘数据口径：通达信 Legacy（历史导入）’。",
+      "主力净流入按正负红绿配色，判定列用 decisionText 归一化文案。"
+    ],
+    "summary": [
+      "必须渲染各总结块并带小标题：指数与量能(indexAndTurnover)、市场情绪(sentiment)、资金流向(fundFlow)、赛道监测(trackConclusion)、风险提示(riskWarning，含风险样式)。",
+      "margin/marketEnvironment/northbound 三个块仅在字段存在时渲染（v-if），标题分别为两融/市场环境/北向资金。",
+      "风险提示块使用黄色左边框样式突出。"
+    ]
+  }
+}

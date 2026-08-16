@@ -1,0 +1,4182 @@
+{
+  "generatedAt": "2026-08-16T14:45:13.145985+08:00",
+  "standard": "docs\\acceptance\\template-standard.json",
+  "dates": {
+    "2026-07-17": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "PASS",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "legacy=True 例外：仅要求 turnoverToday 有限"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=180.0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；四类榜单均 >=5 且 name/changePct 有效"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；六类榜单均 >=10 且 name/netInflowYi 有效"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": true,
+              "detail": "legacy 口径：三项净流入有限数值"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=4 条赛道；全部必备键存在，mainNetInflow/score/decision 有效"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-20": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": false,
+              "detail": "turnoverPrevious 非有限数值: None（非 legacy 必需）"
+            },
+            {
+              "passed": false,
+              "detail": "turnoverDelta 非有限数值: None（非 legacy 必需）"
+            },
+            {
+              "passed": false,
+              "detail": "turnoverChangePct 非有限数值: None（非 legacy 必需）"
+            },
+            {
+              "passed": false,
+              "detail": "volumeState='UNKNOWN' 不在 {EXPANSION,CONTRACTION,FLAT}"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "stLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitDownCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount 缺失（note，不算 fail）"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-21": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "stLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitDownCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount 缺失（note，不算 fail）"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-22": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "stLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitDownCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount 缺失（note，不算 fail）"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-23": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "stLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitDownCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount 缺失（note，不算 fail）"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-24": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "stLimitUpCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitDownCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount 缺失（note，不算 fail）"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-27": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-28": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-29": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-30": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-31": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitDownCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount 缺失（note，不算 fail）"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-03": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-04": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitDownCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount 缺失（note，不算 fail）"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-05": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-06": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-07": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-10": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-11": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-12": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "nonStLimitDownCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount 缺失（note，不算 fail）"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-13": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "riseCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "fallCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "flatCount 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "rise/fall/flat 不全为有限，无法校验总数"
+            },
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "industryBottom5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptTop5 长度 0 < 5"
+            },
+            {
+              "passed": false,
+              "detail": "conceptBottom5 长度 0 < 5"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 且非 legacy 口径；quarterlyHolding 为空或 mode='POST_20240819_QUARTERLY_ONLY' 不含 POST_20240819"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；三项余额均为有限数值"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-14": {
+      "schemaValid": true,
+      "schemaError": "",
+      "gap": null,
+      "overall": "FAIL",
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_MARKETINDEX",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；>=6 项；6 个核心指数 close/changePct 均有限"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_TURNOVER",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；turnoverToday 有限（legacy 口径）"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SENTIMENT",
+          "details": [
+            {
+              "passed": true,
+              "detail": "stLimitDownCount=0 存在"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SECTORS",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；四类榜单均 >=5 且 name/changePct 有效"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_FUNDFLOW",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；六类榜单均 >=10 且 name/netInflowYi 有效"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_NORTHBOUND",
+          "details": [
+            {
+              "passed": true,
+              "detail": "季度口径，日度停发，需页面诚实标注"
+            }
+          ]
+        },
+        "margin": {
+          "status": "PENDING",
+          "pass": true,
+          "rule": "RULE_MARGIN",
+          "details": [
+            {
+              "passed": true,
+              "detail": "D0 规则：PENDING 且 latestPublishedReference(dataDate=2026-08-13) == manifest.latestCapturedDate=2026-08-14"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "RULE_TRACKS",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] score 为 None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] mainNetInflow 非有限数值: None"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] score 为 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "RULE_SUMMARY",
+          "details": [
+            {
+              "passed": true,
+              "detail": "FINAL；8 个总结字段均非空 str 且 >=10 字符"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "summary": {
+    "passDates": [
+      "2026-07-17"
+    ],
+    "failDates": [
+      "2026-07-20",
+      "2026-07-21",
+      "2026-07-22",
+      "2026-07-23",
+      "2026-07-24",
+      "2026-07-27",
+      "2026-07-28",
+      "2026-07-29",
+      "2026-07-30",
+      "2026-07-31",
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07",
+      "2026-08-10",
+      "2026-08-11",
+      "2026-08-12",
+      "2026-08-13",
+      "2026-08-14"
+    ],
+    "moduleFailCounts": [
+      {
+        "module": "marketIndex",
+        "failDates": 0
+      },
+      {
+        "module": "turnover",
+        "failDates": 1
+      },
+      {
+        "module": "sentiment",
+        "failDates": 19
+      },
+      {
+        "module": "sectorPerformance",
+        "failDates": 19
+      },
+      {
+        "module": "fundFlow",
+        "failDates": 19
+      },
+      {
+        "module": "northbound",
+        "failDates": 19
+      },
+      {
+        "module": "margin",
+        "failDates": 0
+      },
+      {
+        "module": "tracks",
+        "failDates": 20
+      },
+      {
+        "module": "summary",
+        "failDates": 0
+      }
+    ]
+  }
+}
