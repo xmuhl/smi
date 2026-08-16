@@ -1,12 +1,15 @@
 {
+  "reportCommitSemantics": "two-commit：先提交输入树后运行验收，报告单独提交。evaluatedCommit=被验收输入树(HEAD)所在提交；dirty=true 表示未提交改动存在，输入树未完全固化。",
   "provenance": {
-    "repoCommit": "3306ba7fdd025627f92d945150d4f79f9c084621",
-    "standardSha256": "849a1357f6d9316d04211de2314f6314f5200b5b48a537f5c7892a06cb4b9f09",
-    "acceptorSha256": "c209d5313bc11844cb6e411817a6ce42575417fa161756bd3768a9b91247a6aa",
+    "repoCommit": "594512ad018d2490495552f6ad5aa3245f72d960",
+    "evaluatedCommit": "594512ad018d2490495552f6ad5aa3245f72d960",
+    "dirty": false,
+    "standardSha256": "12535c566d58b505f91d043e5b2c35dd398a5fa86f2836695be886d20b7df380",
+    "acceptorSha256": "49212b691b6cbd3c8bba04e124b22c3cc1c2717eb060fe86c5566cedccc7f6db",
     "manifestSha256": "aa2435400d20b84b2b4294d0809b0840bcce7ca6d6cdf1bec2a63c42d1877478",
     "schemaVersion": "1.2",
     "perDateSnapshotSha256": {
-      "2026-07-17": "e36fea255f233f68777a298792481084bd6d72ce371334d256368b9405bc49d2",
+      "2026-07-17": "029c2c44df4a07ff6d755fd50fb9878899d7a367dfea41e1f7fe8a3825350f9f",
       "2026-07-20": "a20c178c37273245b18d5c113c21326621b6268f7003e26bcdc7bb23748ff48a",
       "2026-07-21": "fc16db6025e863f2367d6e4386f486e39c99bbed498781956f06c3af44db20cf",
       "2026-07-22": "cec53a616c4f9a56ffec9cbef51e5dee07e78f60bd3142e9dda097247adb81e0",
@@ -29,7 +32,7 @@
       "2026-08-14": "66b70ab6f820557108f35b37cce7f2991da784daedd2f1d7feadcf532471cc34"
     },
     "pythonVersion": "3.13.5",
-    "generatedAt": "2026-08-16T15:27:19.257885+08:00"
+    "generatedAt": "2026-08-16T16:27:54.784633+08:00"
   },
   "standard": "docs\\acceptance\\template-standard.json",
   "dates": {
@@ -43,6 +46,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -158,6 +162,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -175,12 +180,12 @@
         },
         "turnover": {
           "status": "FINAL",
-          "pass": true,
+          "pass": false,
           "rule": "turnover_V2",
           "details": [
             {
-              "passed": true,
-              "detail": "turnover_V2: PREVIOUS_METHOD_MISMATCH 状态机通过"
+              "passed": false,
+              "detail": "PREVIOUS_METHOD_MISMATCH 需 crossMethodReference 对象（previous/delta/changePct/nonComparable/currentMethod/previousMethod）"
             }
           ]
         },
@@ -308,7 +313,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -329,11 +338,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -562,6 +583,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-20，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-20，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-20，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-20，实际 None"
             }
           ]
         },
@@ -570,6 +607,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.32 < 0.5"
+            },
             {
               "passed": false,
               "detail": "marketEnvironment 含占位词 '暂无'"
@@ -592,6 +633,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -742,7 +784,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -763,11 +809,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -996,6 +1054,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-21，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-21，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-21，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-21，实际 None"
             }
           ]
         },
@@ -1004,6 +1078,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.32 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -1022,6 +1100,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -1172,7 +1251,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -1193,11 +1276,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -1426,6 +1521,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-22，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-22，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-22，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-22，实际 None"
             }
           ]
         },
@@ -1434,6 +1545,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.32 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -1452,6 +1567,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -1602,7 +1718,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -1623,11 +1743,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -1856,6 +1988,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-23，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-23，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-23，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-23，实际 None"
             }
           ]
         },
@@ -1864,6 +2012,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.32 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -1882,6 +2034,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -2032,7 +2185,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -2053,11 +2210,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -2286,6 +2455,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-24，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-24，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-24，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-24，实际 None"
             }
           ]
         },
@@ -2294,6 +2479,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.32 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -2312,6 +2501,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -2442,7 +2632,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -2463,11 +2657,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -2696,6 +2902,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-27，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-27，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-27，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-27，实际 None"
             }
           ]
         },
@@ -2704,6 +2926,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -2722,6 +2948,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -2852,7 +3079,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -2873,11 +3104,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -3106,6 +3349,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-28，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-28，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-28，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-28，实际 None"
             }
           ]
         },
@@ -3116,7 +3375,15 @@
           "details": [
             {
               "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
+            {
+              "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
+            },
+            {
+              "passed": false,
+              "detail": "turnover volumeState=FLAT 但 marketEnvironment 未提及 '平量'"
             }
           ]
         }
@@ -3132,6 +3399,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -3262,7 +3530,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -3283,11 +3555,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -3516,6 +3800,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-29，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-29，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-29，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-29，实际 None"
             }
           ]
         },
@@ -3524,6 +3824,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -3542,6 +3846,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -3672,7 +3977,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -3693,11 +4002,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -3926,6 +4247,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-30，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-30，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-30，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-30，实际 None"
             }
           ]
         },
@@ -3936,7 +4273,15 @@
           "details": [
             {
               "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
+            {
+              "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
+            },
+            {
+              "passed": false,
+              "detail": "turnover volumeState=FLAT 但 marketEnvironment 未提及 '平量'"
             }
           ]
         }
@@ -3952,6 +4297,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -4090,7 +4436,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -4111,11 +4461,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -4344,6 +4706,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-07-31，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-07-31，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-07-31，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-07-31，实际 None"
             }
           ]
         },
@@ -4352,6 +4730,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -4370,6 +4752,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -4500,7 +4883,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -4521,11 +4908,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -4754,6 +5153,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-03，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-03，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-03，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-03，实际 None"
             }
           ]
         },
@@ -4762,6 +5177,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -4780,6 +5199,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -4918,7 +5338,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -4939,11 +5363,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -5172,6 +5608,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-04，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-04，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-04，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-04，实际 None"
             }
           ]
         },
@@ -5180,6 +5632,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -5198,6 +5654,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -5328,7 +5785,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -5349,11 +5810,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -5582,6 +6055,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-05，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-05，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-05，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-05，实际 None"
             }
           ]
         },
@@ -5590,6 +6079,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -5608,6 +6101,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -5738,7 +6232,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -5759,11 +6257,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -5992,6 +6502,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-06，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-06，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-06，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-06，实际 None"
             }
           ]
         },
@@ -6002,7 +6528,15 @@
           "details": [
             {
               "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
+            {
+              "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
+            },
+            {
+              "passed": false,
+              "detail": "turnover volumeState=FLAT 但 marketEnvironment 未提及 '平量'"
             }
           ]
         }
@@ -6018,6 +6552,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -6148,7 +6683,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -6169,11 +6708,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -6402,6 +6953,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-07，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-07，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-07，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-07，实际 None"
             }
           ]
         },
@@ -6410,6 +6977,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -6428,6 +6999,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -6558,7 +7130,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -6579,11 +7155,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -6812,6 +7400,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-10，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-10，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-10，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-10，实际 None"
             }
           ]
         },
@@ -6820,6 +7424,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -6838,6 +7446,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -6968,7 +7577,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -6989,11 +7602,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -7222,6 +7847,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-11，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-11，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-11，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-11，实际 None"
             }
           ]
         },
@@ -7230,6 +7871,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -7248,6 +7893,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -7386,7 +8032,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -7407,11 +8057,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -7640,6 +8302,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-12，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-12，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-12，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-12，实际 None"
             }
           ]
         },
@@ -7648,6 +8326,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -7666,6 +8348,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -7796,7 +8479,11 @@
             },
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -7817,11 +8504,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -8050,6 +8749,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-13，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-13，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-13，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-13，实际 None"
             }
           ]
         },
@@ -8058,6 +8773,10 @@
           "pass": false,
           "rule": "summary_V2",
           "details": [
+            {
+              "passed": false,
+              "detail": "riskWarning 中文字符占比 0.35 < 0.5"
+            },
             {
               "passed": false,
               "detail": "riskWarning 中文字符占比 <0.5"
@@ -8076,6 +8795,7 @@
         "INV-MARGIN-IDENTITY": true,
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
         "INV-REF-EXACT": true,
         "INV-NORTHBOUND-PIT": true
       },
@@ -8154,7 +8874,11 @@
           "details": [
             {
               "passed": false,
-              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在严格枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
             }
           ]
         },
@@ -8180,11 +8904,23 @@
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveFrom 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveFrom"
             },
             {
               "passed": false,
-              "detail": "模块级 effectiveTo 缺失（非 legacy 配置需显式版本区间）"
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
             },
             {
               "passed": false,
@@ -8413,6 +9149,22 @@
             {
               "passed": false,
               "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-14，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-14，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-14，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-14，实际 None"
             }
           ]
         },
@@ -8463,7 +9215,7 @@
       },
       {
         "module": "turnover",
-        "failDates": 0
+        "failDates": 1
       },
       {
         "module": "sentiment",
