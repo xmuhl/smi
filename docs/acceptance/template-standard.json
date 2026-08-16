@@ -1855,7 +1855,8 @@
             "method": [
               "TONGDAXIN_LEGACY",
               "EASTMONEY_MAIN_FORCE",
-              "THS_MAIN_FORCE"
+              "THS_MAIN_FORCE",
+              "EASTMONEY_PUSH2HIS_HISTORICAL"
             ]
           },
           "margin": {

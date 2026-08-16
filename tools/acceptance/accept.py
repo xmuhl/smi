@@ -2047,6 +2047,10 @@ def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
     b = True
     for mname, field_enums in en_cfg.items():
         m = modules.get(mname) or {}
+        # 模块非 FINAL（PENDING/STALE/UNAVAILABLE/ERROR/PARTIAL）→ fail-closed 语义
+        # 下数据缺失是预期，枚举必填检查不应在此触发（FIX：P1-001）。
+        if not isinstance(m, dict) or m.get("status") != "FINAL":
+            continue
         for fpath, enum_vals in field_enums.items():
             if fpath.startswith("items."):
                 fname = fpath[len("items."):]
