@@ -41,6 +41,19 @@ _HIST_KLINE_LMT = 40
 # 有效板块数下限：任一侧有效板块 < 该值视为数据不完整 → fail-closed UNAVAILABLE
 _HIST_MIN_BOARDS = 10
 
+# 历史回补并发度：受控并发逐板块拉取（风格对齐 sectors._fetch_th_boards_concurrent），
+# 6 线程为保守值防限流。
+_FF_HIST_CONCURRENCY = 6
+
+# 早失败熔断参数（push2his 被封时快速 fail-closed，不再 465×25s 串行超时）：
+#   - 板块清单探测类请求 timeout=12；daykline 批量请求 timeout=10；
+#   - 并发 as_completed 中连续失败达该阈值 → 取消剩余任务并 fail-closed；
+#   - 全部完成后若有效条目为 0 且 skipped >= 板块总数 * 该比例 → 也 fail-closed。
+_FF_HIST_CLIST_TIMEOUT = 12
+_FF_HIST_KLINE_TIMEOUT = 10
+_FF_HIST_CIRCUIT_FAIL_THRESHOLD = 12
+_FF_HIST_CIRCUIT_SKIPPED_RATIO = 0.8
+
 _PUSH2HIS_CLIST_URL = (
     "https://push2his.eastmoney.com/api/qt/clist/get"
 )
@@ -61,12 +74,15 @@ _EASTMONEY_HEADERS = {
 def _em_http_get_json(
     url: str,
     params: dict[str, Any],
+    *,
+    timeout: float = 25,
 ) -> dict[str, Any]:
     """直连东财 push2his，不继承系统/环境代理（R9-P2-03 同款）。
 
     国内数据源必须直连：requests 在 Windows 上会继承系统代理（v2rayN 等），
     经代理访问东财主机会挂起/失败。trust_env=False 同时禁用环境变量代理与
-    netrc。网络失败抛异常，由调用方 fail-closed。
+    netrc。网络失败抛异常，由调用方 fail-closed。timeout 由调用方按用途指定
+    （清单探测类 <= 板块回补 daykline 批量请求）。
     """
     session = requests.Session()
     session.trust_env = False
@@ -75,7 +91,7 @@ def _em_http_get_json(
         response = session.get(
             url,
             params=params,
-            timeout=25,
+            timeout=timeout,
             headers=_EASTMONEY_HEADERS,
         )
         response.raise_for_status()
@@ -99,6 +115,7 @@ def _em_clist_diff(market_bracket: int) -> list[dict[str, Any]]:
             "fs": f"m:90+t:{market_bracket}",
             "fields": "f12,f14",
         },
+        timeout=_FF_HIST_CLIST_TIMEOUT,
     )
 
     diff = (data.get("data") or {}).get("diff") or []
@@ -179,6 +196,7 @@ def _em_ff_daykline(
             "fields1": "f1,f2,f3,f7",
             "fields2": "f51,f52,f53,f54,f55",
         },
+        timeout=_FF_HIST_KLINE_TIMEOUT,
     )
 
     return (data.get("data") or {}).get("klines") or []
@@ -232,48 +250,138 @@ def _historical_board_rank(
             "skipped": 0,
         }
 
-    entries: list[dict[str, Any]] = []
-    warnings: list[str] = []
-    skipped = 0
+    total = len(secids)
 
-    for code, name in secids:
+    from concurrent.futures import (
+        ThreadPoolExecutor,
+        as_completed,
+    )
+
+    def _fetch_one(
+        item: tuple[str, str],
+    ) -> tuple[str, tuple[str, Any]]:
+        """单板块拉取。返回 (name, (status, payload)) 元组，主线程串行汇总。
+
+        风格对齐 sectors._fetch_th_boards_concurrent：warnings/skipped 不透出
+        线程内写，避免列表并发写竞态；结果收集顺序不依赖提交/完成顺序，排序
+        在收集后统一进行。请求仍走模块级 requests（_em_http_get_json 内
+        trust_env=False 直连），供测试 monkeypatch 同步假数据路径同样生效。
+        """
+        code, name = item
         secid = f"90.{code}"
 
         try:
             klines = _em_ff_daykline(secid)
         except Exception as exc:  # noqa: BLE001
-            skipped += 1
-            warnings.append(
-                f"{board_type}:{name}:FETCH_FAILED:"
-                f"{type(exc).__name__}"
-            )
-            continue
+            return (name, ("FETCH_FAILED", type(exc).__name__))
 
         f52 = _f52_on_date(klines, trade_date)
 
         if f52 is None:
-            skipped += 1
-            continue
+            return (name, ("NO_DATE", None))
 
-        entries.append(
-            {
-                "name": name,
-                "code": code,
-                "netInflowYi": round(f52 / 1e8, 2),
-            }
+        return (name, ("OK", (code, f52)))
+
+    entries: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    skipped = 0
+    consecutive_failures = 0
+    circuit_triggered = False
+
+    executor = ThreadPoolExecutor(
+        max_workers=_FF_HIST_CONCURRENCY
+    )
+
+    try:
+        futures = [
+            executor.submit(_fetch_one, (code, name))
+            for code, name in secids
+        ]
+
+        for fut in as_completed(futures):
+            if circuit_triggered:
+                continue
+
+            name, (status, payload) = fut.result()
+
+            if status == "FETCH_FAILED":
+                # push2his 被封/挂起：连续失败计数，达阈值即熔断
+                consecutive_failures += 1
+                skipped += 1
+                warnings.append(
+                    f"{board_type}:{name}:FETCH_FAILED:"
+                    f"{payload}"
+                )
+            else:
+                consecutive_failures = 0
+                if status == "OK":
+                    code, f52 = payload
+                    entries.append(
+                        {
+                            "name": name,
+                            "code": code,
+                            "netInflowYi": round(
+                                f52 / 1e8,
+                                2,
+                            ),
+                        }
+                    )
+                else:  # NO_DATE：板块无 D 行也计 skipped
+                    skipped += 1
+
+            if (
+                consecutive_failures
+                >= _FF_HIST_CIRCUIT_FAIL_THRESHOLD
+            ):
+                # 前 N 个完成的任务全部失败 → 主机被封/挂起，取消剩余并 fail-closed
+                cancelled = sum(
+                    1
+                    for f in futures
+                    if f is not fut and not f.done()
+                )
+                skipped += cancelled
+                warnings.append(
+                    f"{board_type}:host_blocked_circuit_breaker:"
+                    f"consecutive_failures={consecutive_failures}:"
+                    f"cancelled={cancelled}"
+                )
+                circuit_triggered = True
+                break
+    finally:
+        # 熔断后立即释放未启动任务；已在运行的线程自行超时收尾。
+        executor.shutdown(
+            wait=False,
+            cancel_futures=True,
         )
 
-    if not entries:
+    def _fail_closed(reason: str) -> dict[str, Any]:
         return {
             "ok": False,
-            "reason": (
-                f"{board_type}: no valid boards for {trade_date}"
-            ),
+            "reason": reason,
             "top10": [],
             "bottom10": [],
             "warnings": warnings,
             "skipped": skipped,
         }
+
+    if circuit_triggered:
+        # 早失败：连续失败达阈值即熔断，不伪造剩余板块
+        return _fail_closed(
+            f"{board_type}:host_blocked_or_empty"
+        )
+
+    if not entries and (
+        skipped * 5 >= total * 4
+    ):
+        # 有效条目为 0 且 skipped >= 板块总数 80% → 主机被封/整侧无有效数据
+        return _fail_closed(
+            f"{board_type}:host_blocked_or_empty"
+        )
+
+    if not entries:
+        return _fail_closed(
+            f"{board_type}: no valid boards for {trade_date}"
+        )
 
     inflow, outflow = _sort_in_out(entries)
 
