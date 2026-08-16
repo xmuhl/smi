@@ -206,3 +206,100 @@ def test_positive_0814_fail_set(base_snapshot, standard, manifest):
     # margin 走 D0 PENDING 分支 PASS
     assert entry["modules"]["margin"]["pass"] is True
     assert entry["modules"]["summary"]["pass"] is False
+
+
+# ---------------------------------------------------------------- P0.4 (P03-001) 新增回归
+def _official_nb_snapshot():
+    """OFFICIAL_REPLACEMENT 合法 northbound 样本（基于 08-14 真实 quarterlyHolding 数据）。"""
+    with open(os.path.join("web", "public", "data", "daily", "2026", "2026-08-14.json"), "r", encoding="utf-8") as fh:
+        snap = json.load(fh)
+    nb = snap["modules"]["northbound"]
+    nb["mode"] = "POST_20240819_OFFICIAL_REPLACEMENT"
+    nb["sourceSystem"] = "SELF"
+    nb["status"] = "FINAL"
+    qh = nb["quarterlyHolding"]
+    qh["status"] = "FINAL"
+    qh["asOf"] = "2026-06-30"
+    qh["publishedAt"] = "2026-07-08"
+    snap["modules"]["summary"]["northbound"] = (
+        "北向资金官方已停止日度净流入披露，不再提供日度数据；"
+        "最近官方季度持仓（point-in-time，截至 2026-06-30）见上方模块。"
+    )
+    return snap
+
+
+def test_p04_official_nb_positive(standard, manifest):
+    """OFFICIAL 合法样本（真实 HKEX 数值形态）必须 PASS。"""
+    snap = _official_nb_snapshot()
+    checks, all_pass, inv = accept.evaluate_modules(snap, standard, "2026-08-14", manifest)
+    assert checks["northbound"]["pass"] is True, checks["northbound"]["details"]
+
+
+def test_p04_pct_of_issued_garbage(standard, manifest):
+    snap = _official_nb_snapshot()
+    snap["modules"]["northbound"]["quarterlyHolding"]["items"][0]["pctOfIssued"] = "dd.dd%"
+    checks, _, _ = accept.evaluate_modules(snap, standard, "2026-08-14", manifest)
+    text = "\n".join(d["detail"] for d in checks["northbound"]["details"])
+    assert checks["northbound"]["pass"] is False and "百分比" in text, text
+
+
+def test_p04_shareholding_nan_and_negative(standard, manifest):
+    for bad in ("NaN", "Infinity", "-5"):
+        snap = _official_nb_snapshot()
+        snap["modules"]["northbound"]["quarterlyHolding"]["items"][0]["shareholding"] = bad
+        checks, _, _ = accept.evaluate_modules(snap, standard, "2026-08-14", manifest)
+        text = "\n".join(d["detail"] for d in checks["northbound"]["details"])
+        assert checks["northbound"]["pass"] is False and "数值字符串" in text, (bad, text)
+
+
+def test_p04_asof_garbage_suffix(standard, manifest):
+    snap = _official_nb_snapshot()
+    snap["modules"]["northbound"]["quarterlyHolding"]["asOf"] = "2026-06-30THIS_IS_NOT_ISO"
+    checks, _, _ = accept.evaluate_modules(snap, standard, "2026-08-14", manifest)
+    text = "\n".join(d["detail"] for d in checks["northbound"]["details"])
+    assert checks["northbound"]["pass"] is False and "ISO" in text, text
+
+
+def test_p04_unit_deleted_invariant(standard, manifest):
+    """删除 turnover.unit → INV-UNIT-亿元 必须 false（P0-008）。"""
+    snap = _official_nb_snapshot()
+    del snap["modules"]["turnover"]["unit"]
+    _, _, inv = accept.evaluate_modules(snap, standard, "2026-08-14", manifest)
+    assert inv.get("INV-UNIT-亿元") is False, inv
+
+
+def test_p04_official_summary_fabricates_daily(standard, manifest):
+    """OFFICIAL 分支 summary 虚构『官方日度净流入』必须 FAIL（P0-007）。"""
+    snap = _official_nb_snapshot()
+    snap["modules"]["summary"]["northbound"] = "北向官方日度净流入 100 亿元，已连续净流入三日。"
+    checks, _, _ = accept.evaluate_modules(snap, standard, "2026-08-14", manifest)
+    text = "\n".join(d["detail"] for d in checks["summary"]["details"])
+    assert checks["summary"]["pass"] is False and "禁词" in text, text
+
+
+def test_p04_generic_ruleversion_unsupported(standard, manifest):
+    """generic 模块 ruleVersion 改为未支持版本 → startup_self_check 报错（P0-002）。"""
+    std = copy.deepcopy(standard)
+    std["modules"]["marketIndex"]["ruleVersion"] = 999
+    errors = accept.startup_self_check(std)
+    assert any("marketIndex" in e and "999" in e for e in errors), errors
+
+
+def test_p04_tracks_effective_from_garbage(base_snapshot, standard, manifest):
+    """tracks effectiveFrom/To 不可解析必须 FAIL（P0-006，非参考日触发）。"""
+    def m(mods):
+        mods["tracks"]["effectiveFrom"] = "garbage"
+        mods["tracks"]["effectiveTo"] = "garbage"
+    _assert_neg(base_snapshot, standard, manifest, "tracks", m, "effectiveFrom", trade_date="2026-08-13")
+
+
+def test_p04_recalc_trackid_mismatch(base_snapshot, standard, manifest, monkeypatch):
+    """重算 trackId 集合与快照不一致必须 FAIL（P0-006，单元级直接调用 _recalc_tracks）。"""
+    items = copy.deepcopy(base_snapshot["modules"]["tracks"]["items"])
+    fake = [{"trackId": "高股息_中特估", "score": 90.0, "decision": "核心防御主线"}]
+    monkeypatch.setattr("collector.calculators.tracks.score_tracks", lambda items: fake)
+    details = []
+    accept._recalc_tracks(items, {"meta": {"legacy": False}}, details)
+    text = "\n".join(d["detail"] for d in details)
+    assert "trackId 集合" in text, text
+

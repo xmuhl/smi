@@ -81,7 +81,7 @@
     "turnover": {
       "displayLabel": "2-两市成交量",
       "ruleId": "turnover_V2",
-      "ruleVersion": 2,
+      "ruleVersion": 3,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "统计项",
@@ -193,6 +193,14 @@
             }
           ],
           "requiredCondition": "PREVIOUS_METHOD_MISMATCH 时，crossMethodReference 为 required 且必须整体存在（previous/delta/changePct/nonComparable=true/currentMethod/previousMethod）；nonComparable 必须严格等于 true；三项数值须成组出现并满足内部算术关系；不得写入正常 turnoverPrevious/Delta/ChangePct。"
+        },
+        {
+          "name": "unit",
+          "kind": "enum",
+          "required": true,
+          "enumValues": [
+            "亿元"
+          ]
         }
       ],
       "displayRules": [
@@ -711,7 +719,7 @@
     "margin": {
       "displayLabel": "7-两融数据",
       "ruleId": "margin_V2",
-      "ruleVersion": 2,
+      "ruleVersion": 3,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "融资余额（亿元）",
@@ -763,6 +771,14 @@
           "required": true,
           "skipStates": [
             "PENDING"
+          ]
+        },
+        {
+          "name": "unit",
+          "kind": "enum",
+          "required": true,
+          "enumValues": [
+            "亿元"
           ]
         }
       ],
@@ -955,7 +971,7 @@
     "summary": {
       "displayLabel": "9-综合总结",
       "ruleId": "summary_V2",
-      "ruleVersion": 3,
+      "ruleVersion": 4,
       "requiredStatus": "FINAL",
       "xlsxColumns": [
         "一、指数与量能总结",
@@ -1085,11 +1101,21 @@
           "anchor": "northbound",
           "outflowWord": "净流出",
           "inflowWord": "净流入",
-          "officialWords": [
-            "停发",
-            "季度",
-            "披露",
-            "不再"
+          "mustContainAnyGroups": [
+            [
+              "停发",
+              "不再"
+            ],
+            [
+              "季度",
+              "point-in-time",
+              "时点"
+            ]
+          ],
+          "mustNotContain": [
+            "官方日度净流入",
+            "连续净流入",
+            "今日北向净流入"
           ]
         },
         "trackConclusion": {
@@ -1700,7 +1726,7 @@
     },
     {
       "id": "INV-UNIT-亿元",
-      "desc": "turnover/fundFlow/northbound/margin 金额单位统一为亿元；fundFlow 的 netInflowYi 含义为主力净流入（亿元），正为流入负为流出。",
+      "desc": "金额单位统一为亿元；声明了 unit 的模块必须存在且等于亿元",
       "spec": {
         "unit": "亿元",
         "modules": [
@@ -1709,7 +1735,7 @@
           "margin"
         ]
       },
-      "enforce": "turnover/fundFlow/northbound/margin 金额字段必须有 unit=亿元 或等价亿元数值域声明；unit 缺失即 FAIL（不得仅当 unit 存在且错误时才失败）。"
+      "enforce": "turnover/fundFlow/margin 模块 unit 缺失或 !=亿元 即 FAIL（经各模块 fields.unit 声明执行）"
     },
     {
       "id": "INV-LIST-SORT-SIGN",

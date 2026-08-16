@@ -62,12 +62,12 @@ DEFAULT_REPORT = os.path.join("work", "acceptance", "baseline-report.json")
 # 复杂规则 handler 注册表（P0-002 真实 dispatch 真源，P0-003 严格化后本表不变）。
 # ruleVersion 以标准 modules[*].ruleVersion 为准；northbound/tracks 本轮(0.3)动过 fields 版本+1。
 _COMPLEX_HANDLERS = {
-    "turnover_V2": {"supportedVersions": [2], "handler": "check_turnover"},
+    "turnover_V2": {"supportedVersions": [2, 3], "handler": "check_turnover"},
     "sentiment_V2": {"supportedVersions": [1], "handler": "check_sentiment"},
     "northbound_V2": {"supportedVersions": [2, 3], "handler": "check_northbound"},
-    "margin_V2": {"supportedVersions": [1, 2], "handler": "check_margin"},
+    "margin_V2": {"supportedVersions": [1, 2, 3], "handler": "check_margin"},
     "tracks_V2": {"supportedVersions": [2, 3], "handler": "check_tracks"},
-    "summary_V2": {"supportedVersions": [2, 3], "handler": "check_summary"},
+    "summary_V2": {"supportedVersions": [2, 3, 4], "handler": "check_summary"},
 }
 
 # crossModuleInvariants 的 9 条 id（用于 P0-008 一一对应实现）。
@@ -262,16 +262,27 @@ def _validate_nested_value(val, spec, path, msgs):
         if not _non_negative_int_ok(val):
             msgs.append(_detail_gap(f"{path} 非非负整数: {val!r}"))
     elif kind == "percentString":
-        if not isinstance(val, str) or not re.fullmatch(r"d+(.d+)?%", val):
+        # 真实数字百分比全串：\d+(\.\d+)?%，且数值 0~100（P0-003/评审复核）
+        if not isinstance(val, str) or not re.fullmatch(r"\d+(\.\d+)?%", val):
             msgs.append(_detail_gap(f"{path}={val!r} 非百分比字符串(如 85%)"))
+        else:
+            try:
+                pv = float(val.rstrip("%"))
+            except ValueError:
+                pv = None
+            if pv is None or not (math.isfinite(pv) and 0.0 <= pv <= 100.0):
+                msgs.append(_detail_gap(f"{path}={val!r} 百分比数值须在 0~100"))
     elif kind == "numericString":
         if isinstance(val, bool) or not isinstance(val, str):
             msgs.append(_detail_gap(f"{path}={val!r} 非字符串"))
         else:
             try:
-                float(val.replace(",", "").strip())
+                nv = float(val.replace(",", "").strip())
             except (TypeError, ValueError):
-                msgs.append(_detail_gap(f"{path}={val!r} 非数值字符串"))
+                nv = None
+            # 逗号数字串业务语义 = 有限且非负（P0-003：拒绝 NaN/Infinity/负值）
+            if nv is None or not (math.isfinite(nv) and nv >= 0.0):
+                msgs.append(_detail_gap(f"{path}={val!r} 非有限非负数值字符串"))
     elif kind == "dateString":
         if _parse_iso_date_strict(val) is None:
             msgs.append(_detail_gap(f"{path}={val!r} 非严格 ISO 日期"))
@@ -1312,8 +1323,16 @@ def _run_summary_facts(sf_cfg, mod, snapshot, standard):
                     msgs.append(_detail_gap("northbound totalNetInflow>0 但 northbound 段未含净流入"))
             mode = nb_mod.get("mode") or ""
             if "OFFICIAL_REPLACEMENT" in mode:
-                if not any(w in nbseg for w in nb_cfg.get("officialWords", [])):
-                    msgs.append(_detail_gap("northbound OFFICIAL 但 northbound 段未含停发/季度词"))
+                # P0-007/评审：OFFICIAL 组合约束——每组词至少命中一个（停发语义 + 季度/PIT 语义），
+                # 且禁止虚构"官方日度净流入"类相反断言。
+                groups = nb_cfg.get("mustContainAnyGroups") or []
+                for g in groups:
+                    words = g if isinstance(g, list) else [g]
+                    if not any(w in nbseg for w in words):
+                        msgs.append(_detail_gap(f"northbound OFFICIAL 但 northbound 段未含任一词 {words}"))
+                for w in nb_cfg.get("mustNotContain", []):
+                    if w and w in nbseg:
+                        msgs.append(_detail_gap(f"northbound OFFICIAL 但 northbound 段含禁词 {w!r}"))
     tc_cfg = sf_cfg.get("trackConclusion")
     if isinstance(tc_cfg, dict):
         trackmod = modules.get("tracks") or {}
