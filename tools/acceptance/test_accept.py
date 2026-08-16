@@ -268,6 +268,14 @@ def test_p04_unit_deleted_invariant(standard, manifest):
     assert inv.get("INV-UNIT-亿元") is False, inv
 
 
+def test_p04_unit_deleted_margin_invariant(standard, manifest):
+    """删除 margin.unit → INV-UNIT-亿元 必须 false（P03-001 评审补漏）。"""
+    snap = _official_nb_snapshot()
+    del snap["modules"]["margin"]["unit"]
+    _, _, inv = accept.evaluate_modules(snap, standard, "2026-08-14", manifest)
+    assert inv.get("INV-UNIT-亿元") is False, inv
+
+
 def test_p04_official_summary_fabricates_daily(standard, manifest):
     """OFFICIAL 分支 summary 虚构『官方日度净流入』必须 FAIL（P0-007）。"""
     snap = _official_nb_snapshot()
