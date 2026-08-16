@@ -9,6 +9,7 @@
         <div class="label">上涨家数</div>
         <div class="value up">{{ module.riseCount ?? "—" }}</div>
         <div class="sub down">下跌 {{ module.fallCount ?? "—" }}</div>
+        <div class="sub flat">平盘 {{ module.flatCount ?? "—" }}</div>
       </div>
       <div class="metric">
         <div class="label">非ST涨停</div>
@@ -21,15 +22,42 @@
         <div class="sub flat">ST跌停 {{ module.stLimitDownCount ?? "—" }}</div>
       </div>
     </div>
-    <div class="empty-tip" v-if="module.brokenLimitCount !== null && module.brokenLimitCount !== undefined">
-      炸板 {{ module.brokenLimitCount }} 家 · 平盘 {{ module.flatCount ?? "—" }} 家
+    <div class="empty-tip" v-if="hasExtra">
+      炸板 {{ module.brokenLimitCount ?? "—" }} 家 ·
+      涨停封板率 {{ sealRateText }} ·
+      最高连板 {{ module.maxLimitUpStreak ?? "—" }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import type { SentimentModule } from "../types/smi";
 import StatusBadge from "../components/StatusBadge.vue";
 
-defineProps<{ module: SentimentModule }>();
+const props = defineProps<{ module: SentimentModule }>();
+
+// limitSealRatePct / maxLimitUpStreak 已由 snapshot 提供，但类型声明尚未补充，
+// 通过 any 取值以避免改动 types 文件
+const m = computed(() => props.module as unknown as Record<string, unknown>);
+
+const sealRate = computed(() => m.value.limitSealRatePct as number | null | undefined);
+
+const sealRateText = computed(() => {
+  if (sealRate.value === null || sealRate.value === undefined || Number.isNaN(sealRate.value)) {
+    return "—";
+  }
+  return `${sealRate.value}%`;
+});
+
+const hasExtra = computed(() => {
+  const b = props.module.brokenLimitCount;
+  const s = sealRate.value;
+  const streak = m.value.maxLimitUpStreak;
+  return (
+    (b !== null && b !== undefined) ||
+    (s !== null && s !== undefined) ||
+    (streak !== null && streak !== undefined && streak !== "")
+  );
+});
 </script>

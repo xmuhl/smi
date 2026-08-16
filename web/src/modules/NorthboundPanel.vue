@@ -11,6 +11,9 @@
     <div v-else-if="module.mode === 'POST_20240819_QUARTERLY_ONLY'" class="notice">
       2024-08-19 起北向日度净买入/净流入不再按旧口径披露；V1 仅展示 HKEX 最近一期季度持仓。
     </div>
+    <div v-else-if="module.mode === 'POST_20240819_OFFICIAL_REPLACEMENT'" class="notice">
+      官方日度净流入自 2024-08-19 起停止披露，以下为截至 {{ module.quarterlyHolding?.asOf ?? "—" }} 的官方季度持仓（point-in-time，发布于 {{ module.quarterlyHolding?.publishedAt ?? "—" }}）。
+    </div>
 
     <template v-if="legacy">
       <div class="grid grid-3">
@@ -61,14 +64,29 @@
         <tr>
           <th>代码</th>
           <th>名称</th>
-          <th>持股比例</th>
+          <th>持股数量</th>
+          <th>占已发行股份</th>
+          <th>市场</th>
         </tr>
-        <tr v-for="it in module.quarterlyHolding.items.slice(0, 15)" :key="it.code">
+        <tr
+          v-for="it in module.quarterlyHolding.items.slice(0, 20)"
+          :key="it.code"
+        >
           <td>{{ it.code }}</td>
           <td>{{ it.name }}</td>
-          <td>{{ it.pctOfIssued ?? "—" }}</td>
+          <td>{{ it.shareholding ?? "—" }}</td>
+          <td>
+            {{ it.pctOfIssued != null ? it.pctOfIssued + "%" : "—" }}
+          </td>
+          <td>{{ marketText(it.market) }}</td>
         </tr>
       </table>
+      <div
+        v-if="module.quarterlyHolding.items.length > 20"
+        class="empty-tip"
+      >
+        共 {{ module.quarterlyHolding.items.length }} 条，仅展示前 20 条
+      </div>
       <div v-else class="empty-tip">季度持仓暂未取得（{{ module.quarterlyHolding.status }}）</div>
     </template>
 
@@ -86,6 +104,13 @@ import StatusBadge from "../components/StatusBadge.vue";
 const props = defineProps<{ module: NorthboundModule }>();
 
 const legacy = computed(() => props.module.legacyImportedFields ?? null);
+
+function marketText(market: string | null | undefined): string {
+  if (market === "sh") return "沪股通";
+  if (market === "sz") return "深股通";
+  if (market === null || market === undefined || market === "") return "—";
+  return market;
+}
 
 function fmtYi(v: number | null | undefined): string {
   if (v === null || v === undefined) return "—";
