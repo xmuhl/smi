@@ -201,7 +201,8 @@ def test_positive_0814_fail_set(base_snapshot, standard, manifest):
     assert entry["overall"] == "FAIL"
     assert entry["pass"] is False
     fail_mods = {name for name in accept.MODULE_ORDER if not entry["modules"][name]["pass"]}
-    assert fail_mods == {"sentiment", "northbound", "tracks"}, fail_mods
-    # margin 走 D0 PENDING 分支 PASS、summary PASS
+    # P0.3 起 summary 方向/数值事实锚点使 08-14 旧文案 summary 也 FAIL（P1 重生成文案后恢复）
+    assert fail_mods == {"sentiment", "northbound", "summary", "tracks"}, fail_mods
+    # margin 走 D0 PENDING 分支 PASS
     assert entry["modules"]["margin"]["pass"] is True
-    assert entry["modules"]["summary"]["pass"] is True
+    assert entry["modules"]["summary"]["pass"] is False

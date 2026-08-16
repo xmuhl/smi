@@ -59,13 +59,15 @@ DEFAULT_REPORT = os.path.join("work", "acceptance", "baseline-report.json")
 # ruleId 未知或 ruleVersion 不在 supportedVersions -> 启动自检失败(退出码 3)。
 # 通用引擎覆盖 marketIndex/sectorPerformance/fundFlow；复杂规则由下列 handler 落地。
 # 支持版本以标准 modules[*].ruleVersion 为准（本仓标准当前值：turnover/northbound/tracks/summary=2，sentiment/margin=1）。
+# 复杂规则 handler 注册表（P0-002 真实 dispatch 真源，P0-003 严格化后本表不变）。
+# ruleVersion 以标准 modules[*].ruleVersion 为准；northbound/tracks 本轮(0.3)动过 fields 版本+1。
 _COMPLEX_HANDLERS = {
     "turnover_V2": {"supportedVersions": [2], "handler": "check_turnover"},
     "sentiment_V2": {"supportedVersions": [1], "handler": "check_sentiment"},
-    "northbound_V2": {"supportedVersions": [2], "handler": "check_northbound"},
+    "northbound_V2": {"supportedVersions": [2, 3], "handler": "check_northbound"},
     "margin_V2": {"supportedVersions": [1, 2], "handler": "check_margin"},
-    "tracks_V2": {"supportedVersions": [2], "handler": "check_tracks"},
-    "summary_V2": {"supportedVersions": [2], "handler": "check_summary"},
+    "tracks_V2": {"supportedVersions": [2, 3], "handler": "check_tracks"},
+    "summary_V2": {"supportedVersions": [2, 3], "handler": "check_summary"},
 }
 
 # crossModuleInvariants 的 9 条 id（用于 P0-008 一一对应实现）。
@@ -136,23 +138,26 @@ def _sha256_bytes(data_bytes):
 
 
 def _parse_iso_date_strict(value):
-    """把 YYYY-MM-DD 或带时间(YYYY-MM-DDTHH:MM:SS[±tz])的字符串解析为 datetime.date。
+    """把 YYYY-MM-DD 或严格 ISO-8601 datetime(YYYY-MM-DDTHH:MM:SS[±tz])解析为 datetime.date。
 
-    含时间部分自动截断到日期。解析失败返回 None（调用方据此判定缺失/非法）。
-    用于 P0-003 北向 PIT 与 DATE invariant 的 look-ahead 比较（避免裸字符串字典序）。
+    全串严格解析，禁止任何“截断前 10 字符”逻辑：
+    - len(s)==10  -> date.fromisoformat(s)（全串严格，抛错 -> None）
+    - 含 "T"      -> datetime.fromisoformat(s) 严格解析后取 .date()（抛错 -> None）
+    - 其它形态     -> None（不可解析）
+    解析失败返回 None（调用方据此判定缺失/非法）。用于 P0-003 北向 PIT / DATE invariant / tracks 生效区间。
     """
     if not isinstance(value, str) or not value:
         return None
-    dt = value.replace("Z", "+00:00") if isinstance(value, str) and value.endswith("Z") else value
+    from datetime import date as _date, datetime as _datetime
     try:
-        from datetime import date as _date
-        if len(dt) <= 10:
-            return _date.fromisoformat(dt[:10])
-        parsed = None
-        parsed = _date.fromisoformat(dt[:10])
-        return parsed
+        if len(value) == 10:
+            return _date.fromisoformat(value)
+        if "T" in value or " " in value:
+            dt = value.replace("Z", "+00:00") if value.endswith("Z") else value
+            return _datetime.fromisoformat(dt).date()
     except Exception:  # noqa: BLE001
-        return None
+        pass
+    return None
 
 
 def _git_dirty():
@@ -223,6 +228,123 @@ def _lookup_module(standard, name):
 # 由标准 fields/items/lists 声明驱动，不复制字段清单。
 
 
+
+def _required_condition_met(container, rc):
+    """requiredCondition 形如 {"whenField": X, "equals": V}：当 container[X] == V 时条件满足。
+    非 dict 的 requiredCondition（如纯说明字符串）视为不 gate（恒满足）。rc 为 None 恒满足。"""
+    if not isinstance(rc, dict):
+        return True
+    wf = rc.get("whenField")
+    eq = rc.get("equals")
+    if wf is None:
+        return True
+    return container.get(wf) == eq
+
+
+def _validate_nested_value(val, spec, path, msgs):
+    """递归值校验（统一顶层与嵌套）。支持 kind: string / finite / finitePositive /
+    finiteNonNegative / nonNegativeInt / percentString / numericString / dateString /
+    enum / boolean / const / object(递归 subFields) / array(minItems + itemFields 递归)。"""
+    kind = spec.get("kind")
+    if kind == "string":
+        if not isinstance(val, str):
+            msgs.append(_detail_gap(f"{path} 非字符串: {val!r}"))
+    elif kind == "finite":
+        if not _is_finite_number(val):
+            msgs.append(_detail_gap(f"{path} 非有限数值: {val!r}"))
+    elif kind == "finitePositive":
+        if not _is_finite_number(val) or float(val) <= 0:
+            msgs.append(_detail_gap(f"{path} 非有限正数: {val!r}"))
+    elif kind == "finiteNonNegative":
+        if not _is_finite_number(val) or float(val) < 0:
+            msgs.append(_detail_gap(f"{path} 非有限非负数: {val!r}"))
+    elif kind == "nonNegativeInt":
+        if not _non_negative_int_ok(val):
+            msgs.append(_detail_gap(f"{path} 非非负整数: {val!r}"))
+    elif kind == "percentString":
+        if not isinstance(val, str) or not re.fullmatch(r"d+(.d+)?%", val):
+            msgs.append(_detail_gap(f"{path}={val!r} 非百分比字符串(如 85%)"))
+    elif kind == "numericString":
+        if isinstance(val, bool) or not isinstance(val, str):
+            msgs.append(_detail_gap(f"{path}={val!r} 非字符串"))
+        else:
+            try:
+                float(val.replace(",", "").strip())
+            except (TypeError, ValueError):
+                msgs.append(_detail_gap(f"{path}={val!r} 非数值字符串"))
+    elif kind == "dateString":
+        if _parse_iso_date_strict(val) is None:
+            msgs.append(_detail_gap(f"{path}={val!r} 非严格 ISO 日期"))
+    elif kind == "boolean":
+        if type(val) is not bool:
+            msgs.append(_detail_gap(f"{path}={val!r} 非布尔"))
+    elif kind == "const":
+        exp = spec.get("constValue")
+        if not (val == exp):
+            msgs.append(_detail_gap(f"{path}={val!r} 应为 const {exp!r}"))
+    elif kind == "enum":
+        allowed = list(spec.get("enumValues", []))
+        if len(allowed) == 1 and isinstance(allowed[0], bool):
+            if type(val) is not bool:
+                msgs.append(_detail_gap(f"{path}={val!r} 非布尔枚举"))
+        elif val not in allowed:
+            msgs.append(_detail_gap(f"{path}={val!r} 不在枚举 {allowed}"))
+    elif kind == "object":
+        if not isinstance(val, dict):
+            msgs.append(_detail_gap(f"{path}={val!r} 非对象(dict)"))
+        else:
+            for sub in spec.get("subFields", []):
+                _validate_sub_field(val, sub, f"{path}.{sub.get('name')}", msgs)
+    elif kind == "array":
+        if not isinstance(val, list):
+            msgs.append(_detail_gap(f"{path}={val!r} 非列表"))
+        else:
+            min_items = spec.get("minItems")
+            if min_items is not None and len(val) < min_items:
+                msgs.append(_detail_gap(f"{path} 长度 {len(val)} < minItems {min_items}"))
+            for i, item in enumerate(val):
+                if not isinstance(item, dict):
+                    msgs.append(_detail_gap(f"{path}[{i}] 非对象"))
+                    continue
+                for fsc in spec.get("itemFields", []):
+                    _validate_sub_field(item, fsc, f"{path}[{i}].{fsc.get('name')}", msgs)
+    else:
+        msgs.append(_detail_gap(f"未知 kind {kind!r} 字段 {path}"))
+    # 范围 / 长度 / 中文约束（字符串通用）
+    if isinstance(val, str) and kind == "string":
+        minchars = spec.get("minChars")
+        if minchars is not None and len(val) < minchars:
+            msgs.append(_detail_gap(f"{path} 长度 {len(val)} < minChars {minchars}"))
+        if spec.get("cjkRequired"):
+            ratio_min = spec.get("cjkRatioMin", 0.5)
+            if _cjk_ratio(val) < ratio_min:
+                msgs.append(_detail_gap(f"{path} 中文字符占比 {_cjk_ratio(val):.2f} < {ratio_min}"))
+    lo = spec.get("min")
+    hi = spec.get("max")
+    if (lo is not None or hi is not None) and _is_finite_number(val):
+        fv = float(val)
+        if lo is not None and fv < lo:
+            msgs.append(_detail_gap(f"{path}={fv} 小于下限 {lo}"))
+        if hi is not None and fv > hi:
+            msgs.append(_detail_gap(f"{path}={fv} 大于上限 {hi}"))
+
+
+def _validate_sub_field(container, spec, path, msgs):
+    """校验一个子字段：required + requiredCondition 门控 + 存在性，最后委托值校验。
+    用于 object.subFields 与 array.itemFields（即递归 DSL）。"""
+    name = spec.get("name")
+    required = bool(spec.get("required", False))
+    rc = spec.get("requiredCondition")
+    if not _required_condition_met(container, rc):
+        return
+    if name not in container or container.get(name) is None:
+        if required:
+            msgs.append(_detail_gap(f"{path} 缺失/null（required）"))
+        return
+    _validate_nested_value(container[name], spec, path, msgs)
+
+
+
 def _validate_field_values(module, field_specs, enum_extras=None, plan=None, status=None):
     """按标准 fields 声明的 kind/enum/min/max/minChars/cjkRequired 校验。
 
@@ -244,6 +366,10 @@ def _validate_field_values(module, field_specs, enum_extras=None, plan=None, sta
         skip_states = spec.get("skipStates") or []
         if status is not None and skip_states and status in skip_states:
             # 标准 per-state 计划豁免：该字段在此状态下不要求模块级存在/非空，交由 handler 校验。
+            continue
+        # P0-002：requiredCondition 门控——条件不满足则整体跳过该字段校验（含 required 失效）；
+        # 满足时该字段 required 才生效，缺失/null 即 FAIL。
+        if not _required_condition_met(module, spec.get("requiredCondition")):
             continue
         if name not in module:
             if required:
@@ -289,8 +415,11 @@ def _validate_field_values(module, field_specs, enum_extras=None, plan=None, sta
             if not isinstance(val, str) or not re.fullmatch(r"\d+(\.\d+)?%", val):
                 msgs.append(_detail_gap(f"{name}={val!r} 非百分比字符串(如 85%)"))
         elif kind == "object":
-            if not isinstance(val, (dict, list)):
-                msgs.append(_detail_gap(f"{name} 非对象/数组: {val!r}"))
+            _validate_nested_value(val, spec, name, msgs)  # 递归消费 subFields（P0-002 单一真源）
+        elif kind == "array":
+            _validate_nested_value(val, spec, name, msgs)
+        elif kind in ("dateString", "boolean", "numericString", "const"):
+            _validate_nested_value(val, spec, name, msgs)
         else:
             msgs.append(_detail_gap(f"未知 kind {kind!r} 字段 {name}"))
         # 范围
@@ -757,7 +886,9 @@ def check_northbound(snapshot, standard=None, trade_date=None, manifest=None, da
                 details.append(_detail_gap(
                     "非参考日不应使用 Legacy 口径（历史日期不应使用 Legacy 口径）"))
     elif mode == "POST_20240819_OFFICIAL_REPLACEMENT":
-        # P0-003：OFFICIAL 分支 point-in-time 强制。asOf/publishedAt 必存在且可解析，<= tradeDate。
+        # P0-003-B：OFFICIAL 分支只保留粗查（status=FINAL、qh dict、qh.status=FINAL、items 非空 list）；
+        # 逐项 typed schema（shareholding/pctOfIssued/market/code/...)交由通用引擎消费标准
+        # quarterlyHolding.subFields（P0-002 改动使 object/array 递归 DSL 真正生效），不再手写逐字段。
         if status != spec.get("requiredStatus", "FINAL"):
             details.append(_detail_gap("OFFICIAL_REPLACEMENT 需模块 status=FINAL"))
         qh = mod.get("quarterlyHolding")
@@ -769,16 +900,8 @@ def check_northbound(snapshot, standard=None, trade_date=None, manifest=None, da
             items = qh.get("items")
             if not isinstance(items, list) or len(items) == 0:
                 details.append(_detail_gap("quarterlyHolding.items 需非空"))
-            else:
-                for i, it in enumerate(items):
-                    if not isinstance(it, dict):
-                        details.append(_detail_gap(f"quarterlyHolding.items[{i}] 非对象"))
-                        continue
-                    for fn in ("code", "hkexStockCode", "name", "shareholding", "pctOfIssued", "market"):
-                        if not it.get(fn):
-                            details.append(_detail_gap(f"quarterlyHolding.items[{i}] 缺 {fn}"))
-            # PIT：asOf/publishedAt 必存在且可解析（date.fromisoformat，含时间则截断日期）。
-            for fn, label in (("asOf", "asOf"), ("publishedAt", "publishedAt")):
+            # PIT：asOf/publishedAt 必存在且可解析（_parse_iso_date_strict 严格全串），且 <= tradeDate。
+            for fn in ("asOf", "publishedAt"):
                 v = qh.get(fn)
                 parsed = _parse_iso_date_strict(v)
                 if v is None or v == "" or parsed is None:
@@ -943,13 +1066,21 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
         details.append(_detail_gap("模块级 configVersion 缺失"))
 
     # 生效区间覆盖 tradeDate（除 legacy+参考日豁免）——防止今天配置倒灌历史日期。
+    # P0-006-A：effectiveFrom/effectiveTo 用 _parse_iso_date_strict 严格解析，任一不可解析即 FAIL（fail-closed，不再跳过比较）。
     if not exempt_eff:
         eff_from, eff_to = mod.get("effectiveFrom"), mod.get("effectiveTo")
         for fn in ("effectiveFrom", "effectiveTo"):
             if not mod.get(fn):
                 details.append(_detail_gap(f"模块级 {fn} 缺失（需覆盖 tradeDate）"))
-        if _is_iso_date(eff_from) and _is_iso_date(eff_to) and _is_iso_date(trade_date):
-            if not (eff_from <= trade_date <= eff_to):
+        pf = _parse_iso_date_strict(eff_from)
+        pt = _parse_iso_date_strict(eff_to)
+        td = _parse_iso_date_strict(trade_date)
+        if eff_from is not None and pf is None:
+            details.append(_detail_gap(f"effectiveFrom={eff_from!r} 不可解析为严格 ISO 日期"))
+        if eff_to is not None and pt is None:
+            details.append(_detail_gap(f"effectiveTo={eff_to!r} 不可解析为严格 ISO 日期"))
+        if pf is not None and pt is not None and td is not None:
+            if not (pf <= td <= pt):
                 details.append(_detail_gap(
                     f"配置生效区间 {eff_from}..{eff_to} 未覆盖 tradeDate {trade_date}"))
 
@@ -1046,6 +1177,15 @@ def _recalc_tracks(items, snapshot_holder, details):
     if not isinstance(recomputed, list):
         details.append(_detail_gap("score_tracks 重算未返回 list"))
         return
+    # P0-006-B：重算后强制 set(recomputed trackId) == set(snapshot trackId) 且数量相等；不等或为空 -> FAIL。
+    rec_ids = {str(r.get("trackId")) for r in recomputed
+               if isinstance(r, dict) and r.get("trackId") is not None}
+    snap_ids = {str(it.get("trackId")) for it in items
+                if isinstance(it, dict) and it.get("trackId") is not None}
+    if rec_ids != snap_ids or len(rec_ids) == 0:
+        details.append(_detail_gap(
+            f"重算 trackId 集合 {sorted(rec_ids)} 与快照 {sorted(snap_ids)} 不一致"))
+        return
     by_id = {}
     for it in items:
         if isinstance(it, dict) and it.get("trackId") is not None:
@@ -1107,6 +1247,96 @@ def _reference_track_ids(standard):
     return list(tracks.keys()) if isinstance(tracks, dict) else []
 
 
+
+def _run_summary_facts(sf_cfg, mod, snapshot, standard):
+    """P0-007：按标准 summary.summaryFacts 机读配置执行事实锚点检查（无则调用方回退硬编码）。
+    配置含 marketEnvironment / margin / northbound / trackConclusion 四个 anchor。返回 gap detail 列表。"""
+    modules = snapshot.get("modules") or {}
+    msgs = []
+    me_cfg = sf_cfg.get("marketEnvironment")
+    if isinstance(me_cfg, dict):
+        to_mod = modules.get("turnover") or {}
+        me = mod.get("marketEnvironment") or ""
+        if isinstance(to_mod, dict) and to_mod.get("comparisonStatus") == "COMPARABLE":
+            for w in me_cfg.get("forbiddenWords", []):
+                if w and w in me:
+                    msgs.append(_detail_gap(f"turnover COMPARABLE 但 marketEnvironment 含 {w!r}"))
+            vs = to_mod.get("volumeState")
+            vwm = me_cfg.get("volumeWordMap") or {}
+            want = vwm.get(vs)
+            if want and want not in me:
+                msgs.append(_detail_gap(f"turnover volumeState={vs} 但 marketEnvironment 未提及 {want!r}"))
+            num = {
+                "turnoverToday": int(to_mod["turnoverToday"]) if _is_finite_number(to_mod.get("turnoverToday")) else None,
+                "turnoverPrevious": int(to_mod["turnoverPrevious"]) if _is_finite_number(to_mod.get("turnoverPrevious")) else None,
+                "turnoverDelta": int(abs(float(to_mod["turnoverDelta"]))) if _is_finite_number(to_mod.get("turnoverDelta")) else None,
+            }
+            for anchor_name in me_cfg.get("numericAnchors", []):
+                av = num.get(anchor_name)
+                if av is None:
+                    continue
+                if str(av) not in me:
+                    msgs.append(_detail_gap(f"marketEnvironment 数值锚 {anchor_name}={av} 未出现"))
+    mg_cfg = sf_cfg.get("margin")
+    if isinstance(mg_cfg, dict):
+        mg_mod = modules.get("margin") or {}
+        mseg = mod.get("margin") or ""
+        if isinstance(mg_mod, dict):
+            mg_status = mg_mod.get("status")
+            if mg_status == "FINAL":
+                change = mg_mod.get("marginBalanceChange")
+                if _is_finite_number(change):
+                    if float(change) < 0:
+                        words = mg_cfg.get("negativeWords", ["减少", "下降", "回落", "减仓", "净偿还"])
+                        if not any(w in mseg for w in words):
+                            msgs.append(_detail_gap(f"margin FINAL marginBalanceChange<0 但 margin 段未含下降词 {words}"))
+                    elif float(change) > 0:
+                        words = mg_cfg.get("positiveWords", ["增加", "上升", "净买入"])
+                        if not any(w in mseg for w in words):
+                            msgs.append(_detail_gap(f"margin FINAL marginBalanceChange>0 但 margin 段未含上升词 {words}"))
+            elif mg_status == "PENDING":
+                words = mg_cfg.get("pendingWords", ["待披露", "待次日", "暂缺", "参考", "T+1"])
+                if not any(w in mseg for w in words):
+                    msgs.append(_detail_gap(f"margin PENDING 但 margin 段未含待披露词 {words}"))
+    nb_cfg = sf_cfg.get("northbound")
+    if isinstance(nb_cfg, dict):
+        nb_mod = modules.get("northbound") or {}
+        nbseg = mod.get("northbound") or ""
+        if isinstance(nb_mod, dict):
+            legacy = nb_mod.get("legacyImportedFields")
+            if isinstance(legacy, dict):
+                tin = legacy.get("totalNetInflow")
+                if _is_finite_number(tin) and float(tin) < 0 and (nb_cfg.get("outflowWord") not in nbseg):
+                    msgs.append(_detail_gap("northbound totalNetInflow<0 但 northbound 段未含净流出"))
+                elif _is_finite_number(tin) and float(tin) > 0 and (nb_cfg.get("inflowWord") not in nbseg):
+                    msgs.append(_detail_gap("northbound totalNetInflow>0 但 northbound 段未含净流入"))
+            mode = nb_mod.get("mode") or ""
+            if "OFFICIAL_REPLACEMENT" in mode:
+                if not any(w in nbseg for w in nb_cfg.get("officialWords", [])):
+                    msgs.append(_detail_gap("northbound OFFICIAL 但 northbound 段未含停发/季度词"))
+    tc_cfg = sf_cfg.get("trackConclusion")
+    if isinstance(tc_cfg, dict):
+        trackmod = modules.get("tracks") or {}
+        concl = mod.get("trackConclusion") or ""
+        if isinstance(trackmod, dict) and trackmod.get("status") == "FINAL"                 and isinstance(trackmod.get("items"), list) and len(trackmod["items"]) >= 4:
+            track_names = [it.get("trackName") for it in trackmod["items"] if isinstance(it, dict)]
+            frags = []
+            for tn in track_names:
+                if not isinstance(tn, str):
+                    continue
+                core = re.split(r"[（(]", tn)[0].strip()
+                frag = core[:2] if len(core) >= 2 else core
+                frags.append(frag)
+            missing_frag = [f for f in frags if f and f not in concl]
+            if missing_frag:
+                msgs.append(_detail_gap(f"trackConclusion 未覆盖全部赛道前2字子串，缺 {missing_frag}"))
+            decs = [str(it.get("decision")) for it in trackmod["items"] if isinstance(it, dict) and it.get("decision")]
+            mention_count = sum(1 for d in dict.fromkeys(decs) if d and d in concl)
+            if mention_count < 2:
+                msgs.append(_detail_gap(f"trackConclusion 需至少提及 2 条赛道判定字符串，实际 {mention_count}"))
+    return msgs
+
+
 def check_summary(snapshot, standard=None, trade_date=None, manifest=None, daily_dir=None, ctx=None):
     standard = standard if standard is not None else _load_standard()
     mod = _module(snapshot, "summary")
@@ -1152,82 +1382,86 @@ def check_summary(snapshot, standard=None, trade_date=None, manifest=None, daily
         details.append(_detail_gap("riskWarning 需包含『不构成投资建议』"))
         all_ok = False
 
-    # P0-007 事实锚点（结构化事实与 summary 文本逐条比对）。
+    # P0-007（summaryFacts 驱动）：若标准声明 summary.summaryFacts 机读配置则按配置执行事实锚点；
+    # 否则回退既有硬编码事实锚点（向后兼容）。summaryFacts 缺失时保持旧逻辑不变。
     modules = snapshot.get("modules") or {}
-
-    # marketEnvironment <-> turnover
-    to_mod = modules.get("turnover") or {}
-    me = mod.get("marketEnvironment") or ""
-    if isinstance(to_mod, dict) and to_mod.get("comparisonStatus") == "COMPARABLE":
-        no_words = ["暂无", "不可比", "无可比较"]
-        for w in no_words:
-            if w in me:
+    summary_facts = spec.get("summaryFacts")
+    if isinstance(summary_facts, dict):
+        details.extend(_run_summary_facts(summary_facts, mod, snapshot, standard))
+    else:
+        # marketEnvironment <-> turnover
+        to_mod = modules.get("turnover") or {}
+        me = mod.get("marketEnvironment") or ""
+        if isinstance(to_mod, dict) and to_mod.get("comparisonStatus") == "COMPARABLE":
+            no_words = ["暂无", "不可比", "无可比较"]
+            for w in no_words:
+                if w in me:
+                    details.append(_detail_gap(
+                        f"turnover COMPARABLE 但 marketEnvironment 含 {w!r}（应为可比文案）"))
+                    all_ok = False
+            vs = to_mod.get("volumeState")
+            want = {"EXPANSION": "放量", "CONTRACTION": "缩量", "FLAT": "平量"}.get(vs)
+            if want and want not in me:
                 details.append(_detail_gap(
-                    f"turnover COMPARABLE 但 marketEnvironment 含 {w!r}（应为可比文案）"))
-                all_ok = False
-        vs = to_mod.get("volumeState")
-        want = {"EXPANSION": "放量", "CONTRACTION": "缩量", "FLAT": "平量"}.get(vs)
-        if want and want not in me:
-            details.append(_detail_gap(
-                f"turnover volumeState={vs} 但 marketEnvironment 未提及 {want!r}"))
-            all_ok = False
-
-    # trackConclusion <-> tracks（FINAL 且 items>=4）
-    trackmod = modules.get("tracks") or {}
-    concl = mod.get("trackConclusion") or ""
-    if isinstance(trackmod, dict) and trackmod.get("status") == "FINAL"             and isinstance(trackmod.get("items"), list) and len(trackmod["items"]) >= 4:
-        track_names = [it.get("trackName") for it in trackmod["items"] if isinstance(it, dict)]
-        # 每个 item 取 trackName 去除括号部分后的前 2 字符子串，逐一要求出现在 trackConclusion。
-        frags = []
-        for tn in track_names:
-            if not isinstance(tn, str):
-                continue
-            core = re.split(r"[（(]", tn)[0].strip()
-            frag = core[:2] if len(core) >= 2 else core
-            frags.append(frag)
-        missing_frag = [f for f in frags if f and f not in concl]
-        if missing_frag:
-            details.append(_detail_gap(
-                f"trackConclusion 未覆盖全部赛道前2字子串，缺 {missing_frag}"))
-            all_ok = False
-        # 判定字符串（decision 值）至少出现 2 个
-        decs = [str(it.get("decision")) for it in trackmod["items"] if isinstance(it, dict) and it.get("decision")]
-        mention_count = sum(1 for d in dict.fromkeys(decs) if d and d in concl)
-        if mention_count < 2:
-            details.append(_detail_gap(
-                f"trackConclusion 需至少提及 2 条赛道判定字符串，实际 {mention_count}"))
-            all_ok = False
-
-    # margin段 <-> margin
-    mg_mod = modules.get("margin") or {}
-    mseg = mod.get("margin") or ""
-    if isinstance(mg_mod, dict):
-        mg_status = mg_mod.get("status")
-        if mg_status == "FINAL":
-            if not any(w in mseg for w in ("融资", "两融")):
-                details.append(_detail_gap("margin FINAL 但 margin 段未含『融资/两融』"))
-                all_ok = False
-        elif mg_status == "PENDING":
-            if not any(w in mseg for w in ("待披露", "未披露", "参考", "T+1")):
-                details.append(_detail_gap("margin PENDING 但 margin 段未含『待披露/未披露/参考/T+1』"))
+                    f"turnover volumeState={vs} 但 marketEnvironment 未提及 {want!r}"))
                 all_ok = False
 
-    # northbound段 <-> northbound
-    nb_mod = modules.get("northbound") or {}
-    nbseg = mod.get("northbound") or ""
-    if isinstance(nb_mod, dict):
-        nb_mode = nb_mod.get("mode")
-        if nb_mode == "POST_20240819_LEGACY_IMPORTED"                 and nb_mod.get("status") == "FINAL":
-            if "北向" not in nbseg:
-                details.append(_detail_gap("northbound legacy FINAL 但 northbound 段未含『北向』"))
+        # trackConclusion <-> tracks（FINAL 且 items>=4）
+        trackmod = modules.get("tracks") or {}
+        concl = mod.get("trackConclusion") or ""
+        if isinstance(trackmod, dict) and trackmod.get("status") == "FINAL"             and isinstance(trackmod.get("items"), list) and len(trackmod["items"]) >= 4:
+            track_names = [it.get("trackName") for it in trackmod["items"] if isinstance(it, dict)]
+            # 每个 item 取 trackName 去除括号部分后的前 2 字符子串，逐一要求出现在 trackConclusion。
+            frags = []
+            for tn in track_names:
+                if not isinstance(tn, str):
+                    continue
+                core = re.split(r"[（(]", tn)[0].strip()
+                frag = core[:2] if len(core) >= 2 else core
+                frags.append(frag)
+            missing_frag = [f for f in frags if f and f not in concl]
+            if missing_frag:
+                details.append(_detail_gap(
+                    f"trackConclusion 未覆盖全部赛道前2字子串，缺 {missing_frag}"))
                 all_ok = False
-            if not any(w in nbseg for w in ("净流入", "净流出")):
-                details.append(_detail_gap("northbound legacy FINAL 但 northbound 段未含『净流入/净流出』"))
+            # 判定字符串（decision 值）至少出现 2 个
+            decs = [str(it.get("decision")) for it in trackmod["items"] if isinstance(it, dict) and it.get("decision")]
+            mention_count = sum(1 for d in dict.fromkeys(decs) if d and d in concl)
+            if mention_count < 2:
+                details.append(_detail_gap(
+                    f"trackConclusion 需至少提及 2 条赛道判定字符串，实际 {mention_count}"))
                 all_ok = False
-        elif nb_mode == "POST_20240819_OFFICIAL_REPLACEMENT":
-            if not any(w in nbseg for w in ("停发", "季度", "披露", "不再")):
-                details.append(_detail_gap("northbound OFFICIAL 但 northbound 段未含『停发/季度/披露/不再』"))
-                all_ok = False
+
+        # margin段 <-> margin
+        mg_mod = modules.get("margin") or {}
+        mseg = mod.get("margin") or ""
+        if isinstance(mg_mod, dict):
+            mg_status = mg_mod.get("status")
+            if mg_status == "FINAL":
+                if not any(w in mseg for w in ("融资", "两融")):
+                    details.append(_detail_gap("margin FINAL 但 margin 段未含『融资/两融』"))
+                    all_ok = False
+            elif mg_status == "PENDING":
+                if not any(w in mseg for w in ("待披露", "未披露", "参考", "T+1")):
+                    details.append(_detail_gap("margin PENDING 但 margin 段未含『待披露/未披露/参考/T+1』"))
+                    all_ok = False
+
+        # northbound段 <-> northbound
+        nb_mod = modules.get("northbound") or {}
+        nbseg = mod.get("northbound") or ""
+        if isinstance(nb_mod, dict):
+            nb_mode = nb_mod.get("mode")
+            if nb_mode == "POST_20240819_LEGACY_IMPORTED"                 and nb_mod.get("status") == "FINAL":
+                if "北向" not in nbseg:
+                    details.append(_detail_gap("northbound legacy FINAL 但 northbound 段未含『北向』"))
+                    all_ok = False
+                if not any(w in nbseg for w in ("净流入", "净流出")):
+                    details.append(_detail_gap("northbound legacy FINAL 但 northbound 段未含『净流入/净流出』"))
+                    all_ok = False
+            elif nb_mode == "POST_20240819_OFFICIAL_REPLACEMENT":
+                if not any(w in nbseg for w in ("停发", "季度", "披露", "不再")):
+                    details.append(_detail_gap("northbound OFFICIAL 但 northbound 段未含『停发/季度/披露/不再』"))
+                    all_ok = False
 
     # 存在任一模块 status 非 FINAL 时，summary 至少一段含缺口词
     non_final = any(isinstance(m, dict) and m.get("status") != "FINAL"
@@ -1644,8 +1878,18 @@ def _check_date_le(trade_date, path, value, details):
     return True
 
 
+
+def _invariant_spec(standard, inv_id):
+    """按 id 取标准 crossModuleInvariants 的 spec 对象（P0-008 各 invariant 直接消费其 spec/config）。"""
+    for inv in standard.get("crossModuleInvariants") or []:
+        if isinstance(inv, dict) and inv.get("id") == inv_id:
+            return inv.get("spec") or {}
+    return {}
+
+
 def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
     """9 条跨模块不变式一一实现（按 id），全部产出 results key（P0-008）。返回 (inv_results, detail_msgs)。"""
+    daily_dir = daily_dir or DAILY_DIR
     modules = snapshot.get("modules") or {}
     ref_date = standard.get("referenceDate")
     details = []
@@ -1679,13 +1923,25 @@ def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
                     b = False
     results["INV-DATE-LOOKAHEAD"] = b
 
-    # INV-UNIT-亿元：模块若声明 unit 须为亿元（无数值破坏的硬门禁）
+    # INV-UNIT-亿元（P0-008-A）：读标准 spec.modules 清单；对清单内每个模块若其标准 fields 声明了 required 的
+    # unit 字段，则该模块 unit 缺失或 !=亿元 即 false（unit 缺失不再放行）。未声明 unit 的模块不要求。
+    unit_spec = _invariant_spec(standard, "INV-UNIT-亿元")
+    unit_modules = unit_spec.get("modules") or []
     b = True
-    for mname in ("turnover", "fundFlow", "northbound", "margin"):
+    for mname in unit_modules:
         m = modules.get(mname) or {}
-        if isinstance(m, dict) and m.get("unit") is not None and m.get("unit") != "亿元":
+        mod_fields = _lookup_module(standard, mname).get("fields") or []
+        declared_unit = None
+        for f in mod_fields:
+            if f.get("name") == "unit" and f.get("required"):
+                declared_unit = f
+                break
+        if declared_unit is None:
+            continue
+        u = m.get("unit") if isinstance(m, dict) else None
+        if u is None or u != "亿元":
             b = False
-            details.append(_detail_gap(f"INV-UNIT-亿元: {mname}.unit={m.get('unit')!r} 应为亿元"))
+            details.append(_detail_gap(f"INV-UNIT-亿元: {mname}.unit 缺失或非亿元: {u!r}"))
     results["INV-UNIT-亿元"] = b
 
     # INV-LIST-SORT-SIGN：fundFlow 符号由 _validate_lists 覆盖；northbound netBuy>0/netSell<0
@@ -1706,8 +1962,10 @@ def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
                     b = False
     results["INV-LIST-SORT-SIGN"] = b
 
-    # INV-MARGIN-IDENTITY：FINAL 分支恒等（容差 0.05）+ change 环比（容差 0.01）已在 check_margin 内；
-    # 此处做最终确认避免模块级遗漏。
+    # INV-MARGIN-IDENTITY（P0-008-D）：读标准 spec.changeIdentity/changeTolerance/referenceDateExemption。
+    # 恒等(tol 0.05) + change 环比；参考日且 referenceDateExemption=true 时环比由 INV-REF-EXACT 兜底跳过；
+    # 否则前一 FINAL margin 缺失 -> false（不再 note 放行）。
+    mg_id_spec = _invariant_spec(standard, "INV-MARGIN-IDENTITY")
     mg = modules.get("margin") or {}
     b = True
     if isinstance(mg, dict) and mg.get("status") == "FINAL":
@@ -1715,6 +1973,21 @@ def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
         if all(_is_finite_number(v) for v in (fin, sec, bal)):
             if abs(float(bal) - (float(fin) + float(sec))) > 0.05:
                 b = False
+        change = mg.get("marginBalanceChange")
+        if _is_finite_number(change):
+            if trade_date == ref_date and mg_id_spec.get("referenceDateExemption"):
+                pass  # 参考日以 referenceAssertions(INV-REF-EXACT) 为金标，环比兜底由其校验
+            else:
+                prev_bal = _prev_trading_day_margin_balance(trade_date, daily_dir)
+                if prev_bal is None:
+                    b = False
+                    details.append(_detail_gap("INV-MARGIN-IDENTITY: 前一 FINAL margin 缺失，环比无法校验"))
+                else:
+                    tol = mg_id_spec.get("changeTolerance", 0.01)
+                    if abs(float(change) - (float(bal) - prev_bal)) > tol:
+                        b = False
+                        details.append(_detail_gap(
+                            f"INV-MARGIN-IDENTITY: change 环比差异 |{change} - {float(bal)-prev_bal:.2f}|>{tol}"))
     results["INV-MARGIN-IDENTITY"] = b
 
     # INV-TURNOVER-IDENTITY：COMPARABLE 恒等（已在 check_turnover 内）
@@ -1730,38 +2003,74 @@ def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
                 b = False
     results["INV-TURNOVER-IDENTITY"] = b
 
-    # INV-SENTIMENT-WIDTH
+    # INV-SENTIMENT-WIDTH（P0-008-B）：status==FINAL 时 spec.fields 三字段任一缺失/非有限 -> false（不只检查 sum），
+    # 且 sum>=sumMin。
+    se_w_spec = _invariant_spec(standard, "INV-SENTIMENT-WIDTH")
+    se_fields = se_w_spec.get("fields") or ["riseCount", "fallCount", "flatCount"]
     se = modules.get("sentiment") or {}
     b = True
-    if isinstance(se, dict) and se.get("status") == spec_required_status(standard, "sentiment"):
-        vals = [se.get(k) for k in ("riseCount", "fallCount", "flatCount")]
-        if all(_is_finite_number(v) for v in vals):
-            if float(vals[0]) + float(vals[1]) + float(vals[2]) < 4000:
+    if isinstance(se, dict):
+        req_status = spec_required_status(standard, "sentiment")
+        if se.get("status") == req_status:
+            vals = [se.get(k) for k in se_fields]
+            if not all(_is_finite_number(v) for v in vals):
                 b = False
+                details.append(_detail_gap("INV-SENTIMENT-WIDTH: sentiment 三计数任一缺失/非有限"))
+            elif float(vals[0]) + float(vals[1]) + float(vals[2]) < (se_w_spec.get("sumMin") or 4000):
+                b = False
+                details.append(_detail_gap("INV-SENTIMENT-WIDTH: rise+fall+flat < sumMin"))
     results["INV-SENTIMENT-WIDTH"] = b
 
-    # INV-ENUM-SOURCE-METHOD：各模块 source/method/mode 等枚举字段按标准 fields 声明校验，产出 results key。
+    # INV-ENUM-SOURCE-METHOD（P0-008-C）：直接读标准 spec.allowedEnums——路径格式 "<模块>.<顶层字段>" 与
+    # tracks 的 item 字段 "<模块>.items.<字段>"（maAlignment/excessReturn20d/decision）。值缺失时仅当该字段
+    # required（标准 fields/items.fields required=true）才 false；值存在但不在枚举即 false。未声明路径不检查。
+    en_cfg = _invariant_spec(standard, "INV-ENUM-SOURCE-METHOD").get("allowedEnums") or {}
     b = True
-    for mname, m in modules.items():
-        if not isinstance(m, dict):
-            continue
-        fspec = _lookup_module(standard, mname).get("fields", [])
-        for spec in fspec:
-            fname = spec.get("name")
-            if spec.get("kind") == "enum":
-                allowed = list(spec.get("enumValues", []))
-                val = m.get(fname)
-                if val is None:
+    for mname, field_enums in en_cfg.items():
+        m = modules.get(mname) or {}
+        for fpath, enum_vals in field_enums.items():
+            if fpath.startswith("items."):
+                fname = fpath[len("items."):]
+                mi_fields = (_lookup_module(standard, mname).get("items") or {}).get("fields") or []
+                item_req = False
+                for f in mi_fields:
+                    if f.get("name") == fname:
+                        item_req = bool(f.get("required"))
+                        break
+                items = m.get("items") if isinstance(m, dict) else None
+                if not isinstance(items, list):
                     continue
-                if len(allowed) == 1 and isinstance(allowed[0], bool):
-                    # 布尔枚举：校验类型。
-                    if type(val) is not bool:
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    v = it.get(fname)
+                    if v is None:
+                        if item_req:
+                            b = False
+                            details.append(_detail_gap(f"INV-ENUM-SOURCE-METHOD: {mname}.items.{fname} 缺失(required)"))
+                        continue
+                    if v not in enum_vals:
                         b = False
-                        details.append(_detail_gap(f"INV-ENUM-SOURCE-METHOD: {mname}.{fname}={val!r} 非布尔枚举"))
+                        details.append(_detail_gap(f"INV-ENUM-SOURCE-METHOD: {mname}.items.{fname}={v!r} 不在枚举 {enum_vals}"))
+            else:
+                mod_fields = _lookup_module(standard, mname).get("fields") or []
+                req = False
+                for f in mod_fields:
+                    if f.get("name") == fpath:
+                        req = bool(f.get("required"))
+                        break
+                v = m.get(fpath) if isinstance(m, dict) else None
+                if v is None:
+                    if req:
+                        b = False
+                        details.append(_detail_gap(f"INV-ENUM-SOURCE-METHOD: {mname}.{fpath} 缺失(required)"))
                     continue
-                if val not in allowed:
+                # source 等多值字段以字符串数组存储时逐项校验；标量直接比对。
+                values = v if isinstance(v, list) and all(isinstance(x, str) for x in v) else [v]
+                bad = [x for x in values if x not in enum_vals]
+                if bad:
                     b = False
-                    details.append(_detail_gap(f"INV-ENUM-SOURCE-METHOD: {mname}.{fname}={val!r} 不在枚举 {allowed}"))
+                    details.append(_detail_gap(f"INV-ENUM-SOURCE-METHOD: {mname}.{fpath}={v!r} 含不在枚举的值 {bad}"))
     results["INV-ENUM-SOURCE-METHOD"] = b
 
     # INV-REF-EXACT：参考日精确断言
@@ -1869,9 +2178,16 @@ def startup_self_check(standard):
                 errors.append(
                     f"模块 {name} ruleId={rule_id} ruleVersion={rule_version} 不受支持 {supported}")
         elif rule_id in _GENERIC_HANDLERS:
-            gfn = globals().get(_GENERIC_HANDLERS[rule_id])
+            # P0-002-A：通用引擎同样校验 ruleVersion 是否在 supportedVersions（不在 -> errors -> 退出码 3）。
+            gen_entry = _GENERIC_HANDLERS[rule_id]
+            gen_handler = gen_entry.get("handler")
+            gfn = globals().get(gen_handler)
             if not callable(gfn):
-                errors.append(f"通用引擎 handler {_GENERIC_HANDLERS[rule_id]!r} (ruleId={rule_id}) 未实现")
+                errors.append(f"通用引擎 handler {gen_handler!r} (ruleId={rule_id}) 未实现")
+            gen_supported = gen_entry.get("supportedVersions") or []
+            if int(rule_version) not in gen_supported:
+                errors.append(
+                    f"模块 {name} ruleId={rule_id} ruleVersion={rule_version} 不受通用引擎支持 {gen_supported}")
         else:
             errors.append(f"模块 {name} ruleId={rule_id} 不在 dispatch 表（未知规则）")
     # invariant id 集合相等：标准声明的 crossModuleInvariants.id == 代码 _INVARIANT_IDS。
@@ -1892,9 +2208,10 @@ MODULE_ORDER = [
 
 # 通用引擎 handler：标准声明了 ruleId 但无复杂 handler 的模块走字段/items/lists 通用校验。
 _GENERIC_HANDLERS = {
-    "marketIndex_V2": "check_marketindex",
-    "sectorPerformance_V2": "check_sectors",
-    "fundFlow_V2": "check_fundflow",
+    # P0-002-A：通用引擎同样做 ruleId -> {supportedVersions, handler} 版本绑定。
+    "marketIndex_V2": {"supportedVersions": [2], "handler": "check_marketindex"},
+    "sectorPerformance_V2": {"supportedVersions": [1], "handler": "check_sectors"},
+    "fundFlow_V2": {"supportedVersions": [1], "handler": "check_fundflow"},
 }
 
 
@@ -1908,7 +2225,7 @@ def _build_checkers(standard):
             fn = globals().get(entry["handler"])
             out[name] = fn
         elif rule_id in _GENERIC_HANDLERS:
-            out[name] = globals().get(_GENERIC_HANDLERS[rule_id])
+            out[name] = globals().get(_GENERIC_HANDLERS[rule_id].get("handler"))
         else:
             out[name] = None  # startup_self_check 已拦截。
     return out
