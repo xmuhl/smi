@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-07-20",
   "generatedAt": "2026-08-15T12:05:30+08:00",
-  "updatedAt": "2026-08-15T21:50:32+08:00",
-  "revision": 6,
+  "updatedAt": "2026-08-16T18:28:49.944716+08:00",
+  "revision": 7,
   "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -133,7 +133,15 @@
       "comparisonStatus": "PREVIOUS_METHOD_MISMATCH",
       "sourceWarnings": [
         "eastmoney: eastmoney spot has no history"
-      ]
+      ],
+      "crossMethodReference": {
+        "previous": 26549.58,
+        "delta": 488.14,
+        "changePct": 1.84,
+        "nonComparable": true,
+        "currentMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+        "previousMethod": "LEGACY_UNKNOWN"
+      }
     },
     "sentiment": {
       "status": "UNAVAILABLE",
@@ -376,9 +384,9 @@
       "fundFlow": "主力资金模块暂未取得完整有效数据，本项不作判断。",
       "margin": "两融总余额 27092.61 亿元，较前一交易日减少 1046.40 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项不作达标/规避判断。",
-      "marketEnvironment": "沪深两市成交额 27037.72 亿元；暂无可比较的前一交易日快照。",
+      "marketEnvironment": "本日两市成交额 27037.72 亿元（官方沪深A股口径）。前一交易日为 Legacy 口径 26549.58 亿元，跨口径参考变化 +488.14 亿元（+1.84%），仅供参考、不可视为同口径连续环比。",
       "northbound": "北向季度持仓本次暂未取得。",
-      "riskWarning": "当前不可用：sentiment、sectorPerformance、fundFlow、northbound、tracks。 本数据仅供市场信息参考，不构成投资建议。"
+      "riskWarning": "本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
   },
   "validation": {
