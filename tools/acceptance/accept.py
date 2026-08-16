@@ -1,22 +1,32 @@
 # -*- coding: utf-8 -*-
 """SMI 数据侧验收器 v2（严格消费 docs/acceptance/template-standard.json 单一真源）。
 
-对比旧版，v2 落地了 R12 P0-001..P0-009 的执行侧要求：
+对比旧版，v2 落地 R12 P0-001..P0-009 的执行侧要求，并针对评审报告
+（work/SMI_R12_P01_Review_Report.md）FIX 建议加固到 P0.2：
 
-- P0-002：通用引擎由标准 fields/items/lists 声明驱动，标准字段清单不再复制进代码；
-          每条复杂规则按标准 ruleId/ruleVersion 绑定到显式 handler，启动自检做一致性校验。
-- P0-001 / INV-REF-EXACT：referenceDate 执行 referenceAssertions 逐条精确断言（数值容差 0.01、
-          字符串精确相等、列表逐项比较），杜绝“字段缺失即 PASS”假阳性。
-- P0-003：northbound 严格 mode 枚举 + Legacy/Official 两个明确分支，Official 必须 point-in-time
-          （quarterlyHolding.asOf<=selectedDate 且 publishedAt<=selectedDate，防 look-ahead）。
-- P0-004 / INV-TURNOVER-IDENTITY：turnover 状态机 method-boundary 通用处理，不做日期特判。
+- P0-001 / INV-REF-EXACT：referenceAssertions fail-closed 全量消费。expected 中每个
+          name/dict-key 都必须被实际比对（missing 即 _detail_gap，禁止 continue 跳过）；
+          参考日执行后做 declaredAssertionCount / consumedAssertionCount 覆盖率自检，二者不等该模块即 FAIL。
+- P0-002：_COMPLEX_HANDLERS 改为 ruleId -> {supportedVersions, handler} 的真实 dispatch 真源；
+          ruleId 未知或 ruleVersion 不受支持 → 启动自检失败(退出码 3)；CHECKERS 由 dispatch 表构造。
+          所有复杂 handler 开头统一 _validate_field_values(mod, spec.fields)，状态豁免一律经标准
+          fields 的 per-state 声明（required=false 或 skipStates），代码不做私自豁免。
+- P0-003：northbound OFFICIAL_REPLACEMENT/PIT 强制 asOf/publishedAt 必存在且可解析（date.fromisoformat
+          截断到日期）、asOf<=tradeDate 且 publishedAt<=tradeDate；缺任一即 FAIL；INV-NORTHBOUND-PIT 同样强制。
+- P0-004 / INV-TURNOVER-IDENTITY：PREVIOUS_METHOD_MISMATCH 必须存在 crossMethodReference 对象
+          （previous/delta/changePct 成组有限值、nonComparable===true、currentMethod/previousMethod 非空、
+          内部算术恒等），任一缺失即 FAIL。
 - P0-005 / INV-SENTIMENT-WIDTH：canonical 六计数 + 市场宽度 + 参考日精确断言 + 非参考日缺口说明。
-- P0-006：tracks 16 列逐列 typed 校验 + 模块级 configVersion/effectiveFrom/effectiveTo +
-          trackId 集合与 referenceAssertions/模块定义一致。
-- P0-007：summary 中文字符占比/长度/占位词/风险提示固定语句/依赖完整性。
-- P0-008：crossModuleInvariants 9 条按 id 一一实现。
-- P0-009：report provenance 记录 repoCommit/standardSha256/acceptorSha256/manifestSha256/
-          perDateSnapshotSha256/pythonVersion/generatedAt。
+- P0-006：tracks 时序/区间/占位/重算。item.date==tradeDate；模块 effectiveFrom/effectiveTo 覆盖
+          tradeDate（仅 snapshot.meta.legacy && tradeDate==referenceDate 豁免）；redStockRatio 0~100；
+          coreCatalyst/earningsRealization 按标准 rejectedPlaceholders 检查；sourceSystem 按标准 required；
+          非 legacy 且 FINAL 的 tracks 用 collector.calculators.tracks.score_tracks 重算 score/decision。
+- P0-007：summary 事实锚点。marketEnvironment↔turnover、trackConclusion↔tracks、margin段↔margin、
+          northbound段↔northbound 逐条校验底层结构化事实。
+- P0-008：crossModuleInvariants 9 条按 id 一一产出 results key（含 INV-ENUM-SOURCE-METHOD）；
+          DATE 递归扫描 nested 时序字段；startup 校验 invariant id 集合相等。
+- P0-009：report provenance 新增 evaluatedCommit(HEAD) + dirty(git status --porcelain)；
+          repoCommit 语义注释为与 evaluatedCommit 同值；报告顶层加 reportCommitSemantics。
 
 以纯标准库实现，UTF-8，无第三方依赖。
 
@@ -44,15 +54,18 @@ MANIFEST_PATH = os.path.join("web", "public", "data", "manifest.json")
 DAILY_DIR = os.path.join("web", "public", "data", "daily")
 DEFAULT_REPORT = os.path.join("work", "acceptance", "baseline-report.json")
 
-# 复杂规则 handler 注册表：标准里声明了 ruleId 的模块 -> 已实现的 handler 处理器。
+# 复杂规则 handler 注册表（P0-002 真实 dispatch 真源）。
+# ruleId -> {supportedVersions, handler}。dispatch 时按标准该模块的 ruleId 查表：
+# ruleId 未知或 ruleVersion 不在 supportedVersions -> 启动自检失败(退出码 3)。
 # 通用引擎覆盖 marketIndex/sectorPerformance/fundFlow；复杂规则由下列 handler 落地。
+# 支持版本以标准 modules[*].ruleVersion 为准（本仓标准当前值：turnover/northbound/tracks/summary=2，sentiment/margin=1）。
 _COMPLEX_HANDLERS = {
-    "turnover_V2": "check_turnover",
-    "sentiment_V2": "check_sentiment",
-    "northbound_V2": "check_northbound",
-    "margin_V2": "check_margin",
-    "tracks_V2": "check_tracks",
-    "summary_V2": "check_summary",
+    "turnover_V2": {"supportedVersions": [2], "handler": "check_turnover"},
+    "sentiment_V2": {"supportedVersions": [1], "handler": "check_sentiment"},
+    "northbound_V2": {"supportedVersions": [2], "handler": "check_northbound"},
+    "margin_V2": {"supportedVersions": [1, 2], "handler": "check_margin"},
+    "tracks_V2": {"supportedVersions": [2], "handler": "check_tracks"},
+    "summary_V2": {"supportedVersions": [2], "handler": "check_summary"},
 }
 
 # crossModuleInvariants 的 9 条 id（用于 P0-008 一一对应实现）。
@@ -122,6 +135,43 @@ def _sha256_bytes(data_bytes):
     return hashlib.sha256(data_bytes).hexdigest()
 
 
+def _parse_iso_date_strict(value):
+    """把 YYYY-MM-DD 或带时间(YYYY-MM-DDTHH:MM:SS[±tz])的字符串解析为 datetime.date。
+
+    含时间部分自动截断到日期。解析失败返回 None（调用方据此判定缺失/非法）。
+    用于 P0-003 北向 PIT 与 DATE invariant 的 look-ahead 比较（避免裸字符串字典序）。
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    dt = value.replace("Z", "+00:00") if isinstance(value, str) and value.endswith("Z") else value
+    try:
+        from datetime import date as _date
+        if len(dt) <= 10:
+            return _date.fromisoformat(dt[:10])
+        parsed = None
+        parsed = _date.fromisoformat(dt[:10])
+        return parsed
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _git_dirty():
+    """git status --porcelain 非空即为 dirty（P0-009）。"""
+    try:
+        out = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            cwd=os.getcwd(),
+            timeout=10,
+        )
+        if out.returncode == 0:
+            return bool(out.stdout.strip())
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
 def _repo_commit():
     try:
         out = subprocess.run(
@@ -173,11 +223,13 @@ def _lookup_module(standard, name):
 # 由标准 fields/items/lists 声明驱动，不复制字段清单。
 
 
-def _validate_field_values(module, field_specs, enum_extras=None, plan=None):
+def _validate_field_values(module, field_specs, enum_extras=None, plan=None, status=None):
     """按标准 fields 声明的 kind/enum/min/max/minChars/cjkRequired 校验。
 
-    plan: 可选 dict，允许特定字段在特定状态下跳过（如 PENDING margin 的余额字段不必在模块级存在）。
+    plan: 可选 dict，字段名 -> bool。plan 中某字段为 False 时跳过模块级校验，交给 handler 自己处理。
     enum_extras: 参考日由 referenceAssertions 固化到的额外枚举值（referenceXlsx > canonicalSnapshot）。
+    status: 当前模块状态。若字段 spec 声明了 skipStates 且 status 在其中，则该字段在模块级豁免
+            （交由 handler 做状态相关校验）——状态豁免一律以标准字段声明为准，代码不做私自豁免。
     """
     enum_extras = enum_extras or {}
     plan = plan or {}
@@ -188,6 +240,10 @@ def _validate_field_values(module, field_specs, enum_extras=None, plan=None):
         required = bool(spec.get("required", False))
         if plan.get(name) is False:
             # 该字段在当前状态下被 handler 声明为可选/忽略，交给 handler 自己处理。
+            continue
+        skip_states = spec.get("skipStates") or []
+        if status is not None and skip_states and status in skip_states:
+            # 标准 per-state 计划豁免：该字段在此状态下不要求模块级存在/非空，交由 handler 校验。
             continue
         if name not in module:
             if required:
@@ -232,6 +288,9 @@ def _validate_field_values(module, field_specs, enum_extras=None, plan=None):
         elif kind == "percentString":
             if not isinstance(val, str) or not re.fullmatch(r"\d+(\.\d+)?%", val):
                 msgs.append(_detail_gap(f"{name}={val!r} 非百分比字符串(如 85%)"))
+        elif kind == "object":
+            if not isinstance(val, (dict, list)):
+                msgs.append(_detail_gap(f"{name} 非对象/数组: {val!r}"))
         else:
             msgs.append(_detail_gap(f"未知 kind {kind!r} 字段 {name}"))
         # 范围
@@ -476,6 +535,8 @@ def check_marketindex(snapshot, standard=None, trade_date=None, manifest=None, d
     # items
     items_spec = spec.get("items") or {}
     details.extend(_validate_items(mod, items_spec))
+    # 参考日精确断言（INV-REF-EXACT 聚合与模块级一致，P0-001）
+    details.extend(_run_reference_assertions(snapshot, standard, "marketIndex", trade_date, daily_dir, ctx))
     ok = not any(not d["passed"] for d in details)
     if ok and not details:
         details.append(_detail_ok(f"{rule}: status={status}；items 结构/必需核心指数均有效"))
@@ -539,11 +600,37 @@ def check_turnover(snapshot, standard=None, trade_date=None, manifest=None, dail
                 details.append(_detail_gap(f"PREVIOUS_METHOD_MISMATCH 需 {fn}=null"))
         if vs != "UNKNOWN":
             details.append(_detail_gap(f"PREVIOUS_METHOD_MISMATCH 需 volumeState=UNKNOWN，实际 {vs!r}"))
-        # crossMethodReference 允许存在且必带 nonComparable=true
-        if mod.get("crossMethodReferencePrevious") is not None:
-            for fn in ("crossMethodReferenceDelta", "crossMethodReferenceChangePct"):
-                if mod.get(fn) is not None and not _is_finite_number(mod.get(fn)):
-                    details.append(_detail_gap(f"{fn} 须 finite"))
+        # P0-004 / INV-TURNOVER-IDENTITY：MISMATCH 必须存在 crossMethodReference 对象（非可比契约）。
+        cmr = mod.get("crossMethodReference")
+        if not isinstance(cmr, dict):
+            details.append(_detail_gap(
+                "PREVIOUS_METHOD_MISMATCH 需 crossMethodReference 对象（previous/delta/changePct/nonComparable/currentMethod/previousMethod）"))
+        else:
+            need = ("previous", "delta", "changePct")
+            has_nums = all(_is_finite_number(cmr.get(k)) for k in need)
+            if not has_nums:
+                details.append(_detail_gap(
+                    f"crossMethodReference 需 previous/delta/changePct 三个有限数值成组，实际 "
+                    f"previous={cmr.get('previous')!r} delta={cmr.get('delta')!r} changePct={cmr.get('changePct')!r}"))
+            if cmr.get("nonComparable") is not True:
+                details.append(_detail_gap("crossMethodReference.nonComparable 必须严格为 true"))
+            if not cmr.get("currentMethod") or not cmr.get("previousMethod"):
+                details.append(_detail_gap(
+                    "crossMethodReference 需 currentMethod/previousMethod 非空"))
+            if has_nums:
+                cprev, cdelta, cpct = float(cmr["previous"]), float(cmr["delta"]), float(cmr["changePct"])
+                if _is_finite_number(today):
+                    if abs(cdelta - (float(today) - cprev)) > 0.01:
+                        details.append(_detail_gap(
+                            "crossMethodReference 算术破坏: |delta-(today-prev)|>0.01"))
+                if cprev > 0:
+                    if abs(cpct - cdelta / cprev * 100.0) > 0.01:
+                        details.append(_detail_gap(
+                            "crossMethodReference 算术破坏: |pct - delta/prev*100|>0.01"))
+        # 兼容旧标量形式 crossMethodReferencePrevious/Delta/ChangePct（标准本轮同步改为对象后此分支不再触发）。
+        if not isinstance(cmr, dict) and mod.get("crossMethodReferencePrevious") is not None:
+            details.append(_detail_gap(
+                "crossMethodReference 应采用对象结构（previous/delta/changePct/nonComparable/currentMethod/previousMethod）"))
     elif comparison_status is None:
         details.append(_detail_gap("comparisonStatus 缺失"))
     else:
@@ -647,16 +734,8 @@ def check_northbound(snapshot, standard=None, trade_date=None, manifest=None, da
     rule = spec.get("ruleId") or "northbound_V2"
     if spec.get("requiredStatus") and status != spec.get("requiredStatus"):
         details.append(_detail_gap(f"status={status!r} 期望 {spec.get('requiredStatus')}"))
-    # mode 严格枚举
-    mode_vals = (spec.get("fields", []) or [])
-    mode_spec = next((f for f in mode_vals if f.get("name") == "mode"), None)
-    if mode_spec:
-        allowed = mode_spec.get("enumValues", [])
-        mode = mod.get("mode")
-        if mode not in allowed:
-            details.append(_detail_gap(f"mode={mode!r} 不在严格枚举 {allowed}"))
-    else:
-        details.extend(_validate_field_values(mod, spec.get("fields", [])))
+    # P0-002：复杂 handler 开头统一消费标准 fields（mode/sourceSystem/officialDisclosureCompatible 全走引擎）。
+    details.extend(_validate_field_values(mod, spec.get("fields", [])))
 
     mode = mod.get("mode")
     if trade_date is None:
@@ -678,6 +757,7 @@ def check_northbound(snapshot, standard=None, trade_date=None, manifest=None, da
                 details.append(_detail_gap(
                     "非参考日不应使用 Legacy 口径（历史日期不应使用 Legacy 口径）"))
     elif mode == "POST_20240819_OFFICIAL_REPLACEMENT":
+        # P0-003：OFFICIAL 分支 point-in-time 强制。asOf/publishedAt 必存在且可解析，<= tradeDate。
         if status != spec.get("requiredStatus", "FINAL"):
             details.append(_detail_gap("OFFICIAL_REPLACEMENT 需模块 status=FINAL"))
         qh = mod.get("quarterlyHolding")
@@ -695,18 +775,23 @@ def check_northbound(snapshot, standard=None, trade_date=None, manifest=None, da
                         details.append(_detail_gap(f"quarterlyHolding.items[{i}] 非对象"))
                         continue
                     for fn in ("code", "hkexStockCode", "name", "shareholding", "pctOfIssued", "market"):
-                        if it.get(fn) is None:
+                        if not it.get(fn):
                             details.append(_detail_gap(f"quarterlyHolding.items[{i}] 缺 {fn}"))
-            asof = qh.get("asOf")
-            pub = qh.get("publishedAt")
-            if asof is not None and trade_date is not None and asof > trade_date:
-                details.append(_detail_gap("quarterlyHolding.asOf > tradeDate (look-ahead)"))
-            if pub is not None and trade_date is not None and pub > trade_date:
-                details.append(_detail_gap("quarterlyHolding.publishedAt > tradeDate (look-ahead)"))
+            # PIT：asOf/publishedAt 必存在且可解析（date.fromisoformat，含时间则截断日期）。
+            for fn, label in (("asOf", "asOf"), ("publishedAt", "publishedAt")):
+                v = qh.get(fn)
+                parsed = _parse_iso_date_strict(v)
+                if v is None or v == "" or parsed is None:
+                    details.append(_detail_gap(
+                        f"OFFICIAL_REPLACEMENT 需 quarterlyHolding.{fn} 存在且可解析(YYYY-MM-DD)，实际 {v!r}"))
+                    continue
+                if trade_date and parsed > _parse_iso_date_strict(trade_date):
+                    details.append(_detail_gap(
+                        f"quarterlyHolding.{fn}={v} > tradeDate {trade_date} (look-ahead)"))
         # 占位 dict（status=UNAVAILABLE/items=[]）一律 FAIL——由上方检查覆盖。
     elif mode is None:
         details.append(_detail_gap("mode 缺失"))
-    # 其它 mode 值已由严格枚举上方拦截。
+    # 其它 mode 值（未入标准枚举）已由 _validate_field_values 枚举校验拦截并 FAIL。
 
     details.extend(_run_reference_assertions(snapshot, standard, "northbound", trade_date, daily_dir, ctx))
     ok = not any(not d["passed"] for d in details)
@@ -727,6 +812,13 @@ def check_margin(snapshot, manifest=None, standard=None, trade_date=None, daily_
         trade_date = snapshot.get("tradeDate")
     if manifest is None:
         manifest = ctx.get("manifest") if ctx else None
+
+    # P0-002：复杂 handler 开头统一消费标准 fields。
+    # margin FINAL 才需要模块级余额字段；PENDING 由标准字段声明的 skipStates（如 ["PENDING"]）
+    # 或 required=false 经 per-state 计划豁免——代码不私自豁免，完全读标准。
+    details.extend(_validate_field_values(mod, spec.get("fields", []), status=status))
+    # 参考日精确断言（INV-REF-EXACT 聚合与模块级一致，P0-001）
+    details.extend(_run_reference_assertions(snapshot, standard, "margin", trade_date, daily_dir, ctx))
 
     if status == "FINAL":
         fin, sec, bal = mod.get("financingBalance"), mod.get("securitiesLendingBalance"), mod.get("marginBalance")
@@ -833,16 +925,33 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
     if trade_date is None:
         trade_date = snapshot.get("tradeDate")
 
-    # 模块级 configVersion/effectiveFrom/effectiveTo/sourceSystem 必填（避免配置倒灌历史日期）。
+    # P0-006 时序/区间/占位/重算。配置生效区间豁免仅当 snapshot.meta.legacy 且 tradeDate==referenceDate。
+    meta = snapshot.get("meta") or {}
+    is_legacy_snap = bool(meta.get("legacy"))
+    exempt_eff = bool(is_legacy_snap and trade_date == ref_date)
+
+    # P0-002：复杂 handler 开头统一消费标准 fields。
+    # configVersion/effectiveFrom/effectiveTo/sourceSystem 按标准声明校验；legacy+参考日豁免区间字段。
+    plan = {}
+    if exempt_eff:
+        plan["effectiveFrom"] = False
+        plan["effectiveTo"] = False
+    details.extend(_validate_field_values(mod, spec.get("fields", []), plan=plan))
+
     cfg_version = mod.get("configVersion")
     if cfg_version is None:
         details.append(_detail_gap("模块级 configVersion 缺失"))
-    # effectiveFrom/effectiveTo：legacy 配置本就无版本区间；非 legacy 配置必须显式给出区间，防止今天配置倒灌旧日期。
-    is_legacy_config = (cfg_version == "legacy")
-    if not is_legacy_config:
+
+    # 生效区间覆盖 tradeDate（除 legacy+参考日豁免）——防止今天配置倒灌历史日期。
+    if not exempt_eff:
+        eff_from, eff_to = mod.get("effectiveFrom"), mod.get("effectiveTo")
         for fn in ("effectiveFrom", "effectiveTo"):
             if not mod.get(fn):
-                details.append(_detail_gap(f"模块级 {fn} 缺失（非 legacy 配置需显式版本区间）"))
+                details.append(_detail_gap(f"模块级 {fn} 缺失（需覆盖 tradeDate）"))
+        if _is_iso_date(eff_from) and _is_iso_date(eff_to) and _is_iso_date(trade_date):
+            if not (eff_from <= trade_date <= eff_to):
+                details.append(_detail_gap(
+                    f"配置生效区间 {eff_from}..{eff_to} 未覆盖 tradeDate {trade_date}"))
 
     # items >= 4 且逐列 typed 校验
     items = mod.get("items")
@@ -853,12 +962,11 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
         if len(items) < 4:
             details.append(_detail_gap(f"items 长度 {len(items)} < 4"))
         enum_extras = {}
-        # 参考日：referenceAssertions 固化 canonica值（referenceXlsx > canonicalSnapshot > rawLegacySnapshot）。
         ra = ctx.get("reference_assertions_for") if ctx else None
         if trade_date == ref_date:
             enum_extras = _tracks_reference_enum_extras(standard)
         details.extend(_validate_items(mod, items_spec, enum_extras=enum_extras,
-                                       item_plan=_tracks_item_plan(is_legacy_config)))
+                                       item_plan=_tracks_item_plan(cfg_version == "legacy")))
         # trackId 集合与 referenceAssertions/模块定义一致
         ref_track_ids = _reference_track_ids(standard)
         ids = []
@@ -869,11 +977,103 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
             if set(ids) != set(ref_track_ids):
                 details.append(_detail_gap(
                     f"trackId 集合 {sorted(set(ids))} 与 referenceAssertions 集合 {sorted(ref_track_ids)} 不一致"))
+        # P0-006：item.date 必须存在且 == tradeDate；文本占位检查；redStockRatio 0~100；score/decision 重算。
+        rejected = set(standard.get("rejectedPlaceholders") or [])
+        for i, it in enumerate(items):
+            if not isinstance(it, dict):
+                continue
+            item_date = it.get("date")
+            if not item_date or item_date != trade_date:
+                details.append(_detail_gap(
+                    f"tracks.items[{i}] date 缺失或 != tradeDate {trade_date}，实际 {item_date!r}"))
+            for text_field in ("coreCatalyst", "earningsRealization", "ladderCompleteness"):
+                tv = it.get(text_field)
+                if isinstance(tv, str):
+                    for ph in rejected:
+                        if ph in tv:
+                            details.append(_detail_gap(
+                                f"tracks.items[{i}].{text_field} 含占位词 {ph!r}: {tv!r}"))
+                        break
+            pr = _parse_percent(it.get("redStockRatio"))
+            if pr is not None and not (0.0 <= pr <= 100.0):
+                details.append(_detail_gap(
+                    f"tracks.items[{i}].redStockRatio 解析值 {pr} 超出 0~100"))
+        # 非 legacy 且 status=FINAL：重算 score/decision（参考日 legacy 跳过，由 reference assertions 兜底）。
+        if (not is_legacy_snap) and status == "FINAL" and isinstance(items, list) and items:
+            _recalc_tracks(items, snapshot, details)
 
+    details.extend(_run_reference_assertions(snapshot, standard, "tracks", trade_date, daily_dir, ctx))
     ok = not any(not d["passed"] for d in details)
     if ok and not details:
         details.append(_detail_ok(f"{rule}: items>=4；逐列 typed 校验通过"))
     return _result(rule, ok, details, status)
+
+
+def _is_iso_date(value):
+    """十分量级 check：str 且形如 YYYY-MM-DD（用于生效区间覆盖手比较）。"""
+    return isinstance(value, str) and bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", value))
+
+
+def _parse_percent(value):
+    """把 '85%'/'85.5%' 解析为 0~100 数值；解析失败返回 None。"""
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)%", str(value).strip())
+    if not m:
+        return None
+    try:
+        return float(m.group(1))
+    except ValueError:
+        return None
+
+
+def _recalc_tracks(items, snapshot_holder, details):
+    """非 legacy FINAL 的 tracks：用 collector.calculators.tracks.score_tracks 重算 score/decision。
+    输入不完整/窗口未成熟（INSUFFICIENT）而快照却给出 FINAL 值 -> FAIL。
+    无法加载计算器或重算失败是执行侧缺口 -> FAIL（fail-closed）。"""
+    try:
+        from collector.calculators.tracks import score_tracks
+    except Exception as exc:  # noqa: BLE001
+        details.append(_detail_gap(f"无法加载 score_tracks 计算器: {type(exc).__name__}: {exc}"))
+        return
+    try:
+        recomputed = score_tracks(list(items))
+    except Exception as exc:  # noqa: BLE001
+        details.append(_detail_gap(f"score_tracks 重算失败: {type(exc).__name__}: {exc}"))
+        return
+    if not isinstance(recomputed, list):
+        details.append(_detail_gap("score_tracks 重算未返回 list"))
+        return
+    by_id = {}
+    for it in items:
+        if isinstance(it, dict) and it.get("trackId") is not None:
+            by_id[str(it["trackId"])] = it
+    for r in recomputed:
+        if not isinstance(r, dict):
+            continue
+        tid = r.get("trackId")
+        snap_it = by_id.get(str(tid))
+        if snap_it is None:
+            continue
+        rec = r.get("decision")
+        rec_score = r.get("score")
+        snap_score = snap_it.get("score")
+        snap_dec = snap_it.get("decision")
+        # 快照是 FINAL 判定值而重算结果为 INSUFFICIENT -> 数据侧提供超出可推导范围的 FINAL，FAIL。
+        if rec == "INSUFFICIENT" and snap_dec not in (None, "INSUFFICIENT"):
+            details.append(_detail_gap(
+                f"tracks[{tid}] 重算 INSUFFICIENT 但快照为 FINAL 判定 {snap_dec!r}（输入不完整却给完整判定）"))
+            continue
+        if rec != "INSUFFICIENT":
+            if _is_finite_number(snap_score) and _is_finite_number(rec_score):
+                if abs(float(snap_score) - float(rec_score)) > 0.1:
+                    details.append(_detail_gap(
+                        f"tracks[{tid}] score 重算 {rec_score} 与快照 {snap_score} 不一致(容差0.1)"))
+            if snap_dec is not None and str(snap_dec) != str(rec):
+                details.append(_detail_gap(
+                    f"tracks[{tid}] decision 重算 {rec!r} 与快照 {snap_dec!r} 不一致"))
 
 
 def _tracks_item_plan(is_legacy_config):
@@ -917,6 +1117,9 @@ def check_summary(snapshot, standard=None, trade_date=None, manifest=None, daily
     if spec.get("requiredStatus") and status != spec.get("requiredStatus"):
         details.append(_detail_gap(f"status={status!r} 期望 {spec.get('requiredStatus')}"))
 
+    # P0-002：复杂 handler 开头统一消费标准 fields（8 段 string/minChars/cjk）。
+    details.extend(_validate_field_values(mod, spec.get("fields", [])))
+
     # 8 段 required，minChars>=10；cjk>=0.5、不含 rejectedPlaceholders 仅对非参考日强制执行。
     # 参考日以 referenceAssertions(segmentCount=8 + riskWarningMustContain) 为权威值断言
     # （referencePriority: referenceXlsx > canonicalSnapshot > rawLegacySnapshot）。
@@ -949,19 +1152,84 @@ def check_summary(snapshot, standard=None, trade_date=None, manifest=None, daily
         details.append(_detail_gap("riskWarning 需包含『不构成投资建议』"))
         all_ok = False
 
-    # 依赖完整性
-    trackmod = _module(snapshot, "tracks")
-    if trackmod.get("status") == "FINAL" and isinstance(trackmod.get("items"), list) and len(trackmod["items"]) >= 4:
-        concl = mod.get("trackConclusion") or ""
-        track_names = [it.get("trackName") for it in trackmod["items"] if isinstance(it, dict)]
-        # trackName 的简洁子串（如『高股息』『电力』）
-        sub = ["高股息", "电力"]
-        mentions = [s for s in sub if s in concl]
-        if len(mentions) < 2:
-            details.append(_detail_gap("trackConclusion 需至少提及 2 条赛道的 trackName 子串"))
-            all_ok = False
-    # 存在任一模块 status 非 FINAL 时，summary 至少一段含缺口词
+    # P0-007 事实锚点（结构化事实与 summary 文本逐条比对）。
     modules = snapshot.get("modules") or {}
+
+    # marketEnvironment <-> turnover
+    to_mod = modules.get("turnover") or {}
+    me = mod.get("marketEnvironment") or ""
+    if isinstance(to_mod, dict) and to_mod.get("comparisonStatus") == "COMPARABLE":
+        no_words = ["暂无", "不可比", "无可比较"]
+        for w in no_words:
+            if w in me:
+                details.append(_detail_gap(
+                    f"turnover COMPARABLE 但 marketEnvironment 含 {w!r}（应为可比文案）"))
+                all_ok = False
+        vs = to_mod.get("volumeState")
+        want = {"EXPANSION": "放量", "CONTRACTION": "缩量", "FLAT": "平量"}.get(vs)
+        if want and want not in me:
+            details.append(_detail_gap(
+                f"turnover volumeState={vs} 但 marketEnvironment 未提及 {want!r}"))
+            all_ok = False
+
+    # trackConclusion <-> tracks（FINAL 且 items>=4）
+    trackmod = modules.get("tracks") or {}
+    concl = mod.get("trackConclusion") or ""
+    if isinstance(trackmod, dict) and trackmod.get("status") == "FINAL"             and isinstance(trackmod.get("items"), list) and len(trackmod["items"]) >= 4:
+        track_names = [it.get("trackName") for it in trackmod["items"] if isinstance(it, dict)]
+        # 每个 item 取 trackName 去除括号部分后的前 2 字符子串，逐一要求出现在 trackConclusion。
+        frags = []
+        for tn in track_names:
+            if not isinstance(tn, str):
+                continue
+            core = re.split(r"[（(]", tn)[0].strip()
+            frag = core[:2] if len(core) >= 2 else core
+            frags.append(frag)
+        missing_frag = [f for f in frags if f and f not in concl]
+        if missing_frag:
+            details.append(_detail_gap(
+                f"trackConclusion 未覆盖全部赛道前2字子串，缺 {missing_frag}"))
+            all_ok = False
+        # 判定字符串（decision 值）至少出现 2 个
+        decs = [str(it.get("decision")) for it in trackmod["items"] if isinstance(it, dict) and it.get("decision")]
+        mention_count = sum(1 for d in dict.fromkeys(decs) if d and d in concl)
+        if mention_count < 2:
+            details.append(_detail_gap(
+                f"trackConclusion 需至少提及 2 条赛道判定字符串，实际 {mention_count}"))
+            all_ok = False
+
+    # margin段 <-> margin
+    mg_mod = modules.get("margin") or {}
+    mseg = mod.get("margin") or ""
+    if isinstance(mg_mod, dict):
+        mg_status = mg_mod.get("status")
+        if mg_status == "FINAL":
+            if not any(w in mseg for w in ("融资", "两融")):
+                details.append(_detail_gap("margin FINAL 但 margin 段未含『融资/两融』"))
+                all_ok = False
+        elif mg_status == "PENDING":
+            if not any(w in mseg for w in ("待披露", "未披露", "参考", "T+1")):
+                details.append(_detail_gap("margin PENDING 但 margin 段未含『待披露/未披露/参考/T+1』"))
+                all_ok = False
+
+    # northbound段 <-> northbound
+    nb_mod = modules.get("northbound") or {}
+    nbseg = mod.get("northbound") or ""
+    if isinstance(nb_mod, dict):
+        nb_mode = nb_mod.get("mode")
+        if nb_mode == "POST_20240819_LEGACY_IMPORTED"                 and nb_mod.get("status") == "FINAL":
+            if "北向" not in nbseg:
+                details.append(_detail_gap("northbound legacy FINAL 但 northbound 段未含『北向』"))
+                all_ok = False
+            if not any(w in nbseg for w in ("净流入", "净流出")):
+                details.append(_detail_gap("northbound legacy FINAL 但 northbound 段未含『净流入/净流出』"))
+                all_ok = False
+        elif nb_mode == "POST_20240819_OFFICIAL_REPLACEMENT":
+            if not any(w in nbseg for w in ("停发", "季度", "披露", "不再")):
+                details.append(_detail_gap("northbound OFFICIAL 但 northbound 段未含『停发/季度/披露/不再』"))
+                all_ok = False
+
+    # 存在任一模块 status 非 FINAL 时，summary 至少一段含缺口词
     non_final = any(isinstance(m, dict) and m.get("status") != "FINAL"
                     for m in modules.values())
     gap_words = ["不可用", "缺失", "部分", "未覆盖", "待披露", "未实现", "占位"]
@@ -976,6 +1244,9 @@ def check_summary(snapshot, standard=None, trade_date=None, manifest=None, daily
             details.append(_detail_gap("存在模块非 FINAL，summary 8 段须至少一段含缺口词之一"))
             all_ok = False
 
+    # 参考日 summary referenceAssertions（segmentCount / riskWarningMustContain）逐条执行（P0-001）。
+    details.extend(_run_reference_assertions(snapshot, standard, "summary", trade_date, daily_dir, ctx))
+
     ok = not any(not d["passed"] for d in details)
     if ok and not details:
         details.append(_detail_ok(f"{rule}: 8 段中文摘要 + 风险提示 + 依赖完整性通过"))
@@ -985,9 +1256,29 @@ def check_summary(snapshot, standard=None, trade_date=None, manifest=None, daily
 # ---------------------------------------------------------------- referenceAssertions
 
 
+def _count_assertion_leaves(node):
+    """统计 referenceAssertions 展开后的叶子断言条目数（P0-001 coverage）。
+
+    规则：dict 的叶子=对每个值递归；list 的每项每个字段=叶子；标量=1。
+    因此一个 {name:{close,changePct}} 会产生 2*len 条叶子；一个
+    {list:[{f1,f2},...]} 的叶子数 = sum(每项字段数)。
+    """
+    if isinstance(node, dict):
+        return sum(_count_assertion_leaves(v) for v in node.values())
+    if isinstance(node, list):
+        return sum(_count_assertion_leaves(item) for item in node)
+    return 1
+
+
 def _run_reference_assertions(snapshot, standard, module_name, trade_date, daily_dir, ctx):
-    """参考日逐条精确断言：数值容差 0.01，字符串精确相等，列表逐项比较。
-    返回 detail 列表（不匹配则 fail）。非参考日返回 []。"""
+    """参考日逐条精确断言：fail-closed 全量消费 + 覆盖率自检（P0-001）。
+
+    每个 expected 的 name/key/item 字段都必须被实际比对：缺失即 _detail_gap（禁止 continue 跳过）。
+    返回 detail 列表（不匹配则 fail）。非参考日返回 []。
+
+    ctx 可选：若提供 dict，则把该模块的 (declared, consumed) 写入
+    ctx["assertion_coverage"][module_name] 供参考日聚合统计。
+    """
     if trade_date is None:
         trade_date = snapshot.get("tradeDate")
     ref_date = standard.get("referenceDate")
@@ -1001,33 +1292,53 @@ def _run_reference_assertions(snapshot, standard, module_name, trade_date, daily
     mod = _module(snapshot, module_name)
 
     if module_name == "marketIndex":
-        return _ref_match_items_by_name(mod, expected, "close", "changePct", "items")
-    if module_name == "turnover":
-        return _ref_match_fields(mod, expected)
-    if module_name == "sentiment":
-        return _ref_match_fields(mod, expected)
-    if module_name == "sectorPerformance":
-        return _ref_match_lists(mod, expected)
-    if module_name == "fundFlow":
-        return _ref_match_lists(mod, expected)
-    if module_name == "northbound":
-        return _ref_match_northbound(mod, expected)
-    if module_name == "margin":
-        canonical = ["financingBalance", "securitiesLendingBalance", "marginBalance", "marginBalanceChange"]
-        subset = {f: expected[f] for f in canonical if f in expected}
-        return _ref_match_fields(mod, subset)
-    if module_name == "tracks":
-        return _ref_match_tracks(mod, expected)
-    return []
+        msgs, consumed = _ref_match_items_by_name(mod, expected, "close", "changePct", "items")
+    elif module_name == "turnover":
+        msgs, consumed = _ref_match_fields(mod, expected)
+    elif module_name == "sentiment":
+        msgs, consumed = _ref_match_fields(mod, expected)
+    elif module_name in ("sectorPerformance", "fundFlow"):
+        msgs, consumed = _ref_match_lists(mod, expected)
+    elif module_name == "northbound":
+        msgs, consumed = _ref_match_northbound(mod, expected)
+    elif module_name == "margin":
+        msgs, consumed = _ref_match_fields(mod, expected)
+    elif module_name == "tracks":
+        msgs, consumed = _ref_match_tracks(mod, expected)
+    elif module_name == "summary":
+        msgs, consumed = _ref_match_summary(mod, expected, standard)
+    else:
+        return []
+
+    declared = _count_assertion_leaves(expected)
+    consumed = consumed if isinstance(consumed, set) else set(consumed)
+    if declared != len(consumed):
+        msgs.append(_detail_gap(
+            f"assertion coverage declared={declared} consumed={len(consumed)}（存在未消费的参考断言）"))
+    if ctx is not None:
+        ctx.setdefault("assertion_coverage", {})[module_name] = (declared, len(consumed))
+    return msgs
 
 
 def _ref_match_fields(mod, expected, numeric_fields_without_change=()):
+    """字段级精确匹配（P0-001 fail-closed）。返回 (msgs, consumed_paths)。"""
     msgs = []
+    consumed = set()
     for field, exp in expected.items():
+        consumed.add(f"f.{field}")
         if field in numeric_fields_without_change:
             # 已由 marginBalanceChange 环比校验，此处仅确保存在
+            if field not in mod:
+                msgs.append(_detail_gap(f"referenceAssertion[{field}] 缺失"))
             continue
         actual = mod.get(field)
+        if (
+            _is_number(exp)
+            and isinstance(actual, dict)
+            and "value" in actual
+        ):
+            # 嵌套质量对象（如 {"value": -450.0, "quality": "LEGACY"}）取 value 比对
+            actual = actual["value"]
         if _is_number(exp):
             if not _is_finite_number(actual):
                 msgs.append(_detail_gap(
@@ -1043,12 +1354,14 @@ def _ref_match_fields(mod, expected, numeric_fields_without_change=()):
             if actual != exp:
                 msgs.append(_detail_gap(
                     f"referenceAssertion[{field}] 期望 {exp!r}，实际 {actual!r}"))
-    return msgs
+    return msgs, consumed
 
 
 def _ref_match_items_by_name(mod, expected, num_field, pct_field, items_key):
+    """按 name 匹配 items（P0-001 fail-closed）。expected 每个 name 都必须存在。返回 (msgs, consumed)。"""
     items = mod.get(items_key) or []
     msgs = []
+    consumed = set()
     by_name = {}
     for it in items:
         if isinstance(it, dict):
@@ -1056,12 +1369,17 @@ def _ref_match_items_by_name(mod, expected, num_field, pct_field, items_key):
     for name, exp in expected.items():
         actual = by_name.get(name)
         if actual is None:
-            # 该指数未出现在快照 items 中。index 集是否含必需指数由 items.requiredCodes 另行强制
-            # （6 个必需 code），referenceAssertion 只对快照实际呈现的指数做值级精确断言。
+            # fail-closed：期望名称缺失即 FAIL，禁止 continue 跳过。
+            msgs.append(_detail_gap(f"referenceAssertion 缺期望项 {name!r}"))
+            # 该 name 下所有声明字段仍作为“已消费未命中”计入 consumed，保证 coverage 自检只盯消费不足。
+            for fn in (num_field, pct_field):
+                if fn in exp:
+                    consumed.add(f"it.{name}.{fn}")
             continue
         for fn in (num_field, pct_field):
             if fn not in exp:
                 continue
+            consumed.add(f"it.{name}.{fn}")
             e = exp[fn]
             a = actual.get(fn)
             if _is_number(e):
@@ -1071,24 +1389,38 @@ def _ref_match_items_by_name(mod, expected, num_field, pct_field, items_key):
                 elif abs(float(a) - float(e)) > 0.01:
                     msgs.append(_detail_gap(
                         f"referenceAssertion[{name}.{fn}] 期望 {e}，实际 {float(a):.2f}"))
-    return msgs
+    return msgs, consumed
 
 
 def _ref_match_lists(mod, expected):
+    """列表逐项 + 每项字段精确匹配（P0-001 fail-closed）。返回 (msgs, consumed)。"""
     msgs = []
+    consumed = set()
     for list_name, exp_items in expected.items():
         actual = mod.get(list_name)
         if not isinstance(actual, list):
             msgs.append(_detail_gap(f"referenceAssertion[{list_name}] 非 list"))
+            for i, eitem in enumerate(exp_items or []):
+                if isinstance(eitem, dict):
+                    for k in eitem:
+                        consumed.add(f"list.{list_name}.{i}.{k}")
             continue
         if len(actual) != len(exp_items):
             msgs.append(_detail_gap(
                 f"referenceAssertion[{list_name}] 长度 {len(actual)} 期望 {len(exp_items)}"))
         for i, (eitem, aitem) in enumerate(zip(exp_items, actual)):
+            if not isinstance(eitem, dict):
+                mg = _detail_gap(f"referenceAssertion[{list_name}][{i}] 期望对象")
+                if mg not in msgs:
+                    msgs.append(mg)
+                continue
             if not isinstance(aitem, dict):
-                msgs.append(_detail_gap(f"referenceAssertion[{list_name}][{i}] 非对象"))
+                msgs.append(_detail_gap(f"referenceAssertion[{list_name}][{i}] 实际非对象"))
+                for k in eitem:
+                    consumed.add(f"list.{list_name}.{i}.{k}")
                 continue
             for k, ev in eitem.items():
+                consumed.add(f"list.{list_name}.{i}.{k}")
                 av = aitem.get(k)
                 if _is_number(ev):
                     if not _is_finite_number(av):
@@ -1101,62 +1433,119 @@ def _ref_match_lists(mod, expected):
                     if str(av) != ev:
                         msgs.append(_detail_gap(
                             f"referenceAssertion[{list_name}][{i}].{k}] 期望 {ev!r} 实际 {av!r}"))
-    return msgs
+                else:
+                    if av != ev:
+                        msgs.append(_detail_gap(
+                            f"referenceAssertion[{list_name}][{i}].{k}] 期望 {ev!r} 实际 {av!r}"))
+    return msgs, consumed
 
 
 def _ref_match_northbound(mod, expected):
+    """northbound 参考金标：三净流入标量 + netBuyTop10/netSellTop10 列表逐项（P0-001 全量消费）。返回 (msgs, consumed)。"""
     msgs = []
-    # legacyImportedFields 三值精确
+    consumed = set()
+    # 三净流入标量（legacyImportedFields）与 netBuyTop10/netSellTop10 列表逐项比较。
     legacy = mod.get("legacyImportedFields")
     if not isinstance(legacy, dict):
+        for fn in ("totalNetInflow", "shanghaiNetInflow", "shenzhenNetInflow"):
+            if fn in expected:
+                consumed.add(f"northbound.{fn}")
         msgs.append(_detail_gap("referenceAssertion[northbound] legacyImportedFields 非 dict"))
-        return msgs
-    for fn in ("totalNetInflow", "shanghaiNetInflow", "shenzhenNetInflow"):
-        if fn not in expected:
+    else:
+        for fn in ("totalNetInflow", "shanghaiNetInflow", "shenzhenNetInflow"):
+            if fn not in expected:
+                continue
+            consumed.add(f"northbound.{fn}")
+            e = expected[fn]
+            a = legacy.get(fn)
+            if _is_number(e):
+                if not _is_finite_number(a):
+                    msgs.append(_detail_gap(
+                        f"referenceAssertion[northbound.{fn}] 期望数值 {e} 实际 {a!r}"))
+                elif abs(float(a) - float(e)) > 0.01:
+                    msgs.append(_detail_gap(
+                        f"referenceAssertion[northbound.{fn}] 期望 {e} 实际 {float(a):.2f}"))
+    # legacy netBuyTop10/netSellTop10 逐项比较（消费 expected 中声明的这些列表）。
+    for lname in ("netBuyTop10", "netSellTop10"):
+        if lname not in expected:
             continue
-        e = expected[fn]
-        a = legacy.get(fn)
-        if _is_number(e):
-            if not _is_finite_number(a):
-                msgs.append(_detail_gap(
-                    f"referenceAssertion[northbound.{fn}] 期望数值 {e} 实际 {a!r}"))
-            elif abs(float(a) - float(e)) > 0.01:
-                msgs.append(_detail_gap(
-                    f"referenceAssertion[northbound.{fn}] 期望 {e} 实际 {float(a):.2f}"))
-    return msgs
+        exp_items = expected[lname]
+        actual = legacy.get(lname) if isinstance(legacy, dict) else None
+        if not isinstance(actual, list):
+            msgs.append(_detail_gap(f"referenceAssertion[northbound.{lname}] 非 list"))
+            for i, eitem in enumerate(exp_items or []):
+                if isinstance(eitem, dict):
+                    for k in eitem:
+                        consumed.add(f"northbound.{lname}.{i}.{k}")
+            continue
+        if len(actual) != len(exp_items):
+            msgs.append(_detail_gap(
+                f"referenceAssertion[northbound.{lname}] 长度 {len(actual)} 期望 {len(exp_items)}"))
+        for i, (eitem, aitem) in enumerate(zip(exp_items, actual)):
+            if not isinstance(eitem, dict):
+                continue
+            if not isinstance(aitem, dict):
+                msgs.append(_detail_gap(f"referenceAssertion[northbound.{lname}][{i}] 实际非对象"))
+                for k in eitem:
+                    consumed.add(f"northbound.{lname}.{i}.{k}")
+                continue
+            for k, ev in eitem.items():
+                consumed.add(f"northbound.{lname}.{i}.{k}")
+                av = aitem.get(k)
+                if _is_number(ev):
+                    if not _is_finite_number(av):
+                        msgs.append(_detail_gap(
+                            f"referenceAssertion[northbound.{lname}][{i}].{k}] 期望 {ev} 实际 {av!r}"))
+                    elif abs(float(av) - float(ev)) > 0.01:
+                        msgs.append(_detail_gap(
+                            f"referenceAssertion[northbound.{lname}][{i}].{k}] 期望 {ev} 实际 {float(av):.2f}"))
+                elif isinstance(ev, str):
+                    if str(av) != ev:
+                        msgs.append(_detail_gap(
+                            f"referenceAssertion[northbound.{lname}][{i}].{k}] 期望 {ev!r} 实际 {av!r}"))
+    return msgs, consumed
 
 
 def _ref_match_tracks(mod, expected):
+    """tracks 参考金标：按 trackId 逐项、每列精确匹配 + fail-closed。返回 (msgs, consumed)。"""
     items = mod.get("items") or []
     msgs = []
+    consumed = set()
     by_id = {}
     for it in items:
         if isinstance(it, dict) and it.get("trackId") is not None:
             by_id[it["trackId"]] = it
+    mapping = {
+        "监测日期": "date",
+        "板块名称": "trackName",
+        "板块定位": "positioning",
+        "近5日成交额排名": "turnoverRank",
+        "今日主力净流入(亿)": "mainNetInflow",
+        "连续净流入天数": "continuousInflowDays",
+        "5/10/20日多头排列": "maAlignment",
+        "60日RPS数值": "rps60",
+        "近10日跑赢沪深300": "excessReturn20d",
+        "板块涨停家数": "limitUpCount",
+        "连板梯队完整度": "ladderCompleteness",
+        "红盘个股占比": "redStockRatio",
+        "核心催化逻辑": "coreCatalyst",
+        "业绩兑现情况": "earningsRealization",
+        "综合达标率": "score",
+        "最终判定": "decision",
+    }
     for track_id, exp in expected.items():
         actual = by_id.get(track_id)
         if actual is None:
             msgs.append(_detail_gap(f"referenceAssertion[tracks] 缺赛道 {track_id!r}"))
+            for exp_key in exp:
+                consumed.add(f"tracks.{track_id}.{exp_key}")
             continue
-        mapping = {
-            "监测日期": "date",
-            "板块名称": "trackName",
-            "板块定位": "positioning",
-            "近5日成交额排名": "turnoverRank",
-            "今日主力净流入(亿)": "mainNetInflow",
-            "连续净流入天数": "continuousInflowDays",
-            "5/10/20日多头排列": "maAlignment",
-            "60日RPS数值": "rps60",
-            "近10日跑赢沪深300": "excessReturn20d",
-            "板块涨停家数": "limitUpCount",
-            "连板梯队完整度": "ladderCompleteness",
-            "红盘个股占比": "redStockRatio",
-            "核心催化逻辑": "coreCatalyst",
-            "业绩兑现情况": "earningsRealization",
-            "综合达标率": "score",
-            "最终判定": "decision",
-        }
+        if not isinstance(exp, dict):
+            msgs.append(_detail_gap(f"referenceAssertion[tracks.{track_id}] 期望非对象"))
+            consumed.add(f"tracks.{track_id}")
+            continue
         for exp_key, exp_val in exp.items():
+            consumed.add(f"tracks.{track_id}.{exp_key}")
             field = mapping.get(exp_key, exp_key)
             av = actual.get(field)
             if _is_number(exp_val):
@@ -1170,34 +1559,124 @@ def _ref_match_tracks(mod, expected):
                 if str(av) != exp_val:
                     msgs.append(_detail_gap(
                         f"referenceAssertion[tracks.{track_id}.{exp_key}] 期望 {exp_val!r} 实际 {av!r}"))
-    return msgs
+            else:
+                if av != exp_val:
+                    msgs.append(_detail_gap(
+                        f"referenceAssertion[tracks.{track_id}.{exp_key}] 期望 {exp_val!r} 实际 {av!r}"))
+    return msgs, consumed
+
+
+def _ref_match_summary(mod, expected, standard):
+    """summary 参考金标：segmentCount=8 段齐全 + riskWarningMustContain 子串（P0-001）。
+    返回 (msgs, consumed)。其余标准声明的 summary 断言逐条执行。"""
+    msgs = []
+    consumed = set()
+    if not isinstance(expected, dict):
+        msgs.append(_detail_gap("referenceAssertion[summary] 期望非对象"))
+        return msgs, {"summary"}
+    seg = expected.get("segmentCount")
+    if seg is not None:
+        consumed.add("summary.segmentCount")
+        seg_spec = _lookup_module(standard, "summary").get("fields", [])
+        seg_names = [f.get("name") for f in seg_spec if f.get("required")]
+        present = sum(
+            1 for fn in seg_names
+            if isinstance(mod.get(fn), str) and mod.get(fn).strip()
+        )
+        if present != seg:
+            msgs.append(_detail_gap(
+                f"summary segmentCount 期望 {seg} 实际 {present}（segmentCount 语义=必需段齐全数）"))
+    rw = expected.get("riskWarningMustContain")
+    if rw is not None:
+        consumed.add("summary.riskWarningMustContain")
+        rw_val = mod.get("riskWarning") or ""
+        if not isinstance(rw, str) or rw not in rw_val:
+            msgs.append(_detail_gap(
+                f"summary.riskWarning 需包含 {rw!r}，实际 {rw_val!r}"))
+    # 其余标准声明的 summary 断言：*MustContain（子串）/ *MustNotContain（禁词表）
+    # 通用执行；*Reason 为文档性说明（consumed 但无检查）；未知键 fail-closed。
+    handled = {"segmentCount", "riskWarningMustContain"}
+    for k, ev in expected.items():
+        if k in handled:
+            continue
+        if k.endswith("Reason"):
+            consumed.add(f"summary.{k}")  # 文档性说明：consumed 但无检查
+            continue
+        if k.endswith("MustContain"):
+            consumed.add(f"summary.{k}")
+            section = k[: -len("MustContain")]
+            text = str(mod.get(section) or "")
+            want = ev if isinstance(ev, str) else ""
+            if not want or want not in text:
+                msgs.append(_detail_gap(
+                    f"summary.{section} 需包含 {want!r}，实际 {text[:80]!r}"))
+        elif k.endswith("MustNotContain"):
+            section = k[: -len("MustNotContain")]
+            text = str(mod.get(section) or "")
+            words = ev if isinstance(ev, list) else [ev]
+            bad = [w for w in words if isinstance(w, str) and w in text]
+            if bad:
+                msgs.append(_detail_gap(
+                    f"summary.{section} 不得含 {bad!r}，实际 {text[:80]!r}"))
+            # 叶子粒度与 _count_assertion_leaves 对齐：list 的每个词各计 1 条
+            for _i in range(len(words)):
+                consumed.add(f"summary.{k}[{_i}]")
+        else:
+            consumed.add(f"summary.{k}")
+            msgs.append(_detail_gap(f"未识别的 summary 参考断言 {k!r}"))
+    return msgs, consumed
 
 
 # ---------------------------------------------------------------- crossModuleInvariants
 
 
+def _check_date_le(trade_date, path, value, details):
+    """若 value 是 ISO 日期字符串且晚于 tradeDate，追加 look-ahead gap 并返回 False。"""
+    if value is None:
+        return True
+    tr = _parse_iso_date_strict(trade_date) if isinstance(trade_date, str) else None
+    v = _parse_iso_date_strict(value) if isinstance(value, str) else None
+    if tr is None or v is None:
+        return True
+    if v > tr:
+        details.append(_detail_gap(f"INV-DATE-LOOKAHEAD: {path}={value} 晚于 tradeDate {trade_date}"))
+        return False
+    return True
+
+
 def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
-    """9 条跨模块不变式一一实现（按 id）。返回 (inv_results, detail_msgs)。"""
+    """9 条跨模块不变式一一实现（按 id），全部产出 results key（P0-008）。返回 (inv_results, detail_msgs)。"""
     modules = snapshot.get("modules") or {}
     ref_date = standard.get("referenceDate")
     details = []
     results = {}
 
-    # INV-DATE-LOOKAHEAD
+    # INV-DATE-LOOKAHEAD：递归扫描顶层 dataDate/asOf/publishedAt，以及
+    # tracks.items.date、margin.latestPublishedReference.dataDate、northbound.quarterlyHolding.asOf/publishedAt。
     b = True
     for mname, m in modules.items():
         if not isinstance(m, dict):
             continue
         for fn in ("dataDate", "asOf", "publishedAt"):
-            v = m.get(fn)
-            if isinstance(v, str) and trade_date and v > trade_date:
+            if not _check_date_le(trade_date, f"{mname}.{fn}", m.get(fn), details):
                 b = False
-                details.append(_detail_gap(f"INV-DATE-LOOKAHEAD: {mname}.{fn}={v} 晚于 tradeDate {trade_date}"))
         if mname == "margin":
             ref = m.get("latestPublishedReference")
-            if isinstance(ref, dict) and isinstance(ref.get("dataDate"), str) and trade_date and ref["dataDate"] > trade_date:
-                b = False
-                details.append(_detail_gap(f"INV-DATE-LOOKAHEAD: margin.latestPublishedReference.dataDate 晚于 tradeDate"))
+            if isinstance(ref, dict):
+                if not _check_date_le(trade_date, "margin.latestPublishedReference.dataDate", ref.get("dataDate"), details):
+                    b = False
+        if mname == "tracks":
+            for it in (m.get("items") or []):
+                if isinstance(it, dict):
+                    if not _check_date_le(trade_date, "tracks.items.date", it.get("date"), details):
+                        b = False
+        if mname == "northbound":
+            qh = m.get("quarterlyHolding")
+            if isinstance(qh, dict):
+                if not _check_date_le(trade_date, "northbound.quarterlyHolding.asOf", qh.get("asOf"), details):
+                    b = False
+                if not _check_date_le(trade_date, "northbound.quarterlyHolding.publishedAt", qh.get("publishedAt"), details):
+                    b = False
     results["INV-DATE-LOOKAHEAD"] = b
 
     # INV-UNIT-亿元：模块若声明 unit 须为亿元（无数值破坏的硬门禁）
@@ -1261,7 +1740,29 @@ def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
                 b = False
     results["INV-SENTIMENT-WIDTH"] = b
 
-    # INV-ENUM-SOURCE-METHOD：各模块 source/method 枚举合法，由通用引擎覆盖（字段级）。
+    # INV-ENUM-SOURCE-METHOD：各模块 source/method/mode 等枚举字段按标准 fields 声明校验，产出 results key。
+    b = True
+    for mname, m in modules.items():
+        if not isinstance(m, dict):
+            continue
+        fspec = _lookup_module(standard, mname).get("fields", [])
+        for spec in fspec:
+            fname = spec.get("name")
+            if spec.get("kind") == "enum":
+                allowed = list(spec.get("enumValues", []))
+                val = m.get(fname)
+                if val is None:
+                    continue
+                if len(allowed) == 1 and isinstance(allowed[0], bool):
+                    # 布尔枚举：校验类型。
+                    if type(val) is not bool:
+                        b = False
+                        details.append(_detail_gap(f"INV-ENUM-SOURCE-METHOD: {mname}.{fname}={val!r} 非布尔枚举"))
+                    continue
+                if val not in allowed:
+                    b = False
+                    details.append(_detail_gap(f"INV-ENUM-SOURCE-METHOD: {mname}.{fname}={val!r} 不在枚举 {allowed}"))
+    results["INV-ENUM-SOURCE-METHOD"] = b
 
     # INV-REF-EXACT：参考日精确断言
     b = True
@@ -1273,16 +1774,23 @@ def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
             b = False
     results["INV-REF-EXACT"] = b
 
-    # INV-NORTHBOUND-PIT
+    # INV-NORTHBOUND-PIT：OFFICIAL 分支点时间强制（asOf/publishedAt 必存在、可解析、<=tradeDate）。
     nb2 = modules.get("northbound") or {}
     b = True
     if isinstance(nb2, dict) and nb2.get("mode") == "POST_20240819_OFFICIAL_REPLACEMENT":
         qh = nb2.get("quarterlyHolding")
-        if isinstance(qh, dict):
-            if trade_date and isinstance(qh.get("asOf"), str) and qh["asOf"] > trade_date:
-                b = False
-            if trade_date and isinstance(qh.get("publishedAt"), str) and qh["publishedAt"] > trade_date:
-                b = False
+        if not isinstance(qh, dict):
+            details.append(_detail_gap("INV-NORTHBOUND-PIT: OFFICIAL 分支需 quarterlyHolding 为 dict"))
+            b = False
+        else:
+            for fn in ("asOf", "publishedAt"):
+                v = qh.get(fn)
+                vparsed = _parse_iso_date_strict(v) if isinstance(v, str) else None
+                if v is None or v == "" or vparsed is None:
+                    details.append(_detail_gap(f"INV-NORTHBOUND-PIT: quarterlyHolding.{fn} 缺失/不可解析: {v!r}"))
+                    b = False
+                elif not _check_date_le(trade_date, f"northbound.quarterlyHolding.{fn}", v, details):
+                    b = False
     results["INV-NORTHBOUND-PIT"] = b
 
     return results, details
@@ -1325,7 +1833,12 @@ def _load_standard(_force=False):
 
 
 def startup_self_check(standard):
-    """P0-002 自检：version==2；9 模块 ruleId/ruleVersion 存在；handler 注册表一致性。"""
+    """P0-002 自检（fail-closed 路由契约）+ P0-008 invariant 集合相等。
+
+    1) version==2；9 模块 ruleId 均在 dispatch 表（复杂 handler 或通用引擎）。
+    2) 复杂 handler 按标准 ruleVersion 绑定：ruleVersion 不在 supportedVersions -> 失败（退出码 3）。
+    3) 标准 crossModuleInvariants id 集合 == 代码 _INVARIANT_IDS 集合。
+    """
     errors = []
     if standard.get("version") != 2:
         errors.append(f"standard.version={standard.get('version')!r} 期望 2")
@@ -1339,18 +1852,36 @@ def startup_self_check(standard):
         if not isinstance(spec, dict):
             errors.append(f"模块 {name} 非对象")
             continue
-        if not spec.get("ruleId"):
-            errors.append(f"模块 {name} 缺 ruleId")
-        if not spec.get("ruleVersion"):
-            errors.append(f"模块 {name} 缺 ruleVersion")
-    # handler 注册表一致性：标准声明了 handler 的复杂规则必须已实现。
-    for name, spec in modules.items():
         rule_id = spec.get("ruleId")
-        if rule_id and rule_id in _COMPLEX_HANDLERS:
-            handler_name = _COMPLEX_HANDLERS[rule_id]
+        rule_version = spec.get("ruleVersion")
+        if not rule_id:
+            errors.append(f"模块 {name} 缺 ruleId")
+            continue
+        if not rule_version:
+            errors.append(f"模块 {name} 缺 ruleVersion")
+        if rule_id in _COMPLEX_HANDLERS:
+            entry = _COMPLEX_HANDLERS[rule_id]
+            handler_name = entry["handler"]
             if not callable(globals().get(handler_name)):
                 errors.append(f"handler {handler_name!r} (ruleId={rule_id}) 未实现")
-        # 未在注册表中的 rule 一律用通用引擎（_validate_field_values/_validate_items/_validate_lists）。
+            supported = entry.get("supportedVersions") or []
+            if int(rule_version) not in supported:
+                errors.append(
+                    f"模块 {name} ruleId={rule_id} ruleVersion={rule_version} 不受支持 {supported}")
+        elif rule_id in _GENERIC_HANDLERS:
+            gfn = globals().get(_GENERIC_HANDLERS[rule_id])
+            if not callable(gfn):
+                errors.append(f"通用引擎 handler {_GENERIC_HANDLERS[rule_id]!r} (ruleId={rule_id}) 未实现")
+        else:
+            errors.append(f"模块 {name} ruleId={rule_id} 不在 dispatch 表（未知规则）")
+    # invariant id 集合相等：标准声明的 crossModuleInvariants.id == 代码 _INVARIANT_IDS。
+    std_inv = set()
+    for inv in standard.get("crossModuleInvariants") or []:
+        if isinstance(inv, dict) and inv.get("id"):
+            std_inv.add(inv["id"])
+    if std_inv != set(_INVARIANT_IDS):
+        errors.append(
+            f"invariant 集合不等: 标准 {sorted(std_inv)} vs 代码 {sorted(_INVARIANT_IDS)}")
     return errors
 
 
@@ -1359,18 +1890,39 @@ MODULE_ORDER = [
     "fundFlow", "northbound", "margin", "tracks", "summary",
 ]
 
-# 模块名 -> 校验函数（签名: snapshot, standard, trade_date, manifest, daily_dir, ctx）
-CHECKERS = {
-    "marketIndex": check_marketindex,
-    "turnover": check_turnover,
-    "sentiment": check_sentiment,
-    "sectorPerformance": check_sectors,
-    "fundFlow": check_fundflow,
-    "northbound": check_northbound,
-    "margin": check_margin,
-    "tracks": check_tracks,
-    "summary": check_summary,
+# 通用引擎 handler：标准声明了 ruleId 但无复杂 handler 的模块走字段/items/lists 通用校验。
+_GENERIC_HANDLERS = {
+    "marketIndex_V2": "check_marketindex",
+    "sectorPerformance_V2": "check_sectors",
+    "fundFlow_V2": "check_fundflow",
 }
+
+
+def _build_checkers(standard):
+    """由 dispatch 表（复杂 handler + 通用引擎）构造 模块名 -> handler 校验函数，无硬编码旁路。"""
+    out = {}
+    for name, spec in (standard.get("modules") or {}).items():
+        rule_id = spec.get("ruleId")
+        entry = _COMPLEX_HANDLERS.get(rule_id)
+        if entry:
+            fn = globals().get(entry["handler"])
+            out[name] = fn
+        elif rule_id in _GENERIC_HANDLERS:
+            out[name] = globals().get(_GENERIC_HANDLERS[rule_id])
+        else:
+            out[name] = None  # startup_self_check 已拦截。
+    return out
+
+
+# 兼容接口：以默认标准构造全局 CHECKERS（供外围直接引用）；evaluate_modules 每轮用实际 standard 重新构造。
+def _default_checkers():
+    try:
+        return _build_checkers(_load_standard())
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+CHECKERS = _default_checkers()
 
 
 # ---------------------------------------------------------------- 主流程
@@ -1380,8 +1932,9 @@ def evaluate_modules(snapshot, standard, trade_date, manifest, daily_dir=None, c
     """对单个快照执行 9 模块验收。返回 (modules_out, all_pass)。"""
     ctx = ctx or {}
     ctx["manifest"] = manifest
+    checkers = _build_checkers(standard)
     checks = {
-        m: CHECKERS[m](snapshot, standard=standard, trade_date=trade_date,
+        m: checkers[m](snapshot, standard=standard, trade_date=trade_date,
                        manifest=manifest, daily_dir=daily_dir, ctx=ctx)
         for m in MODULE_ORDER
     }
@@ -1456,9 +2009,16 @@ def build_report(dates, entries, standard, manifest):
     standard_sha = _sha256_file(STANDARD_PATH) if os.path.exists(STANDARD_PATH) else None
     manifest_sha = _sha256_file(MANIFEST_PATH) if os.path.exists(MANIFEST_PATH) else None
     acceptor_sha = _sha256_file(__file__) if os.path.exists(__file__) else None
+    # P0-009 provenance：two-commit 法（先提交输入树 A，clean 上跑，报告单独提交 B）。
+    evaluated_commit = _repo_commit()
+    dirty = _git_dirty()
     report = {
+        "reportCommitSemantics": "two-commit：先提交输入树后运行验收，报告单独提交。evaluatedCommit=被验收输入树(HEAD)所在提交；dirty=true 表示未提交改动存在，输入树未完全固化。",
         "provenance": {
-            "repoCommit": _repo_commit(),
+            # repoCommit 语义 = evaluatedCommit（被验收输入树所在提交）；报告自身 commit 以 external commit 记录。
+            "repoCommit": evaluated_commit,
+            "evaluatedCommit": evaluated_commit,
+            "dirty": dirty if isinstance(dirty, bool) else False,
             "standardSha256": standard_sha,
             "acceptorSha256": acceptor_sha,
             "manifestSha256": manifest_sha,
