@@ -78,6 +78,11 @@ INDICES = [
 ]
 
 
+# 多只指数受控并发度：6 线程为保守值，防触发源站限流；串行 37 只/天实测
+# 237s（东财被封时每源超时重试），受控并发显著缩短采集耗时。
+_MI_CONCURRENCY = 6
+
+
 def _fetch_index_close(
     index: dict[str, Any],
     trade_date: str,
@@ -175,88 +180,140 @@ def _fetch_index_close(
     raise ValueError(f"unknown market source: {source}")
 
 
+def _fetch_index_entry(
+    idx: dict[str, Any],
+    trade_date: str,
+    start: str,
+    end: str,
+) -> tuple[dict[str, Any], dict[str, Any] | Exception | None]:
+    """并发工作函数：单只指数多源降级 -> (index, entry_or_exc)。
+
+    - 与 sectors._fetch_th_boards_concurrent 同风格：工作函数返回
+      (index, entry_or_exc) 元组，主线程按 INDICES 原序汇总；
+    - 线程内不共享可变状态，akshare 在 _fetch_index_close 内独立 import
+      （经 sys.modules 缓存命中测试 monkeypatch 的模块级属性）；
+    - 单只指数异常只影响自身：entry 保持 None 骨架并随 exc 返回，
+      不中断其它指数（与串行语义一致）。
+    """
+    entry: dict[str, Any] = {
+        "code": idx["code"],
+        "name": idx["name"],
+        "close": None,
+        "previousClose": None,
+        "changePct": None,
+        "source": None,
+    }
+
+    try:
+        if "sources" in idx:
+            (
+                close,
+                previous_close,
+                used,
+                source_warnings,
+            ) = _with_source_list(
+                idx,
+                trade_date,
+                start,
+                end,
+                list(idx["sources"]),
+            )
+        else:
+            (
+                close,
+                previous_close,
+                used,
+                source_warnings,
+            ) = _with_source_order(
+                idx,
+                trade_date,
+                start,
+                end,
+                "market",
+                ["eastmoney", "tencent", "sina"],
+            )
+
+        if close is None or previous_close is None:
+            raise ValueError(
+                "close/previous close missing"
+            )
+
+        if previous_close <= 0:
+            raise ValueError(
+                f"invalid previous close: {previous_close}"
+            )
+
+        entry["close"] = round(close, 4)
+        entry["previousClose"] = round(
+            previous_close,
+            4,
+        )
+        entry["changePct"] = round(
+            (close / previous_close - 1) * 100,
+            2,
+        )
+        entry["source"] = used.upper() if used else None
+
+        if source_warnings:
+            entry["sourceWarnings"] = source_warnings
+
+        return idx, entry
+
+    except Exception as exc:  # noqa: BLE001
+        return idx, exc
+
+
 def collect_market_index(
     trade_date: str,
 ) -> dict[str, Any]:
-    """使用至少两个交易日计算真正的“昨收→今收”涨跌幅。"""
+    """使用至少两个交易日计算真正的昨收->今收涨跌幅。
+
+    多只指数用 ThreadPoolExecutor（_MI_CONCURRENCY=6）受控并发拉取，
+    替代逐指数串行多源降级（东财被封时每源超时重试，37 只/天实测 237s）。
+    executor.map 按 INDICES 提交顺序返回结果，主线程串行汇总，输出顺序
+    与串行完全一致；线程内无共享可变状态，单只异常不波及其它指数。
+    """
     target = date.fromisoformat(trade_date)
     start = (
         target - timedelta(days=30)
     ).strftime("%Y%m%d")
     end = target.strftime("%Y%m%d")
 
+    from concurrent.futures import ThreadPoolExecutor
+
     items: list[dict[str, Any]] = []
     errors: list[str] = []
 
-    for idx in INDICES:
-        entry: dict[str, Any] = {
-            "code": idx["code"],
-            "name": idx["name"],
-            "close": None,
-            "previousClose": None,
-            "changePct": None,
-            "source": None,
-        }
+    def _fetch_one(
+        idx: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any] | Exception | None]:
+        # akshare 由 _fetch_index_close 内独立 import（经 sys.modules 缓存
+        # 命中测试 monkeypatch 的模块级属性），此处复用同一 worker。
+        return _fetch_index_entry(idx, trade_date, start, end)
 
-        try:
-            if "sources" in idx:
-                (
-                    close,
-                    previous_close,
-                    used,
-                    source_warnings,
-                ) = _with_source_list(
-                    idx,
-                    trade_date,
-                    start,
-                    end,
-                    list(idx["sources"]),
+    with ThreadPoolExecutor(
+        max_workers=_MI_CONCURRENCY
+    ) as executor:
+        for idx, entry_or_exc in executor.map(
+            _fetch_one,
+            INDICES,
+        ):
+            if isinstance(entry_or_exc, Exception):
+                errors.append(
+                    f"{idx['code']} {idx['name']}: {entry_or_exc}"
+                )
+                items.append(
+                    {
+                        "code": idx["code"],
+                        "name": idx["name"],
+                        "close": None,
+                        "previousClose": None,
+                        "changePct": None,
+                        "source": None,
+                    }
                 )
             else:
-                (
-                    close,
-                    previous_close,
-                    used,
-                    source_warnings,
-                ) = _with_source_order(
-                    idx,
-                    trade_date,
-                    start,
-                    end,
-                    "market",
-                    ["eastmoney", "tencent", "sina"],
-                )
-
-            if close is None or previous_close is None:
-                raise ValueError(
-                    "close/previous close missing"
-                )
-
-            if previous_close <= 0:
-                raise ValueError(
-                    f"invalid previous close: {previous_close}"
-                )
-
-            entry["close"] = round(close, 4)
-            entry["previousClose"] = round(
-                previous_close,
-                4,
-            )
-            entry["changePct"] = round(
-                (close / previous_close - 1) * 100,
-                2,
-            )
-            entry["source"] = used.upper() if used else None
-
-            if source_warnings:
-                entry["sourceWarnings"] = source_warnings
-
-        except Exception as exc:  # noqa: BLE001
-            errors.append(
-                f"{idx['code']} {idx['name']}: {exc}"
-            )
-
-        items.append(entry)
+                items.append(entry_or_exc)
 
     status = (
         ModuleStatus.ERROR.value
