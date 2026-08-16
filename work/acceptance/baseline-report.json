@@ -1,8 +1,8 @@
 {
   "reportCommitSemantics": "two-commit：先提交输入树后运行验收，报告单独提交。evaluatedCommit=被验收输入树(HEAD)所在提交；dirty=true 表示未提交改动存在，输入树未完全固化。",
   "provenance": {
-    "repoCommit": "25b162925acb9035b435364b408b411b3a88e197",
-    "evaluatedCommit": "25b162925acb9035b435364b408b411b3a88e197",
+    "repoCommit": "99dc2a949654cd9a3f702ba2da1a828c9b857289",
+    "evaluatedCommit": "99dc2a949654cd9a3f702ba2da1a828c9b857289",
     "dirty": false,
     "standardSha256": "9b488fe35cd1a16d6aeac2f96898791e67167911b71f6c0e77628399dd987631",
     "acceptorSha256": "5ae75f7f9c52e0578ca1dc97480e99106f68e4545eba11a63174d8dae2776609",
@@ -32,7 +32,7 @@
       "2026-08-14": "66b70ab6f820557108f35b37cce7f2991da784daedd2f1d7feadcf532471cc34"
     },
     "pythonVersion": "3.13.5",
-    "generatedAt": "2026-08-16T17:43:10.563403+08:00"
+    "generatedAt": "2026-08-16T17:53:37.272264+08:00"
   },
   "standard": "docs\\acceptance\\template-standard.json",
   "dates": {
