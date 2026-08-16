@@ -266,9 +266,9 @@ THS_HISTORICAL_METHOD = "THS_HISTORICAL_INDEX"
 # 指数回看窗口（日历日）：需覆盖 D-1 前日，40 天对跨假期已足够
 _THS_HISTORY_WINDOW_DAYS = 40
 
-# 逐板块历史拉取的受控并发度：6 线程为保守值，防触发 THS 限流；
-# 串行 465 请求/天实测 20+ 分钟，受控并发显著缩短回补耗时。
-_THS_HIST_CONCURRENCY = 6
+# 逐板块历史拉取的受控并发度：串行 465 请求/天实测 20+ 分钟；
+# 2026-08-16 实测 6 线程单日仍 615s（每请求约 8s），上调至 10 线程。
+_THS_HIST_CONCURRENCY = 10
 
 
 def _board_close_change_pct(
