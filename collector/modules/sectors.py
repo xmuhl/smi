@@ -6,6 +6,8 @@ R6：东财失败时降级同花顺（THS）资金流表——其含板块涨跌
 
 from __future__ import annotations
 
+import threading
+
 from typing import Any
 
 from collector.adapters.sources import try_sources
@@ -255,9 +257,9 @@ def _fetch_board_rank(
 #       -> DataFrame[日期,开盘价,最高价,最低价,收盘价,成交量,成交额]
 #   ak.stock_board_concept_index_ths(...)  同上（概念板块）
 # 注意：两个指数接口的 symbol 必须为单个板块精确名，symbol="全部行业" 会抛
-# KeyError；因此须先取板块名全量，再逐只拉取其历史指数序列（start_date 取
-# D-40 日历日以覆盖 D-1 前日，akshare 内部按年切片请求）。D-1 即该板块历史
-# 序列中紧邻 D 的上一交易日行。
+# KeyError；因此须先取板块名全量，再逐只拉取其历史指数序列。D-1 即该板块
+# 历史序列中紧邻 D 的上一交易日行。回补循环启用跨日缓存后按大窗口拉取：
+# 起点=min(缓存窗口起点, 2026-06-15)（覆盖全部历史回补日），终点=当日。
 # ---------------------------------------------------------------------------
 
 # 历史回补口径名（页面按 method 标注）
@@ -269,6 +271,146 @@ _THS_HISTORY_WINDOW_DAYS = 40
 # 逐板块历史拉取的受控并发度：串行 465 请求/天实测 20+ 分钟；
 # 2026-08-16 实测 6 线程单日仍 615s（每请求约 8s），上调至 10 线程。
 _THS_HIST_CONCURRENCY = 10
+
+# ---------------------------------------------------------------------------
+# 跨日板块历史缓存（P1b 回补循环）
+#
+# 单进程回补循环（collector.jobs.backfill_loop）在同一个进程内逐交易日调用
+# collect_sectors，_THS_HIST_CACHE 把每只板块的 THS 历史指数序列跨日复用，
+# 使 19 日 × 465 板块 ≈ 465 次大窗口拉取（每板块仅首次拉取，终点=当日，起点
+# 锚定 2026-06-15 覆盖全部历史回补日）。
+#
+# 仅回补循环把 _THS_HIST_USE_CACHE 置 True 后缓存才参与命中判定；默认关闭，
+# 日常/单日历史调用与单测中 monkeypatch 的假接口始终被真实调用（其返回的
+# DataFrame 依旧被使用），保持既有行为与 test_sectors_history.py 期望不变。
+# _ths_hist_cache_clear() 供测试隔离与循环幂等重置。
+# ---------------------------------------------------------------------------
+
+# 板块历史缓存：key=f"{board_type}|{board_name}"，值=按日期升序的
+# [(日期 "YYYY-MM-DD", 收盘), ...]，由 backfill_loop 启用后跨日复用。
+_THS_HIST_CACHE: dict[str, list[tuple[str, float]]] = {}
+
+# 缓存读写锁：读走无锁近似（读一致近似），写走锁下幂等覆盖；
+# 竞态下重复拉取无害，因为结果幂等（同窗口覆盖写入）。
+_THS_HIST_CACHE_LOCK = threading.Lock()
+
+# 缓存启用开关：仅 backfill_loop 置 True；其余流程（含测试）保持 False。
+_THS_HIST_USE_CACHE = False
+
+# 大窗口起点：min(缓存窗口起点, 2026-06-15)，覆盖全部历史回补日（任一日
+# D 的最早 D-1 需求）。
+_THS_HIST_WINDOW_START = "2026-06-15"
+
+
+def _ths_hist_cache_clear() -> None:
+    """清空板块历史缓存（供测试隔离与回补循环重置）。"""
+    with _THS_HIST_CACHE_LOCK:
+        _THS_HIST_CACHE.clear()
+
+
+def _ths_hist_cache_enable(enabled: bool = True) -> None:
+    """启用/停用板块历史缓存命中（仅由 backfill_loop 使用）。"""
+    global _THS_HIST_USE_CACHE
+    _THS_HIST_USE_CACHE = enabled
+
+
+def _ths_hist_cache_status() -> bool:
+    """当前缓存是否参与命中判定（测试/运维观测用）。"""
+    return _THS_HIST_USE_CACHE
+
+
+def _ths_hist_cache_key(board_type: str, name: str) -> str:
+    return f"{board_type}|{name}"
+
+
+def _df_rows_asc(index_df) -> list[tuple[str, float]]:
+    """THS 指数 DataFrame → 按日期升序清洗后的 (日期, 收盘) 序列（供缓存）。"""
+    rows: list[tuple[str, float]] = []
+
+    if index_df is None or index_df.empty:
+        return rows
+
+    for _, row in index_df.iterrows():
+        try:
+            close = float(row["收盘价"])
+            date_s = str(row["日期"]).strip()
+        except (TypeError, ValueError):
+            continue
+
+        if not date_s or close != close:
+            continue
+
+        rows.append((date_s, close))
+
+    rows.sort(key=lambda item: item[0])
+    return rows
+
+
+def _change_pct_from_cache(
+    seq: list[tuple[str, float]],
+    trade_date: str,
+) -> float | None:
+    """缓存序列 → D 日相对 D-1（紧邻前一交易日）涨跌幅(%)。
+
+    计算口径与 _board_close_change_pct 完全一致：
+        changePct(D) = (close(D) / close(D-1) - 1) * 100，round(2)。
+    任一前置不满足（序列空 / 缺 D / 无前一行 / 收盘缺失或为 0 / NaN）→ None。
+    """
+    if not seq:
+        return None
+
+    dates = [item[0] for item in seq]
+    closes = [item[1] for item in seq]
+
+    idx: int | None = None
+
+    for i, date_s in enumerate(dates):
+        if date_s == trade_date:
+            idx = i
+
+    if idx is None or idx < 1:
+        return None
+
+    close_d = closes[idx]
+    prev_close = closes[idx - 1]
+
+    if (
+        prev_close == 0
+        or prev_close != prev_close
+        or close_d != close_d
+    ):
+        return None
+
+    return round((close_d / prev_close - 1) * 100, 2)
+
+
+def _ths_hist_cache_covers(
+    seq: list[tuple[str, float]],
+    trade_date: str,
+) -> bool:
+    """缓存序列是否覆盖 trade_date 与其前一交易日行（命中判定）。"""
+    if not seq:
+        return False
+
+    idx: int | None = None
+
+    for i, item in enumerate(seq):
+        if item[0] == trade_date:
+            idx = i
+
+    return idx is not None and idx >= 1
+
+
+def _ths_hist_pull_start(board_type: str, name: str) -> str:
+    """未命中时的大窗口起点：min(缓存窗口起点, 2026-06-15)。"""
+    seq = _THS_HIST_CACHE.get(
+        _ths_hist_cache_key(board_type, name)
+    )
+
+    if seq:
+        return min(seq[0][0], _THS_HIST_WINDOW_START)
+
+    return _THS_HIST_WINDOW_START
 
 
 def _board_close_change_pct(
@@ -345,10 +487,14 @@ def _fetch_th_boards_concurrent(
 ) -> tuple[dict[str, dict[str, Any]], list[str], int]:
     """受控并发拉取全部板块历史指数并计算 D 日涨跌幅。
 
-    用 ThreadPoolExecutor 以 _THS_HIST_CONCURRENCY=6 并发调度，替代逐板块
-    串行请求，显著缩短回补耗时（串行 465 请求/天实测 20+ 分钟）。6 线程为
-    保守值防限流。板块名清单已在调用方串行取得（1 次请求），此处仅并发拉
-    取各家历史序列。
+    用 ThreadPoolExecutor 以 _THS_HIST_CONCURRENCY 并发调度，替代逐板块
+    串行请求，显著缩短回补耗时。板块名清单已在调用方串行取得（1 次请求），
+    此处仅并发拉取各家历史序列。
+
+    回补循环启用跨日缓存（_THS_HIST_USE_CACHE=True）后：缓存命中（已覆盖
+    trade_date 与其前一日）直接返回缓存序列算出的 pct，不再拉取；未命中才
+    并发拉取并把清洗后的序列幂等写入缓存（锁保护）。未启用缓存时拉取并逐
+    日计算，行为与历史一致。
 
     - akshare 线程安全未知 → 每个工作函数内独立 import akshare，不共享状态；
     - 线程内仍 try/except fail-closed：单个板块拉取失败/无有效 D 数据计入
@@ -362,6 +508,18 @@ def _fetch_th_boards_concurrent(
     """
 
     def _fetch_one(name: str) -> tuple[str, tuple[str, Any]]:
+        key = _ths_hist_cache_key(board_type, name)
+
+        # 缓存命中（覆盖当日与前一日）→ 直接用缓存序列算出的 pct，不拉取。
+        if _THS_HIST_USE_CACHE:
+            seq = _THS_HIST_CACHE.get(key)  # 无锁读，读一致近似
+            if _ths_hist_cache_covers(seq, trade_date):
+                return (
+                    name,
+                    ("CACHE", _change_pct_from_cache(seq, trade_date)),
+                )
+
+        # 未命中 → 大窗口拉取：起点=min(缓存窗口起点, 2026-06-15)，终点=当日。
         # 独立 import akshare：并发安全保守，且沿用现有函数内 import 风格。
         import akshare as ak
 
@@ -370,14 +528,25 @@ def _fetch_th_boards_concurrent(
             if board_type == "industry"
             else ak.stock_board_concept_index_ths
         )
+
+        pull_start = _ths_hist_pull_start(board_type, name)
+
         try:
             index_df = fn(
                 symbol=name,
-                start_date=start_date,
+                start_date=pull_start.replace("-", ""),
                 end_date=end_date,
             )
         except Exception as exc:  # noqa: BLE001
             return (name, ("FETCH_FAILED", type(exc).__name__))
+
+        # 缓存更新（幂等覆盖，锁保护；竞态下重复拉取无害）。
+        if _THS_HIST_USE_CACHE:
+            seq = _df_rows_asc(index_df)
+            if seq:
+                with _THS_HIST_CACHE_LOCK:
+                    _THS_HIST_CACHE[key] = seq
+
         return (name, ("OK", index_df))
 
     from concurrent.futures import ThreadPoolExecutor
@@ -395,7 +564,10 @@ def _fetch_th_boards_concurrent(
                 )
                 continue
 
-            pct = _board_close_change_pct(payload, trade_date)
+            if status == "CACHE":
+                pct = payload  # 已由缓存序列算出
+            else:
+                pct = _board_close_change_pct(payload, trade_date)
 
             if pct is None:
                 skipped += 1
@@ -427,6 +599,7 @@ def _ths_historical_board_rank(
     import akshare as ak
 
     day = datetime.strptime(trade_date, "%Y-%m-%d").date()
+    # 实际拉取起点由 _fetch_one 按缓存/2026-06-15 大窗口决定，此处仅为签名兼容。
     start_date = (day - timedelta(days=_THS_HISTORY_WINDOW_DAYS)).strftime("%Y%m%d")
     end_date = trade_date.replace("-", "")
 
