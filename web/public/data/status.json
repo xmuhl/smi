@@ -1,6 +1,6 @@
 {
-  "lastWorkflow": "manual",
-  "lastRunAt": "2026-08-16T00:35:11+08:00",
+  "lastWorkflow": "t1-reconcile",
+  "lastRunAt": "2026-08-17T11:14:26+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-14",
   "latestCloseCompleteDate": "2026-07-17",
@@ -10,9 +10,9 @@
   "errors": [
     {
       "module": "margin",
-      "status": "PENDING",
+      "status": "ERROR",
       "errors": [
-        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
       ]
     }
   ],
