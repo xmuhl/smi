@@ -1,26 +1,18 @@
 {
-  "lastWorkflow": "manual",
-  "lastRunAt": "2026-08-17T14:34:17+08:00",
+  "lastWorkflow": "close-snapshot",
+  "lastRunAt": "2026-08-17T17:10:53+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
-  "latestCapturedDate": "2026-08-14",
+  "latestCapturedDate": "2026-08-17",
   "latestCloseCompleteDate": "2026-07-17",
   "latestFinalDate": "2026-07-17",
-  "latestDate": "2026-08-14",
+  "latestDate": "2026-08-17",
   "health": "DEGRADED",
   "errors": [
     {
-      "module": "fundFlow",
-      "status": "UNAVAILABLE",
+      "module": "margin",
+      "status": "PENDING",
       "errors": [
-        "FUNDFLOW_HISTORICAL_FETCH_FAILED: ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
-      ]
-    },
-    {
-      "module": "tracks",
-      "status": "UNAVAILABLE",
-      "errors": [
-        "HS300_SEED_UNAVAILABLE",
-        "RED_RATIO_SOURCE_UNAVAILABLE"
+        "Expecting value: line 1 column 1 (char 0)"
       ]
     }
   ],
