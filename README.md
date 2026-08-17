@@ -65,3 +65,25 @@ smi/
 ```
 
 详细设计见 `docs/SMI-V1-Design-V1.1.md`。
+
+## 当前状态（2026-08-17）
+
+- ✅ **网站已上线**：https://smi-6s2.pages.dev / https://smi.gorestart.cn
+- ✅ **22 个交易日数据**（2026-07-17 ~ 2026-08-17）
+- ✅ **自动更新链路**：GitHub Actions（close-snapshot cron 工作日 16:23 CST）
+- ✅ **6 模块 21/21 全 PASS**（参考日）
+- ✅ **3 模块结构性缺口**已按产品裁决接受为已知边界
+
+### GitHub Actions 自动更新
+
+日常更新由 `close-snapshot.yml`（cron `23 8 * * 1-5`）自动完成：
+采集 → commit → 构建 → 部署到 Cloudflare Pages。
+
+**前置条件**：GitHub Secrets 需配置：
+- `CLOUDFLARE_API_TOKEN` — Cloudflare API 令牌（Pages 部署权限）
+- `CLOUDFLARE_ACCOUNT_ID` — Cloudflare 账户 ID
+
+### 页面验收
+
+在生产浏览器控制台执行 `window.__smiPageCheck()` 可验证 9 大面板渲染状态。
+探针代码：`tools/acceptance/page_check.js`
