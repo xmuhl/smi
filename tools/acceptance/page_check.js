@@ -12,14 +12,14 @@ window.__smiPageCheck = () => {
   };
   const results = [
     panel("宽基指数"),
-    panel("两市成交量"),
+    panel("两市成交额"),
     panel("市场情绪"),
     panel("板块行情"),
     panel("主力资金"),
     panel("北向资金"),
     panel("两融数据"),
     panel("主赛道每日监测"),
-    panel("今日结论"),
+    panel("综合总结"),
   ];
   const dateLabel = document.querySelector(".date-nav select")?.value || "";
   const statusLine = document.querySelector(".status-line")?.innerText || "";
