@@ -47,6 +47,8 @@ export interface SentimentModule extends ModuleBase {
   nonStLimitDownCount: number | null;
   stLimitDownCount: number | null;
   brokenLimitCount: number | null;
+  limitSealRatePct: number | null;
+  maxLimitUpStreak: number | null;
 }
 
 export interface SectorEntry {
