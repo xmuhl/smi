@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0",
+  "profileVersion": "historical-v1",
+  "type": "historical_profile",
+  "created": "2026-08-17",
+  "decision": "PRODUCT_ACCEPTED_KNOWN_BOUNDARIES",
+  "referenceDate": "2026-07-17",
+  "semantics": {
+    "claim": "历史日不承诺与 2026-07-17 参考日的完整基准等效。参考日保持完整验收标准（template-standard.json version=2）；历史日按本 profile 声明的能力范围执行验收。",
+    "statusGuidance": {
+      "FINAL_history": "当日本模块字段完整采集",
+      "PARTIAL": "核心字段存在，但部分字段因无可用历史源为 null（诚实缺口，不伪造）",
+      "UNAVAILABLE": "该历史日模块不可用（源不可达或结构性缺数据）"
+    }
+  },
+  "modules": {
+    "sentiment": {
+      "earliestSupportedDate": "2026-07-20",
+      "missingFields": [
+        "riseCount",
+        "fallCount",
+        "flatCount"
+      ],
+      "missingReason": "涨跌家数无免费历史数据源（R2 数据源研究确认），诚实缺口",
+      "extraFields": [
+        "limitSealRatePct",
+        "maxLimitUpStreak"
+      ],
+      "extraFieldsNote": "limitSealRatePct/maxLimitUpStreak 依赖东财涨停池，仅 07-27 起窗口内可采集",
+      "statusMapping": "riseCount/fallCount/flatCount 为 null 时状态置 PARTIAL（不再要求 FINAL）",
+      "uiNotice": "历史日展示『市场宽度（涨跌家数）无历史源，仅显示可采集指标』"
+    },
+    "fundFlow": {
+      "earliestSupportedDate": "2026-07-20",
+      "missingFields": [
+        "stockInflowTop10",
+        "stockOutflowTop10"
+      ],
+      "missingReason": "历史个股资金流无可用批量源；push2his 主机 2026-08-15 起主机级封禁（临时运营缺口，解封可恢复行业/概念四榜单）",
+      "temporary": {
+        "push2hisBlockedSince": "2026-08-15",
+        "recovery": "push2his 解封后重跑 backfill 可恢复 industry/concept 四榜单；stock 两榜单仍未结构化可用"
+      },
+      "statusMapping": "历史日行业/概念四榜单缺失时置 UNAVAILABLE；补齐后置 FINAL(PARTIAL orders)；stock 两榜单永缺标 PARTIAL",
+      "uiNotice": "历史日展示『主力资金历史榜单部分缺失（个股榜单无源 / 主机封禁期）』"
+    },
+    "tracks": {
+      "earliestSupportedDate": "2026-07-20",
+      "missingFields": [
+        "mainNetInflow",
+        "continuousInflowDays",
+        "excessReturn20d",
+        "redStockRatio",
+        "effectiveFrom",
+        "effectiveTo",
+        "sourceSystem"
+      ],
+      "missingReason": "历史量化输入底座不完整：board-flow/membership 仅当日无历史；excessReturn20d 缺 HS300 archive 源；redStockRatio 缺历史行情源",
+      "statusMapping": "上述字段缺失时置 UNAVAILABLE",
+      "uiNotice": "历史日展示『赛道量化指标历史不可用（输入底座不足），仅展示可用归档数据』"
+    }
+  },
+  "unrecoverableRanges": [
+    {
+      "range": [
+        "2026-07-20",
+        "2026-07-24"
+      ],
+      "affectedModules": [
+        "sentiment",
+        "tracks"
+      ],
+      "reason": "东财涨停池保留窗口仅覆盖 ~2026-07-27 起，此前 limit-up-pool archive 无数据，不可恢复",
+      "status": "UNRECOVERABLE"
+    }
+  ],
+  "acceptanceNote": "验收报告对历史日按本 profile 判定：参考日 07-17 用完整标准；历史日对缺失字段不因『诚实缺口』判 FAIL，而是按 statusMapping 接受 PARTIAL/UNAVAILABLE 作为已知边界。整体通过条件改为：参考日 + 各历史日达到本 profile 声明能力范围内可采集字段全通过。"
+}
