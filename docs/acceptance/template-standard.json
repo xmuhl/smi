@@ -372,7 +372,7 @@
             "field": "changePct",
             "direction": "asc"
           },
-          "sign": "negative"
+          "sign": "mixed"
         },
         "conceptTop5": {
           "minItems": 5,
@@ -414,7 +414,7 @@
             "field": "changePct",
             "direction": "asc"
           },
-          "sign": "negative"
+          "sign": "mixed"
         }
       },
       "displayRules": [
@@ -422,7 +422,7 @@
         "每行展示板块名称(name)与当日涨跌幅(changePct，带红绿配色)。",
         "method=TONGDAXIN_LEGACY 时页脚展示『数据口径：通达信 Legacy（历史导入）』。"
       ],
-      "notes": "industryTop5/industryBottom5/conceptTop5/conceptBottom5 各需 minItems=5；item name 非空、changePct 有限。Top 列表按 changePct 降序、Bottom 列表按升序；每个列表内 name 互不重复。method 标注口径。"
+      "notes": "industryTop5/industryBottom5/conceptTop5/conceptBottom5 各需 minItems=5；item name 非空、changePct 有限。Top 列表按 changePct 降序、Bottom 列表按升序；每个列表内 name 互不重复。Top/Bottom 采用排序榜语义（仅表示按 changePct 的极值排名），sign 均声明为 mixed，不强制为正或负：全市场普涨/普跌时 Bottom5 含正数、Top5 含负数均合法（对应 SMI-R12-P1-004 契约修复，含全涨/全跌/含 0 值对称边界）。method 标注口径。"
     },
     "fundFlow": {
       "displayLabel": "5-主力资金流向",
