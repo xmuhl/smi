@@ -27,6 +27,9 @@
       涨停封板率 {{ sealRateText }} ·
       最高连板 {{ module.maxLimitUpStreak ?? "—" }}
     </div>
+    <div class="boundary-tip" v-if="widthGapNote">
+      {{ widthGapNote }}
+    </div>
   </div>
 </template>
 
@@ -59,5 +62,20 @@ const hasExtra = computed(() => {
     (s !== null && s !== undefined) ||
     (streak !== null && streak !== undefined && streak !== "")
   );
+});
+
+// R12 P3-003：历史市场宽度（涨跌家数）无免费历史源时的已知边界提示
+const widthGapNote = computed(() => {
+  const rc = props.module.riseCount;
+  const fc = props.module.fallCount;
+  const flat = props.module.flatCount;
+  const allNull =
+    (rc === null || rc === undefined) &&
+    (fc === null || fc === undefined) &&
+    (flat === null || flat === undefined);
+  if (!allNull) return "";
+  const st = props.module.status;
+  if (st !== "PARTIAL" && st !== "UNAVAILABLE" && st !== "PENDING") return "";
+  return "市场宽度（涨跌家数）无历史源，仅显示可采集指标（历史覆盖 Profile 已知边界）";
 });
 </script>

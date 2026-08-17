@@ -48,6 +48,9 @@
     <div class="empty-tip" v-if="module.sourceSystem === 'TONGDAXIN_LEGACY'">
       数据口径：通达信 Legacy（历史导入）
     </div>
+    <div class="boundary-tip" v-if="unavailableNote">
+      {{ unavailableNote }}
+    </div>
   </div>
 </template>
 
@@ -56,7 +59,7 @@ import type { TracksModule } from "../types/smi";
 import { decisionClass, decisionText } from "../utils/format";
 import StatusBadge from "../components/StatusBadge.vue";
 
-defineProps<{ module: TracksModule }>();
+const props = defineProps<{ module: TracksModule }>();
 
 function fmtYi(v: number | null | undefined): string {
   if (v === null || v === undefined) return "—";
@@ -70,6 +73,13 @@ function signClass(v: number | null | undefined): string {
   if (v < 0) return "down";
   return "flat";
 }
+
+// R12 P3-003：历史量化输入底座不足的已知边界提示
+import { computed } from "vue";
+const unavailableNote = computed(() => {
+  if (props.module.status !== "UNAVAILABLE") return "";
+  return "赛道量化指标历史不可用（输入底座不足），仅展示可用归档数据（历史覆盖 Profile 已知边界）";
+});
 </script>
 
 <style scoped>

@@ -74,5 +74,13 @@
       "status": "UNRECOVERABLE"
     }
   ],
-  "acceptanceNote": "验收报告对历史日按本 profile 判定：参考日 07-17 用完整标准；历史日对缺失字段不因『诚实缺口』判 FAIL，而是按 statusMapping 接受 PARTIAL/UNAVAILABLE 作为已知边界。整体通过条件改为：参考日 + 各历史日达到本 profile 声明能力范围内可采集字段全通过。"
+  "acceptanceNote": "验收报告对历史日按本 profile 判定：参考日 07-17 用完整标准；历史日对缺失字段不因『诚实缺口』判 FAIL，而是按 statusMapping 接受 PARTIAL/UNAVAILABLE 作为已知边界。整体通过条件改为：参考日 + 各历史日达到本 profile 声明能力范围内可采集字段全通过。",
+  "appliesThrough": "2026-08-14",
+  "appliesToRanges": [
+    [
+      "2026-07-20",
+      "2026-08-14"
+    ]
+  ],
+  "scopeNote": "historical-v1 仅覆盖 07-20~08-14 历史回补窗口；此后新采集交易日（如 2026-08-17）不属于本 profile 自动豁免范围，须按完整标准验收或另行产品裁决。"
 }
