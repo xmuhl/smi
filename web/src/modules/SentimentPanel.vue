@@ -38,7 +38,7 @@ import { computed } from "vue";
 import type { SentimentModule } from "../types/smi";
 import StatusBadge from "../components/StatusBadge.vue";
 
-const props = defineProps<{ module: SentimentModule }>();
+const props = defineProps<{ module: SentimentModule; tradeDate?: string }>();
 
 // limitSealRatePct / maxLimitUpStreak 已由 snapshot 提供，但类型声明尚未补充，
 // 通过 any 取值以避免改动 types 文件
@@ -76,6 +76,9 @@ const widthGapNote = computed(() => {
   if (!allNull) return "";
   const st = props.module.status;
   if (st !== "PARTIAL" && st !== "UNAVAILABLE" && st !== "PENDING") return "";
+  // P3-003：仅当 tradeDate 在 profile 日期范围内（07-20~08-14）才显示边界提示
+  const td = props.tradeDate || "";
+  if (td && (td < "2026-07-20" || td > "2026-08-14")) return "";
   return "市场宽度（涨跌家数）无历史源，仅显示可采集指标（历史覆盖 Profile 已知边界）";
 });
 </script>

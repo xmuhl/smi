@@ -59,7 +59,7 @@ import type { TracksModule } from "../types/smi";
 import { decisionClass, decisionText } from "../utils/format";
 import StatusBadge from "../components/StatusBadge.vue";
 
-const props = defineProps<{ module: TracksModule }>();
+const props = defineProps<{ module: TracksModule; tradeDate?: string }>();
 
 function fmtYi(v: number | null | undefined): string {
   if (v === null || v === undefined) return "—";
@@ -78,6 +78,8 @@ function signClass(v: number | null | undefined): string {
 import { computed } from "vue";
 const unavailableNote = computed(() => {
   if (props.module.status !== "UNAVAILABLE") return "";
+  const td = props.tradeDate || "";
+  if (td && (td < "2026-07-20" || td > "2026-08-14")) return "";
   return "赛道量化指标历史不可用（输入底座不足），仅展示可用归档数据（历史覆盖 Profile 已知边界）";
 });
 </script>

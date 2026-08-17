@@ -155,6 +155,24 @@ def main(argv=None):
             if not real:
                 rej_here[mname] = "declared_missing_not_absent_in_snapshot"
                 continue
+            # P3-001 v3：验证模块的全部失败细节都能被 profile 解释
+            # 从验收报告读取该模块的 failure details，检查是否有非 profile 字段的失败
+            entry_mod = failed.get(mname)
+            if entry_mod and isinstance(entry_mod, dict):
+                details = entry_mod.get("details") or []
+                unreconciled = []
+                for det in details:
+                    dtext = det.get("detail") if isinstance(det, dict) else str(det)
+                    # 如果 detail 提到缺失字段，检查是否在 profile 声明中
+                    if any(f in dtext for f in missing):
+                        continue  # 归因于 profile 字段
+                    # 如果提到 status 期望 FINAL 但实际是 PARTIAL/UNAVAILABLE → profile 允许
+                    if "期望 FINAL" in dtext and entry_mod.get("status") in ("PARTIAL", "UNAVAILABLE", "PENDING"):
+                        continue
+                    unreconciled.append(dtext)
+                if unreconciled:
+                    rej_here[mname] = "unreconciled_details:" + ";".join(unreconciled[:3])
+                    continue
             acc_here[mname] = "missing_fields:" + ",".join(real)
         if acc_here and not rej_here:
             accepted[d] = acc_here

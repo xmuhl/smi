@@ -33,7 +33,7 @@
         <MarketIndexPanel :module="snapshot.modules.marketIndex" />
         <div class="grid grid-2">
           <TurnoverPanel :module="snapshot.modules.turnover" />
-          <SentimentPanel :module="snapshot.modules.sentiment" />
+          <SentimentPanel :module="snapshot.modules.sentiment" :tradeDate="snapshot.tradeDate" />
         </div>
       </div>
 
@@ -47,7 +47,7 @@
       <div class="section-title">③ 杠杆与主赛道</div>
       <div class="grid">
         <MarginPanel :module="snapshot.modules.margin" />
-        <TrackMonitorPanel :module="snapshot.modules.tracks" />
+        <TrackMonitorPanel :module="snapshot.modules.tracks" :tradeDate="snapshot.tradeDate" />
       </div>
 
       <div class="section-title">④ 今日结论</div>
