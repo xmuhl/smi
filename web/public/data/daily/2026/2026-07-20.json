@@ -3,7 +3,7 @@
   "tradeDate": "2026-07-20",
   "generatedAt": "2026-08-15T12:05:30+08:00",
   "updatedAt": "2026-08-16T23:50:53+08:00",
-  "revision": 9,
+  "revision": 10,
   "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -133,7 +133,15 @@
       "comparisonStatus": "PREVIOUS_METHOD_MISMATCH",
       "sourceWarnings": [
         "eastmoney: eastmoney spot has no history"
-      ]
+      ],
+      "crossMethodReference": {
+        "previous": 26549.58,
+        "delta": 488.14,
+        "changePct": 1.84,
+        "nonComparable": true,
+        "currentMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+        "previousMethod": "LEGACY_UNKNOWN"
+      }
     },
     "sentiment": {
       "status": "UNAVAILABLE",
