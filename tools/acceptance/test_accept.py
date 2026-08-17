@@ -198,14 +198,16 @@ def test_positive_0717_all_pass(base_snapshot, standard, manifest):
 
 def test_positive_0814_fail_set(base_snapshot, standard, manifest):
     entry = accept.build_entry("2026-08-14", manifest, standard)
+    # P1 后 08-14 状态：sentiment PARTIAL（缺 limitSealRatePct/涨跌家数）+ tracks UNAVAILABLE；
+    # northbound/summary/margin 已修复并 PASS（P1-009：随实现演进同步断言）。
     assert entry["overall"] == "FAIL"
     assert entry["pass"] is False
     fail_mods = {name for name in accept.MODULE_ORDER if not entry["modules"][name]["pass"]}
-    # P0.3 起 summary 方向/数值事实锚点使 08-14 旧文案 summary 也 FAIL（P1 重生成文案后恢复）
-    assert fail_mods == {"sentiment", "northbound", "summary", "tracks"}, fail_mods
+    assert fail_mods == {"sentiment", "tracks"}, fail_mods
     # margin 走 D0 PENDING 分支 PASS
     assert entry["modules"]["margin"]["pass"] is True
-    assert entry["modules"]["summary"]["pass"] is False
+    assert entry["modules"]["summary"]["pass"] is True
+    assert entry["modules"]["northbound"]["pass"] is True
 
 
 # ---------------------------------------------------------------- P0.4 (P03-001) 新增回归
