@@ -1,20 +1,12 @@
 {
-  "lastWorkflow": "close-snapshot",
-  "lastRunAt": "2026-08-17T17:10:53+08:00",
-  "lastSuccessfulTradeDate": "2026-07-17",
+  "lastWorkflow": "manual",
+  "lastRunAt": "2026-08-17T18:10:14+08:00",
+  "lastSuccessfulTradeDate": "2026-08-14",
   "latestCapturedDate": "2026-08-17",
   "latestCloseCompleteDate": "2026-07-17",
   "latestFinalDate": "2026-07-17",
   "latestDate": "2026-08-17",
-  "health": "DEGRADED",
-  "errors": [
-    {
-      "module": "margin",
-      "status": "PENDING",
-      "errors": [
-        "Expecting value: line 1 column 1 (char 0)"
-      ]
-    }
-  ],
+  "health": "OK",
+  "errors": [],
   "staleModules": []
 }
