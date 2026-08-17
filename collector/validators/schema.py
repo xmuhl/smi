@@ -404,7 +404,8 @@ def _validate_partial_module(
     trade_date: str,
     errors: list[str],
 ) -> None:
-    """V1 PARTIAL：历史 sentiment（R8-P2-01）；R10 起允许受约束 tracks sufficient。"""
+    """V1 PARTIAL：历史 sentiment（R8-P2-01）；R10 起允许受约束 tracks sufficient；
+    P1-003 起允许受约束 fundFlow（历史个股两榜单免费源不可行 → PARTIAL）。"""
     if name == "tracks":
         if module.get("dataDate") != trade_date:
             errors.append(
@@ -426,6 +427,26 @@ def _validate_partial_module(
         ):
             errors.append(
                 "tracks: PARTIAL coveragePct must be finite within [80, 100]"
+            )
+
+        return
+
+    if name == "fundFlow":
+        # P1-003：历史回补个股两榜单无免费源 → PARTIAL。
+        # dataDate==tradeDate 且 reason=STOCK_HISTORICAL_UNAVAILABLE 约束。
+        if module.get("dataDate") != trade_date:
+            errors.append(
+                "fundFlow: PARTIAL dataDate "
+                f"{module.get('dataDate')} != tradeDate {trade_date}"
+            )
+
+        if (
+            module.get("reason")
+            != "STOCK_HISTORICAL_UNAVAILABLE"
+        ):
+            errors.append(
+                "fundFlow: PARTIAL reason must be "
+                "STOCK_HISTORICAL_UNAVAILABLE"
             )
 
         return

@@ -151,12 +151,17 @@ def _patch_clist(monkeypatch):
 
 
 def test_historical_industry_concept_rankings(monkeypatch):
-    """行业/概念各 12 板块：排序正确、netInflowYi 换算正确、条目结构正确。"""
+    """行业/概念各 12 板块：排序正确、netInflowYi 换算正确、条目结构正确。
+
+    P1-003：板块 4 榜单有数据但个股 2 榜单（免费源不可行）→ status=PARTIAL 而非 FINAL，
+    reason=STOCK_HISTORICAL_UNAVAILABLE；errors/sourceWarnings 标注缺口。"""
     _patch_clist(monkeypatch)
 
     result = collect_fund_flow(TRADE_DATE)
 
-    assert result["status"] == "FINAL"
+    assert result["status"] == "PARTIAL"
+    assert result["reason"] == "STOCK_HISTORICAL_UNAVAILABLE"
+    assert "STOCK_HISTORICAL_UNAVAILABLE" in result["errors"]
     assert result["dataDate"] == TRADE_DATE
     assert result["method"] == EASTMONEY_HISTORICAL_METHOD
     assert result["source"] == ["EASTMONEY_PUSH2HIS"]
@@ -200,12 +205,17 @@ def test_historical_industry_concept_rankings(monkeypatch):
 
 
 def test_historical_stock_boards_empty_and_noted(monkeypatch):
-    """个股两类榜单恒为空 + errors 含 STOCK_HISTORICAL_UNAVAILABLE。"""
+    """个股两类榜单恒为空 + errors 含 STOCK_HISTORICAL_UNAVAILABLE（P1-003）。
+
+    P1-003：板块 4 榜单齐全但个股 2 榜单空 → status=PARTIAL 而非 FINAL。
+    reason=STOCK_HISTORICAL_UNAVAILABLE 写在 errors；sourceWarnings 标注部分数据缺口。
+    """
     _patch_clist(monkeypatch)
 
     result = collect_fund_flow(TRADE_DATE)
 
-    assert result["status"] == "FINAL"
+    assert result["status"] == "PARTIAL"
+    assert result["reason"] == "STOCK_HISTORICAL_UNAVAILABLE"
     assert result["stockInflowTop10"] == []
     assert result["stockOutflowTop10"] == []
     assert any(
@@ -267,7 +277,9 @@ def test_historical_fallback_to_akshare_secid_list(monkeypatch):
 
     result = collect_fund_flow(TRADE_DATE)
 
-    assert result["status"] == "FINAL"
+    # P1-003：板块榜齐全但个股榜空 → PARTIAL + STOCK_HISTORICAL_UNAVAILABLE
+    assert result["status"] == "PARTIAL"
+    assert result["reason"] == "STOCK_HISTORICAL_UNAVAILABLE"
     assert result["industryInflowTop10"][0]["name"] == "行业甲"
     assert result["conceptInflowTop10"][0]["name"] == "概念甲"
 
@@ -286,14 +298,19 @@ def test_f52_on_date_direct():
 
 
 def test_historical_result_validates_against_schema(monkeypatch):
-    """完整模块结果放入最小快照，须通过 validate_snapshot 的 fundFlow 契约。"""
+    """完整模块结果放入最小快照，须通过 validate_snapshot 的 fundFlow 契约。
+
+    P1-003：板块 4 榜单有数据 + 个股 2 榜单空 → status=PARTIAL 而非 FINAL。
+    契约校验：PARTIAL fundFlow dataDate==tradeDate，个股榜单为空不违反代码契约。
+    """
     from collector.schema import finalize_snapshot, new_snapshot
     from collector.validators.schema import validate_snapshot
 
     _patch_clist(monkeypatch)
 
     module = collect_fund_flow(TRADE_DATE)
-    assert module["status"] == "FINAL"
+    assert module["status"] == "PARTIAL"
+    assert module["reason"] == "STOCK_HISTORICAL_UNAVAILABLE"
 
     snapshot = new_snapshot(TRADE_DATE)
     for name, mod in snapshot["modules"].items():
@@ -303,5 +320,4 @@ def test_historical_result_validates_against_schema(monkeypatch):
     snapshot["modules"]["fundFlow"] = module
     finalize_snapshot(snapshot)
 
-    # 契约校验：FINAL fundFlow dataDate==tradeDate，个股榜单为空不违反代码契约
     validate_snapshot(snapshot)

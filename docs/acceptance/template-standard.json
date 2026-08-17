@@ -1787,8 +1787,11 @@
     },
     {
       "id": "INV-ENUM-SOURCE-METHOD",
-      "desc": "各模块 source/method/mode/comparisonStatus/volumeState/maAlignment/excessReturn20d/decision 必须满足标准枚举；source 与 method 标识口径来源。",
+      "desc": "各模块 source/method/mode/comparisonStatus/volumeState/maAlignment/excessReturn20d/decision 必须满足标准枚举；source 与 method 标识口径来源。仅在模块 status 命中 applyWhenStatus 时执行枚举必填校验；非命中状态视为 fail-closed null 字段，标准不做要求。",
       "spec": {
+        "applyWhenStatus": [
+          "FINAL"
+        ],
         "fields": [
           "source",
           "method",

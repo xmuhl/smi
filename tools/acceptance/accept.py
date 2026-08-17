@@ -2044,12 +2044,15 @@ def run_cross_module_invariants(snapshot, standard, trade_date, daily_dir=None):
     # tracks 的 item 字段 "<模块>.items.<字段>"（maAlignment/excessReturn20d/decision）。值缺失时仅当该字段
     # required（标准 fields/items.fields required=true）才 false；值存在但不在枚举即 false。未声明路径不检查。
     en_cfg = _invariant_spec(standard, "INV-ENUM-SOURCE-METHOD").get("allowedEnums") or {}
+    # P1-002：状态作用域由 spec.applyWhenStatus 声明（machine-readable），
+    # 执行器不再硬编码 FINAL；标准未声明时退化为仅 FINAL（与 P1-001 行为一致）。
+    apply_when = _invariant_spec(standard, "INV-ENUM-SOURCE-METHOD").get("applyWhenStatus") or ["FINAL"]
     b = True
     for mname, field_enums in en_cfg.items():
         m = modules.get(mname) or {}
-        # 模块非 FINAL（PENDING/STALE/UNAVAILABLE/ERROR/PARTIAL）→ fail-closed 语义
-        # 下数据缺失是预期，枚举必填检查不应在此触发（FIX：P1-001）。
-        if not isinstance(m, dict) or m.get("status") != "FINAL":
+        # 模块 status 不在 spec 声明的作用域内 → fail-closed 语义下数据缺失是预期，
+        # 枚举必填检查不应触发。
+        if not isinstance(m, dict) or m.get("status") not in apply_when:
             continue
         for fpath, enum_vals in field_enums.items():
             if fpath.startswith("items."):

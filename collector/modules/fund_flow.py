@@ -469,10 +469,19 @@ def _collect_fund_flow_historical(
     result["conceptOutflowTop10"] = concept["bottom10"]
 
     # 个股历史榜单免费源不可行：诚实置空并标注缺口
+    # P1-003：板块 4 类榜单（行业/概念 × 流入/流出）齐全但个股 2 类榜单（stockInflow/Outflow）
+    # 为空——产品标准要求 minItems=10，而当前实现永远无法满足该最小值（无历史免费源）。
+    # 继续标 FINAL 会与标准契约冲突，让下游误以为数据完整。改用 PARTIAL 真实反映：
+    # "四榜单有数据但两榜单空"的部分状态（fail-closed）；reason 写明缺口类型，
+    # sourceWarnings 列明。
     result["errors"].append("STOCK_HISTORICAL_UNAVAILABLE")
-
-    result["status"] = ModuleStatus.FINAL.value
-    result["reason"] = None
+    result["status"] = ModuleStatus.PARTIAL.value
+    result["reason"] = "STOCK_HISTORICAL_UNAVAILABLE"
+    result["sourceWarnings"].append(
+        "fundFlow_history: 个股资金流两榜单（stockInflowTop10/stockOutflowTop10）"
+        "免费源不可行，与产品标准 minItems=10 冲突；模块以 PARTIAL 返回，"
+        "下游需在 UI/summary 中显式标注部分数据缺口。"
+    )
     return result
 
 
