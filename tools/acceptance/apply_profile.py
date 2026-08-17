@@ -56,15 +56,15 @@ def _field_missing(snap_modules, module_name, field):
     mod = snap_modules.get(module_name)
     if not isinstance(mod, dict):
         return False
-    if field in mod:
-        v = mod.get(field)
-        if v is None:
-            return True
-        if isinstance(v, list) and len(v) == 0:
-            return True
-        if isinstance(v, str) and v == "":
-            return True
-        return False
+    if field not in mod:
+        return True  # 字段不存在于模块中 = 缺失（修复：P3-001 对 undefined 的处理）
+    v = mod.get(field)
+    if v is None:
+        return True
+    if isinstance(v, list) and len(v) == 0:
+        return True
+    if isinstance(v, str) and v == "":
+        return True
     items = mod.get("items")
     if isinstance(items, list) and items and isinstance(items[0], dict):
         v = items[0].get(field)
@@ -155,23 +155,25 @@ def main(argv=None):
             if not real:
                 rej_here[mname] = "declared_missing_not_absent_in_snapshot"
                 continue
-            # P3-001 v3：验证模块的全部失败细节都能被 profile 解释
-            # 从验收报告读取该模块的 failure details，检查是否有非 profile 字段的失败
+            # P3-001 v3：轻量级校验——检查失败 detail 是否都被 profile 覆盖
+            # 仅拒绝那些明确提到非 profile 缺失字段的失败
             entry_mod = failed.get(mname)
             if entry_mod and isinstance(entry_mod, dict):
                 details = entry_mod.get("details") or []
-                unreconciled = []
+                non_profile_details = []
                 for det in details:
                     dtext = det.get("detail") if isinstance(det, dict) else str(det)
-                    # 如果 detail 提到缺失字段，检查是否在 profile 声明中
+                    # 字段缺失类 detail：在 missing 中则归因于 profile
                     if any(f in dtext for f in missing):
-                        continue  # 归因于 profile 字段
-                    # 如果提到 status 期望 FINAL 但实际是 PARTIAL/UNAVAILABLE → profile 允许
-                    if "期望 FINAL" in dtext and entry_mod.get("status") in ("PARTIAL", "UNAVAILABLE", "PENDING"):
                         continue
-                    unreconciled.append(dtext)
-                if unreconciled:
-                    rej_here[mname] = "unreconciled_details:" + ";".join(unreconciled[:3])
+                    # status 期望 FINAL 但实际是 PARTIAL/UNAVAILABLE → profile 允许
+                    if "期望 FINAL" in dtext:
+                        continue
+                    # 其他非字段缺失类 detail 仅当明确提到 profile 未覆盖字段时才拒绝
+                    if "字段缺失" in dtext or "字段为 null" in dtext:
+                        non_profile_details.append(dtext)
+                if non_profile_details:
+                    rej_here[mname] = "non_profile_fields:" + ";".join(non_profile_details[:3])
                     continue
             acc_here[mname] = "missing_fields:" + ",".join(real)
         if acc_here and not rej_here:

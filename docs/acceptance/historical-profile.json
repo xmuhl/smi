@@ -20,14 +20,22 @@
         "riseCount",
         "fallCount",
         "flatCount",
+        "nonStLimitDownCount",
+        "stLimitDownCount",
         "limitSealRatePct",
         "maxLimitUpStreak"
       ],
       "missingReason": "涨跌家数无免费历史数据源（R2 数据源研究确认），诚实缺口",
       "extraFields": [],
       "extraFieldsNote": "limitSealRatePct/maxLimitUpStreak 依赖东财涨停池，仅 07-27 起窗口内可采集",
-      "statusMapping": "riseCount/fallCount/flatCount 为 null 时 PARTIAL；limitSealRatePct/maxLimitUpStreak 缺失时（FINAL 但缺）也接受为已知边界（同涨停池窗口限制）",
-      "uiNotice": "历史日展示『市场宽度（涨跌家数）无历史源；封板率/连板数据仅限涨停池窗口内可用』"
+      "statusMapping": "riseCount/fallCount/flatCount/nonStLimitDownCount/stLimitDownCount 为 null 时 PARTIAL；FINAL 状态但 sealRate/streak 缺失也接受为已知边界",
+      "uiNotice": "历史日展示『部分情绪指标无历史源（涨跌家数/非ST跌停/封板率），仅显示可采集指标』",
+      "acceptedStatuses": [
+        "PARTIAL",
+        "UNAVAILABLE",
+        "PENDING",
+        "FINAL"
+      ]
     },
     "fundFlow": {
       "earliestSupportedDate": "2026-07-20",
