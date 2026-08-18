@@ -1,12 +1,20 @@
 {
-  "lastWorkflow": "manual",
-  "lastRunAt": "2026-08-17T18:10:14+08:00",
-  "lastSuccessfulTradeDate": "2026-08-14",
+  "lastWorkflow": "t1-reconcile",
+  "lastRunAt": "2026-08-18T11:09:44+08:00",
+  "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-17",
   "latestCloseCompleteDate": "2026-07-17",
   "latestFinalDate": "2026-07-17",
   "latestDate": "2026-08-17",
-  "health": "OK",
-  "errors": [],
+  "health": "DEGRADED",
+  "errors": [
+    {
+      "module": "margin",
+      "status": "ERROR",
+      "errors": [
+        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+      ]
+    }
+  ],
   "staleModules": []
 }
