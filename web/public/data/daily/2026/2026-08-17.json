@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-17",
   "generatedAt": "2026-08-17T17:04:37+08:00",
-  "updatedAt": "2026-08-18T11:09:44+08:00",
-  "revision": 2,
+  "updatedAt": "2026-08-19T17:49:19+08:00",
+  "revision": 3,
   "overallStatus": "PARTIAL_ERROR",
   "generationReason": "T1_RECONCILE",
   "market": "CN_A",
@@ -35199,7 +35199,7 @@
       ],
       "unit": "亿元",
       "errors": [
-        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+        "Expecting value: line 1 column 1 (char 0)"
       ],
       "warnings": [],
       "latestPublishedReference": {
