@@ -316,32 +316,119 @@ def test_universe_line_rejects_bad_numbers_and_count_mismatch():
 # netguard
 # ---------------------------------------------------------------------------
 
-def test_net_guard_timeout_raises():
-    @net_guard(timeout=0.3, retries=0)
-    def slow() -> str:
-        time.sleep(5.0)
-        return "done"
+# R13-P3-01：netguard 已改为进程级隔离（POSIX fork / Windows spawn）。
+# 被装饰的测试 worker 必须是模块级函数（spawn 子进程按限定名重新 import），
+# 且不能依赖闭包共享状态（子进程内存独立）——重试计数改用计数文件。
+import os as _os
 
+import pytest as _pytest
+
+
+@_pytest.fixture
+def _real_netguard(monkeypatch):
+    """netguard 专项测试必须走真实进程隔离（conftest 默认 inline 直通）。"""
+    monkeypatch.delenv("SMI_NETGUARD_MODE", raising=False)
+
+
+def _ng_slow() -> str:
+    time.sleep(5.0)
+    return "done"
+
+
+def _ng_slow_with_pid(pid_path: str) -> str:
+    with open(pid_path, "w") as fh:
+        fh.write(str(_os.getpid()))
+    time.sleep(30.0)
+    return "done"
+
+
+def _ng_quick() -> int:
+    return 42
+
+
+def _ng_boom() -> None:
+    raise ValueError("boom")
+
+
+def _ng_flaky(counter_path: str) -> str:
+    n = 0
+    if _os.path.exists(counter_path):
+        with open(counter_path) as fh:
+            n = int(fh.read() or "0")
+    n += 1
+    with open(counter_path, "w") as fh:
+        fh.write(str(n))
+    if n == 1:
+        raise RuntimeError("transient")
+    return "ok"
+
+
+def _ng_dataframe():
+    import pandas as pd
+
+    return pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+
+
+def _ng_unpicklable_exc() -> None:
+    # 异常对象携带 lambda：不可 pickle，应退化为 GuardedCallError
+    raise RuntimeError("unpicklable", lambda: None)
+
+
+def _pid_alive(pid: int) -> bool:
+    if _os.name == "posix":
+        try:
+            _os.kill(pid, 0)
+        except OSError:
+            return False
+        return True
+    # Windows：os.kill(pid, 0) 会调用 TerminateProcess（危险且语义不符），
+    # 用 OpenProcess + GetExitCodeProcess 只读探测（STILL_ACTIVE=259）
+    import ctypes
+
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    try:
+        code = ctypes.c_ulong(0)
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            return False
+        return code.value == 259
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def test_net_guard_timeout_raises(_real_netguard):
+    slow = net_guard(timeout=0.5, retries=0)(_ng_slow)
     started = time.time()
     try:
         slow()
         raise AssertionError("should have timed out")
     except GuardTimeoutError:
         pass
-    assert time.time() - started < 3.0
+    # spawn（Windows）子进程启动有秒级开销，阈值放宽但仍远小于 worker 的 5s
+    assert time.time() - started < 8.0
 
 
-def test_net_guard_passes_result_and_exception():
-    @net_guard(timeout=5.0, retries=0)
-    def quick() -> int:
-        return 42
+def test_net_guard_timeout_kills_worker(tmp_path, _real_netguard):
+    pid_path = str(tmp_path / "worker.pid")
+    slow = net_guard(timeout=1.5, retries=0)(_ng_slow_with_pid)
+    try:
+        slow(pid_path)
+        raise AssertionError("should have timed out")
+    except GuardTimeoutError:
+        pass
+    with open(pid_path) as fh:
+        pid = int(fh.read())
+    # 超时后 worker 子进程必须已被终止（R13-P3-01 核心回归断言）
+    assert not _pid_alive(pid), f"worker pid {pid} still alive after hard timeout"
 
+
+def test_net_guard_passes_result_and_exception(_real_netguard):
+    quick = net_guard(timeout=30.0, retries=0)(_ng_quick)
     assert quick() == 42
 
-    @net_guard(timeout=5.0, retries=0)
-    def boom() -> None:
-        raise ValueError("boom")
-
+    boom = net_guard(timeout=30.0, retries=0)(_ng_boom)
     try:
         boom()
         raise AssertionError("should have raised")
@@ -349,18 +436,48 @@ def test_net_guard_passes_result_and_exception():
         pass
 
 
-def test_net_guard_retries_then_succeeds():
-    calls = {"n": 0}
+def test_net_guard_retries_then_succeeds(tmp_path, _real_netguard):
+    counter = str(tmp_path / "calls.txt")
+    flaky = net_guard(timeout=30.0, retries=1, backoff=0.05)(_ng_flaky)
+    assert flaky(counter) == "ok"
+    with open(counter) as fh:
+        assert int(fh.read()) == 2
 
-    @net_guard(timeout=1.0, retries=1, backoff=0.05)
-    def flaky() -> str:
-        calls["n"] += 1
-        if calls["n"] == 1:
-            raise RuntimeError("transient")
-        return "ok"
 
-    assert flaky() == "ok"
-    assert calls["n"] == 2
+def test_net_guard_retries_zero_never_respawns(tmp_path, _real_netguard):
+    # THS/mini_racer 语义：retries=0 时失败绝不产生第二个子进程
+    counter = str(tmp_path / "calls.txt")
+    once = net_guard(timeout=30.0, retries=0)(_ng_flaky)
+    try:
+        once(counter)
+        raise AssertionError("first call should fail")
+    except RuntimeError:
+        pass
+    with open(counter) as fh:
+        assert int(fh.read()) == 1
+
+
+def test_net_guard_dataframe_result_picklable(_real_netguard):
+    get_df = net_guard(timeout=30.0, retries=0)(_ng_dataframe)
+    df = get_df()
+    assert list(df["a"]) == [1, 2]
+    assert list(df["b"]) == ["x", "y"]
+
+
+def test_net_guard_unpicklable_exception_fails_closed(_real_netguard):
+    from collector.netguard import GuardedCallError
+
+    boom = net_guard(timeout=30.0, retries=0)(_ng_unpicklable_exc)
+    try:
+        boom()
+        raise AssertionError("should have raised GuardedCallError")
+    except GuardedCallError:
+        pass
+
+
+# 负向变异说明（R13-P3-01 [FIX] 验收第 8 条，手工执行）：
+# 删除 netguard._terminate_process 中的 process.kill() 分支后，
+# test_net_guard_timeout_kills_worker 应变红（terminate 杀不掉时 pid 仍存活）。
 
 
 # ---------------------------------------------------------------------------
