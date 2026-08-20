@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-20",
   "generatedAt": "2026-08-20T17:00:18+08:00",
-  "updatedAt": "2026-08-20T17:04:05+08:00",
-  "revision": 1,
+  "updatedAt": "2026-08-20T18:29:00+08:00",
+  "revision": 2,
   "overallStatus": "PARTIAL_PENDING",
   "generationReason": "CLOSE_SNAPSHOT",
   "market": "CN_A",
@@ -32,7 +32,11 @@
           "close": 3903.72,
           "previousClose": 3894.42,
           "changePct": 0.24,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay index quotes incomplete: []"
+          ]
         },
         {
           "code": "399001",
@@ -40,7 +44,11 @@
           "close": 13972.78,
           "previousClose": 13890.15,
           "changePct": 0.59,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay index quotes incomplete: []"
+          ]
         },
         {
           "code": "399006",
@@ -48,7 +56,11 @@
           "close": 3495.59,
           "previousClose": 3473.49,
           "changePct": 0.64,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay index quotes incomplete: []"
+          ]
         },
         {
           "code": "000688",
@@ -56,7 +68,11 @@
           "close": 1652.97,
           "previousClose": 1667.52,
           "changePct": -0.87,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay index quotes incomplete: []"
+          ]
         },
         {
           "code": "000300",
@@ -64,7 +80,11 @@
           "close": 4592.75,
           "previousClose": 4588.7,
           "changePct": 0.09,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay index quotes incomplete: []"
+          ]
         },
         {
           "code": "899050",
@@ -72,7 +92,11 @@
           "close": 1081.58,
           "previousClose": 1082.19,
           "changePct": -0.06,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+          ]
         },
         {
           "code": "399311",
@@ -35195,7 +35219,7 @@
       "effectiveFrom": "2026-07-01",
       "effectiveTo": "2026-12-31",
       "sourceSystem": "SELF",
-      "coveragePct": 47.7,
+      "coveragePct": 75.0,
       "decision": "TRACKS_INSUFFICIENT",
       "reason": "TRACK_METRICS_INSUFFICIENT_COVERAGE",
       "errors": [
@@ -35209,18 +35233,18 @@
           "trackName": "高股息中特估",
           "positioning": "高股息/央国企价值",
           "turnoverRank": 1,
-          "mainNetInflow": null,
-          "continuousInflowDays": 0,
+          "mainNetInflow": 18.42,
+          "continuousInflowDays": 1,
           "maAlignment": "否",
           "rps60": 66.7,
           "excessReturn20d": null,
-          "limitUpCount": null,
-          "ladderCompleteness": null,
+          "limitUpCount": 0,
+          "ladderCompleteness": "无连板",
           "redStockRatio": null,
           "coreCatalyst": "高股息防御属性、资金抱团避险，央国企市值管理政策催化",
           "earningsRealization": "业绩稳定、分红率高，盈利兑现确定性强",
-          "score": 44.5,
-          "coveragePct": 45.0,
+          "score": 49.3,
+          "coveragePct": 67.0,
           "decision": "数据不足"
         },
         {
@@ -35229,18 +35253,18 @@
           "trackName": "电力",
           "positioning": "公用事业/高股息",
           "turnoverRank": 2,
-          "mainNetInflow": null,
+          "mainNetInflow": -10.3,
           "continuousInflowDays": 0,
           "maAlignment": "否",
           "rps60": 33.3,
           "excessReturn20d": null,
-          "limitUpCount": null,
-          "ladderCompleteness": null,
+          "limitUpCount": 1,
+          "ladderCompleteness": "1连板",
           "redStockRatio": null,
           "coreCatalyst": "夏季用电高峰、电力市场化与电改政策催化",
           "earningsRealization": "业绩确定性强、电价上浮，经营现金流稳健",
-          "score": 28.9,
-          "coveragePct": 45.0,
+          "score": 26.9,
+          "coveragePct": 67.0,
           "decision": "数据不足"
         },
         {
@@ -35249,18 +35273,18 @@
           "trackName": "医药生物",
           "positioning": "防御+成长",
           "turnoverRank": 3,
-          "mainNetInflow": null,
+          "mainNetInflow": -2.83,
           "continuousInflowDays": 0,
           "maAlignment": "是",
           "rps60": 100.0,
           "excessReturn20d": null,
-          "limitUpCount": null,
-          "ladderCompleteness": null,
+          "limitUpCount": 14,
+          "ladderCompleteness": "1连板",
           "redStockRatio": null,
           "coreCatalyst": "创新药出海授权加速、CXO订单边际改善、集采利空出清",
           "earningsRealization": "业绩有望触底回升，出海与放量品种兑现确定性待验证",
-          "score": 64.4,
-          "coveragePct": 45.0,
+          "score": 50.8,
+          "coveragePct": 67.0,
           "decision": "数据不足"
         },
         {
@@ -35269,18 +35293,18 @@
           "trackName": "半导体/AI算力",
           "positioning": "科技成长",
           "turnoverRank": null,
-          "mainNetInflow": null,
+          "mainNetInflow": -66.46,
           "continuousInflowDays": 0,
           "maAlignment": null,
           "rps60": null,
           "excessReturn20d": null,
-          "limitUpCount": null,
-          "ladderCompleteness": null,
+          "limitUpCount": 0,
+          "ladderCompleteness": "无连板",
           "redStockRatio": null,
           "coreCatalyst": "AI算力需求景气、国产替代加速、先进制程与国产算力事件催化",
           "earningsRealization": "板块业绩兑现依赖景气延续，高估值下兑现不及预期风险大",
-          "score": 0.0,
-          "coveragePct": 10.0,
+          "score": 7.0,
+          "coveragePct": 32.0,
           "decision": "数据不足"
         }
       ]
