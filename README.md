@@ -36,7 +36,7 @@ python -m collector.jobs.close_snapshot --date auto
 python -m collector.jobs.manual_backfill --date 2026-07-17
 ```
 
-### 前端（Node 20+）
+### 前端（Node 22+，wrangler 4.x 硬要求）
 
 ```powershell
 cd web
@@ -66,18 +66,21 @@ smi/
 
 详细设计见 `docs/SMI-V1-Design-V1.1.md`。
 
-## 当前状态（2026-08-17）
+## 当前状态（2026-08-20，R12）
 
 - ✅ **网站已上线**：https://smi-6s2.pages.dev / https://smi.gorestart.cn
-- ✅ **22 个交易日数据**（2026-07-17 ~ 2026-08-17）
-- ✅ **自动更新链路**：GitHub Actions（close-snapshot cron 工作日 16:23 CST）
-- ✅ **6 模块 21/21 全 PASS**（参考日）
-- ✅ **3 模块结构性缺口**已按产品裁决接受为已知边界
+- ✅ **交易日数据连续**：2026-07-17 ~ 2026-08-20（08-18 已回补）
+- ✅ **自动更新链路修复**（R12）：部署 Node 22（曾致 Actions 部署从未成功、站点停留 08-17）+ 采集超时护栏 + 部署后站点自检
+- ✅ **主赛道动态化**（R12）：每日按全市场板块数据（近 5 日成交额排名 + 当日净流入）自动选出动态候选，与种子赛道合并评分；四级判定（核心主赛道/次主线/短线支线/一日游脉冲）
+- ✅ **CI 全绿**（8-17 以来首次，根因：测试进程 sys.modules 泄漏）
 
 ### GitHub Actions 自动更新
 
-日常更新由 `close-snapshot.yml`（cron `23 8 * * 1-5`）自动完成：
-采集 → commit → 构建 → 部署到 Cloudflare Pages。
+| 工作流 | 时间（CST） | 作用 |
+|---|---|---|
+| close-snapshot | 工作日 16:23 | 采集 → 部署 → 站点自检 |
+| archive-raw | 工作日 16:35 | 归档 + 候选历史回补 → 部署 → md5 自检 |
+| t1-reconcile | 工作日 10:17 / 18:17 | 两融 T+1 回补 → 部署 |
 
 **前置条件**：GitHub Secrets 需配置：
 - `CLOUDFLARE_API_TOKEN` — Cloudflare API 令牌（Pages 部署权限）
