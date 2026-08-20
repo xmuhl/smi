@@ -2,10 +2,10 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-19",
   "generatedAt": "2026-08-19T17:13:28+08:00",
-  "updatedAt": "2026-08-19T17:17:33+08:00",
-  "revision": 1,
-  "overallStatus": "PARTIAL_PENDING",
-  "generationReason": "CLOSE_SNAPSHOT",
+  "updatedAt": "2026-08-20T11:11:23+08:00",
+  "revision": 2,
+  "overallStatus": "PARTIAL_ERROR",
+  "generationReason": "T1_RECONCILE",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -35158,7 +35158,7 @@
       "errors": []
     },
     "margin": {
-      "status": "PENDING",
+      "status": "ERROR",
       "dataDate": null,
       "source": [
         "SSE",
@@ -35166,7 +35166,7 @@
       ],
       "unit": "亿元",
       "errors": [
-        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
       ],
       "warnings": [],
       "latestPublishedReference": {
@@ -35280,11 +35280,11 @@
       "indexAndTurnover": "上证指数收跌 -2.40%；沪深300表现强于创业板。",
       "sentiment": "上涨 448 家、下跌 5069 家，非ST涨停 36 家，下跌家数占优。",
       "fundFlow": "行业主力净流入居前：银行、贵金属、石油加工贸易；行业主力净流出居前：半导体、通信设备、消费电子。",
-      "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-08-14）总余额 26655.01 亿元。",
+      "margin": "两融模块暂未取得完整有效数据，本项不作判断。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
       "marketEnvironment": "沪深两市成交额 25126 亿元；暂无前一交易日可比数据，本项不作量能方向判断。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",
-      "riskWarning": "待披露：margin、summary。 当前不可用：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
+      "riskWarning": "获取失败：margin。 当前不可用：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
   },
   "validation": {
