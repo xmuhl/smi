@@ -1,0 +1,507 @@
+"""R12 动态主赛道：候选选池 / 元数据匹配 / 四级判定 / universe 验证器 / netguard。
+
+零联网：全部基于假归档与纯函数。
+"""
+
+from __future__ import annotations
+
+import time
+
+import collector.archive as _archive
+import collector.modules.tracks as tracks_mod
+from collector.calculators.tracks import _dimension_flags, _decide_four
+from collector.netguard import GuardTimeoutError, net_guard
+
+
+TRADE_DATE = "2026-08-19"
+D1 = "2026-08-18"
+D2 = "2026-08-17"
+D3 = "2026-08-14"
+D4 = "2026-08-13"
+D5 = "2026-08-12"
+
+
+def _uni_record(dt: str, rows: list[dict]) -> dict:
+    return {
+        "tradeDate": dt,
+        "kind": "industry-universe-snapshot",
+        "source": "TEST",
+        "capturedAt": dt + "T16:00:00+08:00",
+        "items": rows,
+        "counts": {"boardCount": len(rows)},
+    }
+
+
+def _uni_row(
+    name: str,
+    amount: float,
+    inflow: float,
+    rise: int = 60,
+    fall: int = 40,
+    code: str | None = None,
+) -> dict:
+    return {
+        "boardName": name,
+        "boardCodeEm": code,
+        "chgPct": 1.0,
+        "amount": amount,
+        "netInflow": inflow,
+        "riseCount": rise,
+        "fallCount": fall,
+    }
+
+
+def _fake_universe() -> list[dict]:
+    """6 日 × 6 板：银行/煤炭大额净流入，医药净流出，房地产无元数据，电力与种子重合。"""
+    plan = {
+        "银行": (900.0, 5.0, "BK0475"),
+        "煤炭": (800.0, 4.0, "BK0437"),
+        "医药生物": (700.0, -2.0, "BK1216"),
+        "房地产": (650.0, 1.0, "BK0451"),
+        "证券": (600.0, 3.0, "BK0473"),
+        "电力": (500.0, 2.0, "BK0428"),
+    }
+    dates = [D5, D4, D3, D2, D1, TRADE_DATE]
+    records = []
+    for dt in dates:
+        rows = [
+            _uni_row(name, amount + i, inflow, code=code)
+            for i, (name, (amount, inflow, code)) in enumerate(plan.items())
+        ]
+        records.append(_uni_record(dt, rows))
+    return records
+
+
+def _patch_archive(monkeypatch, fake):
+    def fake_read(kind, **kwargs):
+        return fake.get(kind, [])
+
+    monkeypatch.setattr(_archive, "read_records", fake_read)
+
+
+# ---------------------------------------------------------------------------
+# 候选选池
+# ---------------------------------------------------------------------------
+
+def test_select_candidates_rank_and_inflow_filter(monkeypatch):
+    _patch_archive(
+        monkeypatch, {"industry-universe-snapshot": _fake_universe()}
+    )
+
+    cands = tracks_mod.select_candidate_boards(TRADE_DATE)
+    names = [c["boardName"] for c in cands]
+
+    # 净流出（医药生物）不入池；电力与种子重合由 collect_tracks 去重，选池层保留
+    assert "医药生物" not in names
+    # 排名按近5日成交额降序
+    assert names.index("银行") < names.index("煤炭") < names.index("证券")
+    top = cands[0]
+    assert top["turnoverRank"] == 1
+    assert top["universeSize"] == 6
+    assert top["netInflow"] > 0
+    assert top["continuousInflowDays"] == 6  # 全部 6 日净流入
+    assert top["redStockRatio"] == 60.0  # 60/(60+40)
+
+
+def test_select_candidates_no_today_records(monkeypatch):
+    records = [r for r in _fake_universe() if r["tradeDate"] != TRADE_DATE]
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+
+    assert tracks_mod.select_candidate_boards(TRADE_DATE) == []
+
+
+def test_collect_tracks_dynamic_items_and_seed_dedup(monkeypatch):
+    fake = {"industry-universe-snapshot": _fake_universe()}
+    _patch_archive(monkeypatch, fake)
+
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    items = result["items"]
+    ids = [it["trackId"] for it in items]
+
+    # 种子全部保留；电力（种子）未被动态候选重复输出
+    for seed in ("dividend_cnsoe", "power", "healthcare", "semiconductor_ai"):
+        assert seed in ids
+    assert ids.count("dyn_BK0475") == 1  # 银行
+    assert ids.count("dyn_BK0437") == 1  # 煤炭
+
+    bank = next(it for it in items if it["trackId"] == "dyn_BK0475")
+    assert bank["trackName"] == "银行"
+    assert bank["selectionReason"].startswith("dynamic:rank=")
+    # universe 口径资金指标与红盘占比
+    assert bank["mainNetInflow"] == 5.0
+    assert bank["continuousInflowDays"] == 6
+    assert bank["redStockRatio"] == "60%"
+    # boardMetadata 定性文案命中
+    assert "高股息" in bank["coreCatalyst"]
+
+    # 房地产（无 boardMetadata 条目）定性留空（fail-closed）
+    estate = next(it for it in items if it["trackId"] == "dyn_BK0451")
+    assert estate["coreCatalyst"] == ""
+    assert estate["earningsRealization"] == ""
+    assert estate["selectionReason"].startswith("dynamic:rank=")
+
+
+def test_seed_universe_rank_preferred(monkeypatch):
+    _patch_archive(
+        monkeypatch, {"industry-universe-snapshot": _fake_universe()}
+    )
+
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    power = next(it for it in result["items"] if it["trackId"] == "power")
+
+    # 种子"电力"与 universe 行重合 → 全市场口径排名（6 板中成交额最小 → 6）
+    assert power["turnoverRank"] == 6
+
+
+# ---------------------------------------------------------------------------
+# 元数据匹配
+# ---------------------------------------------------------------------------
+
+def test_match_board_metadata_alias():
+    meta = {
+        "电力": {"aliases": ["电力行业"], "positioning": "公用事业"},
+        "医药生物": {"aliases": ["生物制品"]},
+    }
+    assert tracks_mod._match_board_metadata("电力行业", meta)["positioning"] == "公用事业"
+    assert tracks_mod._match_board_metadata("生物制品", meta) is not None
+    assert tracks_mod._match_board_metadata("未知板块", meta) is None
+
+
+# ---------------------------------------------------------------------------
+# 四级判定
+# ---------------------------------------------------------------------------
+
+def _track_input(**over) -> dict:
+    base = {
+        "trackId": "t",
+        "trackName": "T",
+        "turnoverRank": 2,
+        "turnoverUniverseSize": 90,
+        "mainNetInflow": 10.0,
+        "continuousInflowDays": 4,
+        "maAlignment": {"close": 12.0, "ma5": 11.0, "ma10": 10.0, "ma20": 9.0},
+        "rps60": 88.0,
+        "excessReturn20d": None,
+        "limitUpCount": 7,
+        "limitUpRate": 5.0,
+        "ladderCompleteness": {"firstBoardCount": 3, "twoBoardCount": 2, "threePlusCount": 1},
+        "redStockRatio": 75.0,
+        "coreCatalyst": "政策催化",
+        "earningsRealization": "业绩预增",
+    }
+    base.update(over)
+    return base
+
+
+def test_dimension_flags_and_core_main():
+    dims = _dimension_flags(_track_input())
+    assert dims == {"capital": True, "trend": True, "emotion": True, "logic": True}
+    assert (
+        _decide_four(80.0, dims, {"pass_min": 75, "watch_min": 55})
+        == "CORE_MAIN"
+    )
+
+
+def test_secondary_main_missing_one_dimension():
+    dims = _dimension_flags(
+        _track_input(redStockRatio=50.0)  # 红盘不达标 → 情绪缺
+    )
+    assert dims["emotion"] is False
+    assert (
+        _decide_four(80.0, dims, {"pass_min": 75, "watch_min": 55})
+        == "SECONDARY_MAIN"
+    )
+
+
+def test_emotion_data_gap_counts_as_missing():
+    # 红盘数据不足但涨停/梯队可得 → 情绪判 False（无法确认达标）；
+    # 决策层把"非 True"统一计为缺 1 维 → SECONDARY_MAIN
+    dims = _dimension_flags(
+        _track_input(redStockRatio=None)
+    )
+    assert dims["emotion"] is False
+    assert (
+        _decide_four(80.0, dims, {"pass_min": 75, "watch_min": 55})
+        == "SECONDARY_MAIN"
+    )
+
+
+def test_all_emotion_unknown_gives_none():
+    dims = _dimension_flags(
+        _track_input(
+            limitUpCount=None,
+            ladderCompleteness=None,
+            redStockRatio=None,
+        )
+    )
+    assert dims["emotion"] is None
+
+
+def test_short_line_and_pulse_avoid():
+    dims = _dimension_flags(_track_input())
+    assert (
+        _decide_four(60.0, dims, {"pass_min": 75, "watch_min": 55})
+        == "SHORT_LINE"
+    )
+    assert (
+        _decide_four(40.0, dims, {"pass_min": 75, "watch_min": 55})
+        == "PULSE_AVOID"
+    )
+
+
+def test_capital_fail_blocks_secondary():
+    dims = _dimension_flags(
+        _track_input(continuousInflowDays=1, redStockRatio=50.0)
+    )
+    assert dims["capital"] is False
+    # 资金+趋势不全达标 → 不给 SECONDARY；分数够 watch → SHORT_LINE
+    assert (
+        _decide_four(80.0, dims, {"pass_min": 75, "watch_min": 55})
+        == "SHORT_LINE"
+    )
+
+
+# ---------------------------------------------------------------------------
+# industry-universe-snapshot 行级验证器
+# ---------------------------------------------------------------------------
+
+def _valid_universe_line() -> dict:
+    return {
+        "tradeDate": "2026-08-19",
+        "capturedAt": "2026-08-19T16:00:00+08:00",
+        "kind": "industry-universe-snapshot",
+        "source": "THS_INDUSTRY_SUMMARY_V1",
+        "trackId": "*",
+        "boardCode": "*",
+        "items": [
+            {
+                "boardName": "银行",
+                "boardCodeEm": "BK0475",
+                "chgPct": 1.2,
+                "amount": 900.5,
+                "netInflow": 5.0,
+                "riseCount": 60,
+                "fallCount": 40,
+            }
+        ],
+        "counts": {"boardCount": 1},
+    }
+
+
+def test_universe_line_valid():
+    assert _archive._validate_line(_valid_universe_line()) == []
+
+
+def test_universe_line_rejects_missing_name_and_bad_code():
+    record = _valid_universe_line()
+    record["items"][0]["boardName"] = ""
+    record["items"][0]["boardCodeEm"] = "9999"
+    errors = _archive._validate_line(record)
+    assert any("boardName" in e for e in errors)
+    assert any("boardCodeEm" in e for e in errors)
+
+
+def test_universe_line_rejects_bad_numbers_and_count_mismatch():
+    record = _valid_universe_line()
+    record["items"][0]["netInflow"] = "many"
+    record["items"][0]["riseCount"] = -1
+    record["counts"]["boardCount"] = 2
+    errors = _archive._validate_line(record)
+    assert any("netInflow" in e for e in errors)
+    assert any("riseCount" in e for e in errors)
+    assert any("boardCount" in e for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# netguard
+# ---------------------------------------------------------------------------
+
+def test_net_guard_timeout_raises():
+    @net_guard(timeout=0.3, retries=0)
+    def slow() -> str:
+        time.sleep(5.0)
+        return "done"
+
+    started = time.time()
+    try:
+        slow()
+        raise AssertionError("should have timed out")
+    except GuardTimeoutError:
+        pass
+    assert time.time() - started < 3.0
+
+
+def test_net_guard_passes_result_and_exception():
+    @net_guard(timeout=5.0, retries=0)
+    def quick() -> int:
+        return 42
+
+    assert quick() == 42
+
+    @net_guard(timeout=5.0, retries=0)
+    def boom() -> None:
+        raise ValueError("boom")
+
+    try:
+        boom()
+        raise AssertionError("should have raised")
+    except ValueError:
+        pass
+
+
+def test_net_guard_retries_then_succeeds():
+    calls = {"n": 0}
+
+    @net_guard(timeout=1.0, retries=1, backoff=0.05)
+    def flaky() -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("transient")
+        return "ok"
+
+    assert flaky() == "ok"
+    assert calls["n"] == 2
+
+
+# ---------------------------------------------------------------------------
+# R12 复核修订轮新增：P1-1/P1-3/P2-5/P2-6/P2-8/P2-9 回归防护
+# ---------------------------------------------------------------------------
+
+def test_p2_6_names_overlap_strict():
+    # 规范化相等：电力 == 电力行业；子串不再误伤
+    assert tracks_mod._names_overlap("电力", {"电力", "银行"})
+    assert tracks_mod._names_overlap("电力行业", {"电力"})
+    assert not tracks_mod._names_overlap("电力设备", {"电力"})
+    assert not tracks_mod._names_overlap("医药商业", {"医药生物"})
+
+
+def test_p2_6_metadata_strict():
+    meta = {"电力": {"aliases": ["电力行业"], "positioning": "公用事业"}}
+    assert tracks_mod._match_board_metadata("电力", meta) is not None
+    assert tracks_mod._match_board_metadata("电力行业", meta) is not None
+    assert tracks_mod._match_board_metadata("电力设备", meta) is None
+
+
+def test_p2_8_gap_truncates_window_and_streak():
+    from collector.modules import tracks as t
+
+    per_board = {
+        "甲": [
+            {"date": "2026-08-12", "amount": 100.0, "netInflow": 1.0,
+             "riseCount": 60, "fallCount": 40, "boardCodeEm": None},
+            # 08-13 该板缺行（其余板块有 → known_dates 覆盖 08-13）
+            {"date": "2026-08-14", "amount": 50.0, "netInflow": 2.0,
+             "riseCount": 60, "fallCount": 40, "boardCodeEm": None},
+        ],
+        "乙": [
+            {"date": "2026-08-12", "amount": 1.0, "netInflow": 1.0,
+             "riseCount": 1, "fallCount": 1, "boardCodeEm": None},
+            {"date": "2026-08-13", "amount": 1.0, "netInflow": 1.0,
+             "riseCount": 1, "fallCount": 1, "boardCodeEm": None},
+            {"date": "2026-08-14", "amount": 1.0, "netInflow": 1.0,
+             "riseCount": 1, "fallCount": 1, "boardCodeEm": None},
+        ],
+    }
+    known = t._universe_known_dates(per_board)
+    assert known == ["2026-08-12", "2026-08-13", "2026-08-14"]
+
+    m = t._universe_metrics(per_board["甲"], "2026-08-14", 5, known_dates=known)
+    # 窗口在 08-13 断档处截断：只计 08-14 的 50（08-12 不跨缺口计入）
+    assert m["fiveDayAmount"] == 50.0
+    assert m["amountWindowDays"] == 1
+    # 连续净流入同样在断档截断 → 1 天
+    assert m["continuousInflowDays"] == 1
+
+
+def test_p2_5_unconfigured_qualitative_excluded_from_coverage():
+    from collector.calculators.tracks import score_tracks
+
+    # 定性列无枚举分级（中文长文本或空串）→ 不计入分母：
+    # quant 全得 + excess 缺（15）→ valid=70/85 ≈ 82.4 ≥ 80 → 可正常判定
+    track = _track_input(coreCatalyst="", earningsRealization="")
+    out = score_tracks([track])[0]
+    assert round(out["coveragePct"], 1) == 82.4
+    assert out["decision"] in {"CORE_MAIN", "SECONDARY_MAIN", "SHORT_LINE"}
+
+    # 种子（定性为文本但同样无枚举）→ 与动态候选同口径
+    seeded = score_tracks([_track_input()])[0]
+    assert round(seeded["coveragePct"], 1) == 82.4
+
+
+def test_p2_9_secondary_missing_reads_config():
+    dims = _dimension_flags(_track_input(redStockRatio=50.0, limitUpCount=2))
+    # 情绪 False + 逻辑 True → 缺 1 维
+    cfg = {"pass_min": 75, "watch_min": 55, "secondary_missing_dimensions_allowed": 1}
+    assert _decide_four(80.0, dims, cfg) == "SECONDARY_MAIN"
+    # 允许 0 维缺失时同样形态降级为 SHORT_LINE
+    cfg0 = {"pass_min": 75, "watch_min": 55, "secondary_missing_dimensions_allowed": 0}
+    assert _decide_four(80.0, dims, cfg0) == "SHORT_LINE"
+
+
+def test_p1_1_boards_needing_history_camelcase(monkeypatch):
+    import collector.archive as _ar
+    from collector.jobs.archive_raw import _boards_needing_history
+
+    # 归档中 08-10 前已有：power/BK0428 → 其余种子需要回补；无 universe → 无动态
+    monkeypatch.setattr(
+        _ar,
+        "read_records",
+        lambda kind, **kw: (
+            [
+                {"tradeDate": "2026-08-05", "trackId": "power", "boardCode": "BK0428"},
+            ]
+            if kind == "track-board-close"
+            else []
+        ),
+    )
+    expanded = [
+        {"trackId": "power", "trackName": "电力", "boardType": "industry",
+         "boardCode": "BK0428", "boardName": "电力", "indexNameThs": "电力"},
+        {"trackId": "healthcare", "trackName": "医药生物", "boardType": "industry",
+         "boardCode": "BK1216", "boardName": "医药生物", "indexNameThs": "生物制品"},
+        {"trackId": "semiconductor_ai", "trackName": "半导体/AI算力", "boardType": "concept",
+         "boardCode": "BK1134", "boardName": "算力概念", "indexNameThs": "东数西算(算力)"},
+    ]
+    boards = _boards_needing_history("2026-08-20", expanded)
+    keys = [(b["trackId"], b["boardCode"]) for b in boards]
+    assert keys == [("healthcare", "BK1216"), ("semiconductor_ai", "BK1134")]
+
+
+def test_p1_3_ensure_universe_archived(monkeypatch):
+    import collector.jobs.common as common
+
+    called = {"collect": 0, "append": 0}
+
+    class _FakeDT:
+        @classmethod
+        def now(cls, tz=None):
+            import datetime as _d
+            return _d.datetime(2026, 8, 20, 17, 0, tzinfo=tz)
+
+    monkeypatch.setattr("collector.schema.TZ_SHANGHAI", None, raising=False)
+    import collector.schema as schema
+    monkeypatch.setattr(schema, "TZ_SHANGHAI", __import__("datetime").timezone(__import__("datetime").timedelta(hours=8)))
+
+    def fake_collect(date):
+        called["collect"] += 1
+        return {"ok": True, "record": {"tradeDate": date, "items": [], "counts": {"boardCount": 0}}}
+
+    def fake_append(kind, record):
+        called["append"] += 1
+        return True, "APPENDED"
+
+    monkeypatch.setattr(
+        "collector.modules.raw_archive.collect_industry_universe", fake_collect
+    )
+    monkeypatch.setattr("collector.archive.append_record", fake_append)
+
+    common._ensure_universe_archived("2026-08-20")
+    assert called == {"collect": 1, "append": 1}
+
+    # 失败路径：采集异常不抛出（fail-closed 回退种子）
+    def boom(date):
+        raise RuntimeError("net down")
+    monkeypatch.setattr(
+        "collector.modules.raw_archive.collect_industry_universe", boom
+    )
+    common._ensure_universe_archived("2026-08-20")  # 不抛异常即通过

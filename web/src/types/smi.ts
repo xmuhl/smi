@@ -196,6 +196,12 @@ export interface TrackItem {
   score: number | null;
   coveragePct: number | null;
   decision: string;
+  /** R12-PLAN-1：seed=种子赛道；dynamic:rank=N/…=当日动态候选 */
+  selectionReason?: string;
+  /** R12-PLAN-4：四级判定英文码（CORE_MAIN 等；历史快照缺失） */
+  decisionCode?: string;
+  /** R12-PLAN-4：四维度达标（capital/trend/emotion/logic；true/false/null=数据不足） */
+  dimensionPass?: Record<string, boolean | null>;
 }
 
 export interface TracksModule extends ModuleBase {

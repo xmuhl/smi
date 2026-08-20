@@ -35,6 +35,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Record job start (UTC)
+        run: echo "JOB_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -95,7 +98,8 @@ jobs:
         if: steps.commit.outputs.changed == 'true' || inputs.deploy
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # wrangler 4.122.0 要求 Node >= 22（R12-FIX-1）
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -125,3 +129,44 @@ jobs:
             --project-name smi \
             --branch main \
             --commit-dirty=true
+
+      # R12-FIX-4：部署后自检（口径同 close-snapshot）
+      - name: Verify deployment freshness
+        # 复核修订：NO_CHANGE/强制部署时 latest.json 不更新，避免假失败；
+        # 仅数据变化（changed=true）的发布才做新鲜度断言
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          SITE="https://smi-6s2.pages.dev/data/latest.json"
+          for attempt in 1 2 3 4 5 6; do
+            sleep 30
+            META=$(curl -fsS --max-time 20 "$SITE" 2>/dev/null | python3 -c '
+          import json, sys
+          try:
+            d = json.load(sys.stdin)
+          except Exception:
+            print("")
+            raise SystemExit(0)
+          print(d.get("updatedAt", "") + "|" + str(d.get("tradeDate", "")))
+          ' || echo "")
+            UPDATED=$(printf '%s' "$META" | cut -d"|" -f1)
+            TRADE_DATE=$(printf '%s' "$META" | cut -d"|" -f2)
+            if [ -n "$UPDATED" ]; then
+              VERDICT=$(python3 -c '
+          import sys
+          from datetime import datetime
+          def parse(s):
+            s = s.strip().replace("Z", "+00:00")
+            return datetime.fromisoformat(s)
+          print("FRESH" if parse(sys.argv[1]) >= parse(sys.argv[2]) else "STALE")
+          ' "$UPDATED" "$JOB_START_UTC")
+              echo "attempt=$attempt tradeDate=$TRADE_DATE updatedAt=$UPDATED verdict=$VERDICT"
+              if [ "$VERDICT" = "FRESH" ]; then
+                echo "SITE_FRESH"
+                exit 0
+              fi
+            else
+              echo "attempt=$attempt site unreachable or unparsable"
+            fi
+          done
+          echo "SITE_STALE_OR_UNREACHABLE after deploy"
+          exit 1

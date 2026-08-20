@@ -71,7 +71,7 @@ python -m pytest tools/acceptance/test_accept.py -q
 |------|----------|------|
 | sentiment | riseCount/fallCount/flatCount 等无免费历史源 | PARTIAL/UNAVAILABLE |
 | fundFlow | stockInflowTop10/OutflowTop10 无历史源；push2his 封禁 | UNAVAILABLE/PARTIAL |
-| tracks | 量化输入底座不足（mainNetInflow/excessReturn20d 等） | UNAVAILABLE |
+| tracks | R12 起动态选池（industry-universe 底座修复 mainNetInflow/红盘占比输入；excessReturn20d 仍无 HS300 归档源为诚实缺口；MA/RPS 靠候选 THS 历史回补） | 逐步 PARTIAL |
 | 07-20~07-24 | 涨停池保留窗口外不可恢复 | UNRECOVERABLE |
 
 ## 深入文档

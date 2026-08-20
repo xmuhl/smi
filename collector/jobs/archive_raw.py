@@ -27,7 +27,9 @@ from collector.jobs.common import resolve_target_date
 from collector.modules.raw_archive import (
     _expanded_tracks,
     collect_board_close,
+    collect_board_close_history,
     collect_board_flow,
+    collect_industry_universe,
     collect_limit_up_pool,
     collect_membership,
 )
@@ -37,7 +39,84 @@ KINDS = (
     "track-board-flow",
     "limit-up-pool",
     "track-membership-snapshot",
+    "industry-universe-snapshot",
 )
+
+# 历史回补判定：板块 close 归档中早于 (D - 该天数) 的记录不存在 → 需要回补
+_BACKFALL_LOOKBACK_DAYS = 10
+
+
+def _boards_needing_history(
+    target: str,
+    expanded_tracks: list[dict],
+) -> list[dict]:
+    """种子（已展开为单板行）+ 动态候选中 close 历史不足的板块（R12-PLAN-3）。
+
+    入参为 _expanded_tracks() 的 camelCase 输出（composite 已拆成子板行）；
+    返回 collect_board_close_history 可用的板块描述列表；
+    候选读取失败时退化为仅种子（fail-closed，不阻断主流程）。
+    """
+    from datetime import date, timedelta
+
+    from collector import archive as _archive
+    from collector.modules.tracks import (
+        dynamic_track_identity,
+        select_candidate_boards,
+    )
+
+    threshold = (
+        date.fromisoformat(target) - timedelta(days=_BACKFALL_LOOKBACK_DAYS)
+    ).isoformat()
+
+    existing_keys: set[tuple[str, str]] = set()
+    for rec in _archive.read_records("track-board-close"):
+        if str(rec.get("tradeDate") or "") <= threshold:
+            existing_keys.add(
+                (
+                    str(rec.get("trackId") or ""),
+                    str(rec.get("boardCode") or ""),
+                )
+            )
+
+    boards: list[dict] = []
+
+    for track in expanded_tracks:
+        index_name_ths = str(track.get("indexNameThs") or "").strip()
+        board_code = str(track.get("boardCode") or "").strip()
+        if not index_name_ths or not board_code:
+            continue
+        if (str(track.get("trackId") or ""), board_code) in existing_keys:
+            continue
+        boards.append(
+            {
+                "trackId": str(track.get("trackId") or ""),
+                "trackName": str(track.get("trackName") or ""),
+                "boardType": str(track.get("boardType") or ""),
+                "boardCode": board_code,
+                "boardName": str(track.get("boardName") or ""),
+                "indexNameThs": index_name_ths,
+            }
+        )
+
+    try:
+        for cand in select_candidate_boards(target):
+            identity = dynamic_track_identity(cand)
+            if (identity["trackId"], identity["boardCode"]) in existing_keys:
+                continue
+            boards.append(
+                {
+                    "trackId": identity["trackId"],
+                    "trackName": identity["boardName"],
+                    "boardType": identity["boardType"],
+                    "boardCode": identity["boardCode"],
+                    "boardName": identity["boardName"],
+                    "indexNameThs": identity["boardName"],
+                }
+            )
+    except Exception:  # noqa: BLE001 候选读取失败不阻断种子回补
+        pass
+
+    return boards
 
 
 def main() -> int:
@@ -119,6 +198,58 @@ def main() -> int:
                 "track-membership-snapshot",
                 collect_membership(target, track),
             )
+
+        # 阶段 5：全市场行业板块当日快照（动态选池底座，R12-PLAN-3）
+        # N-1（复核修订）：close-snapshot 侧已预写当日 universe（P1-3），
+        # 这里重拉若数值微差会触发 append_record 的 payload conflict
+        # RuntimeError → rc=2 当日全丢。已存在即跳过（保留先写版本）；
+        # 残余冲突也降级 SKIP 而非炸整个 job。
+        from collector import archive as _archive_mod
+
+        if _archive_mod.read_records(
+            "industry-universe-snapshot", trade_date=target
+        ):
+            print(f"SKIP industry-universe {target} reason=ALREADY_ARCHIVED")
+            already += 1
+        else:
+            try:
+                _collect_one(
+                    "industry-universe",
+                    "industry-universe-snapshot",
+                    collect_industry_universe(target),
+                )
+            except RuntimeError as exc:
+                print(
+                    f"SKIP industry-universe {target} "
+                    f"reason=CONFLICT_DEGRADED:{str(exc)[:120]}"
+                )
+                skipped += 1
+
+        # 阶段 6：候选/种子板块 THS 历史回补（幂等；仅历史不足的板块）
+        # 注意 select_candidate_boards 消费的是刚写入的 universe 归档。
+        for board in _boards_needing_history(target, tracks):
+            result = collect_board_close_history(target, board)
+            if not result.get("ok"):
+                print(
+                    f"SKIP history {board['trackId']}/{board.get('boardCode')} "
+                    f"{target} reason={result.get('reason')}"
+                )
+                skipped += 1
+                if str(result.get("reason", "")).startswith("FETCH_FAILED"):
+                    failed += 1
+                continue
+            for record in result.get("records", []):
+                ok, reason = append_record("track-board-close", record)
+                if ok:
+                    written += 1
+                elif reason == "ALREADY_EXISTS":
+                    already += 1
+                else:
+                    print(
+                        f"SKIP history {board['trackId']}/{board.get('boardCode')} "
+                        f"{target} reason={reason}"
+                    )
+                    skipped += 1
     except Exception:  # noqa: BLE001
         # append_record 的持久化/严格回读/payload conflict 等未分类异常：
         # fail-closed → 2。workflow 对非零 rc 禁止 stage/commit/deploy，

@@ -15,6 +15,7 @@ import pandas as pd
 
 from collector.adapters.sources import try_sources
 from collector.status import ModuleStatus
+from collector.netguard import net_guard
 
 INDICES = [
     {
@@ -263,6 +264,7 @@ def _fetch_index_entry(
         return idx, exc
 
 
+@net_guard(timeout=180.0, retries=1)
 def collect_market_index(
     trade_date: str,
 ) -> dict[str, Any]:

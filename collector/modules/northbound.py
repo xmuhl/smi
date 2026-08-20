@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 from collector import calendar as _cal
 from collector.config import load_yaml
 from collector.status import ModuleStatus
+from collector.netguard import net_guard
 
 DISCLOSURE_CHANGE_DATE = date(2024, 8, 19)
 
@@ -51,6 +52,7 @@ def _fifth_trading_day_after(as_of: date) -> date | None:
     return None
 
 
+@net_guard(timeout=180.0, retries=1)
 def collect_northbound(
     trade_date: str,
 ) -> dict[str, Any]:

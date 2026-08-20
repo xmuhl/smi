@@ -1,13 +1,74 @@
-# 赛道配置（③ tracks 采集器与 ⑧ daily raw archive 共用）
-# index_name_ths：同花顺板块指数接口（stock_board_industry/concept_index_ths）使用的
-# 精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该赛道归档
-# UNAVAILABLE（fail-closed，不伪造）。
+# 赛道配置 v3.0（R12-PLAN-2：固定清单 → 动态选池 + 板块元数据库）
 #
-# 定性配置列版本化约定：coreCatalyst（核心催化逻辑）与 earningsRealization
-# （业绩兑现情况）为人工维护的定性文案（字符串），随 configVersion 版本化；
-# 采集器每次从本文件读取最新值，写入快照时携带 configVersion=2.0/
-# effectiveFrom=2026-07-01/effectiveTo=2026-12-31。文案须为真实行业常识表述，
-# 不得用占位符，未配置时采集器回退为空串（记为指标缺口，不影响 fail-closed）。
+# 结构分三层：
+# 1. selection —— 动态候选池参数：每日从 industry-universe-snapshot 归档
+#    按全市场口径选出当日候选（参照范本《A股收盘全景》第 8 表）：
+#    近 N 日成交额排名靠前 + 当日主力净流入为正 → 前 poolSize 名为候选；
+# 2. boardMetadata —— 板块元数据库：按 THS 行业名（aliases 支持别名）
+#    提供定位/催化/业绩定性文案；未配置的动态候选定性留空（fail-closed，
+#    计入指标缺口，绝不伪造）；定性文案随 configVersion 版本化，
+#    采集器写快照时携带 configVersion/effectiveFrom/To；
+# 3. tracks —— 种子赛道（上线基线，含概念/复合结构）。种子仍每日参与
+#    统一评分与四级判定（无特权），并保持板块代码/THS 映射的准确性。
+#
+# index_name_ths：同花顺板块指数接口（stock_board_industry/concept_index_ths）
+# 使用的精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该
+# 赛道归档 UNAVAILABLE（fail-closed，不伪造）。
+
+configVersion: "3.0"
+effectiveFrom: "2026-08-20"
+effectiveTo: "2026-12-31"
+
+selection:
+  # 候选池大小：范本硬阈值"近5日成交额全市场前5"用于核心判定，
+  # 池取 8 以覆盖边缘分级并保持连续观察
+  poolSize: 8
+  # 近 N 日成交额窗口（范本口径 5 日）
+  amountWindowDays: 5
+  # 候选必须当日主力净流入为正（范本资金维度硬阈值）
+  requirePositiveInflow: true
+
+boardMetadata:
+  银行:
+    aliases: [银行]
+    positioning: 金融权重/高股息
+    coreCatalyst: 高股息与中长期资金增持，存款利率下行强化配置价值
+    earningsRealization: 净息差企稳，业绩确定性强
+  石油石化:
+    aliases: [石油石化, 石油, 石化]
+    positioning: 能源权重/防御
+    coreCatalyst: 油价高位震荡、能源安全与央企市值管理催化
+    earningsRealization: 上游油气盈利兑现强，中游炼化承压
+  电力:
+    aliases: [电力, 电力行业, 公用事业]
+    positioning: 公用事业/高股息
+    coreCatalyst: 夏季用电高峰、电力市场化与电改政策催化
+    earningsRealization: 业绩确定性强、电价上浮，经营现金流稳健
+  医药生物:
+    aliases: [医药生物, 医药, 生物制品, 医疗行业]
+    positioning: 防御+成长
+    coreCatalyst: 创新药出海授权加速、CXO订单边际改善、集采利空出清
+    earningsRealization: 业绩有望触底回升，出海与放量品种兑现确定性待验证
+  半导体:
+    aliases: [半导体, 电子半导体]
+    positioning: 科技成长
+    coreCatalyst: AI算力需求景气、国产替代加速、先进制程事件催化
+    earningsRealization: 板块业绩兑现依赖景气延续，高估值下兑现不及预期风险大
+  煤炭:
+    aliases: [煤炭, 煤炭行业]
+    positioning: 能源/高股息
+    coreCatalyst: 迎峰度夏补库、煤价韧性，高股息防御属性
+    earningsRealization: 长协占比高、盈利稳定，分红率维持高位
+  证券:
+    aliases: [证券, 券商]
+    positioning: 金融beta
+    coreCatalyst: 资本市场活跃度提升、并购重组政策催化
+    earningsRealization: 经纪与自营收入随市波动，兑现弹性大但确定性弱
+  有色金属:
+    aliases: [有色金属, 有色]
+    positioning: 资源周期
+    coreCatalyst: 全球降息预期与供给约束推升金属价格
+    earningsRealization: 资源价格上行周期盈利兑现强
 
 tracks:
   - id: dividend_cnsoe
@@ -69,3 +130,5 @@ rps:
 # 缺省回退 index_name_ths；若该指数名不在资金流条目中（如特色指数
 # "同花顺中特估100"），须显式配置 fund_name_ths，否则每日 SKIP
 # BOARD_NOT_FOUND（fail-closed，不伪造）。
+# 注意（v3.0）：industry-universe 快照已成为 mainNetInflow/continuousInflowDays/
+# redStockRatio 的首选口径，本接口仅作为种子板块的回退与交叉验证源。

@@ -17,6 +17,7 @@ import requests
 from collector.adapters.sources import try_sources
 from collector.schema import TZ_SHANGHAI
 from collector.status import ModuleStatus
+from collector.netguard import net_guard
 
 # ---------------------------------------------------------------------------
 # 历史回补分支（P1）：push2his 板块历史主力资金流 → 任意历史交易日六类榜单
@@ -591,6 +592,7 @@ def _fetch_fund_flow(
     raise ValueError(f"unknown fundflow source: {source}")
 
 
+@net_guard(timeout=600.0, retries=0)
 def collect_fund_flow(
     trade_date: str,
 ) -> dict[str, Any]:

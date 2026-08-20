@@ -72,20 +72,68 @@ def build_snapshot(
 
     market_rules = load_yaml("market-rules.yaml")
 
-    modules["marketIndex"] = collect_market_index(trade_date)
-    modules["turnover"] = collect_turnover(
+    def _safe(name: str, fn, *args, **kwargs):
+        """单模块崩溃隔离（R12 复核修订 P3-10）：netguard 超时等异常
+        只把该模块置 UNAVAILABLE，不炸掉整个快照（其余模块照常产出）。"""
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "status": "UNAVAILABLE",
+                "dataDate": trade_date,
+                "name": name,
+                "errors": [
+                    f"MODULE_CRASH:{type(exc).__name__}:{str(exc)[:120]}"
+                ],
+                "reason": "MODULE_CRASH_ISOLATED",
+            }
+
+    modules["marketIndex"] = _safe("marketIndex", collect_market_index, trade_date)
+    modules["turnover"] = _safe(
+        "turnover",
+        collect_turnover,
         trade_date,
         market_rules=market_rules,
     )
-    modules["sentiment"] = collect_sentiment(trade_date)
-    modules["sectorPerformance"] = collect_sectors(trade_date)
-    modules["fundFlow"] = collect_fund_flow(trade_date)
-    modules["northbound"] = collect_northbound(trade_date)
-    modules["margin"] = collect_margin(trade_date)
-    modules["tracks"] = _collect_tracks(trade_date, modules)
-    modules["summary"] = generate_summary(snapshot)
+    modules["sentiment"] = _safe("sentiment", collect_sentiment, trade_date)
+    modules["sectorPerformance"] = _safe(
+        "sectorPerformance", collect_sectors, trade_date
+    )
+    modules["fundFlow"] = _safe("fundFlow", collect_fund_flow, trade_date)
+    modules["northbound"] = _safe("northbound", collect_northbound, trade_date)
+    modules["margin"] = _safe("margin", collect_margin, trade_date)
+    modules["tracks"] = _safe("tracks", _collect_tracks, trade_date, modules)
+    modules["summary"] = _safe("summary", generate_summary, snapshot)
 
     return finalize_snapshot(snapshot)
+
+def _ensure_universe_archived(trade_date: str) -> None:
+    """R12-PLAN-1（复核修订 P1-3）：close-snapshot cron（16:23）早于
+    archive-raw（16:35），动态选池所需的当日 industry-universe 记录在本
+    job 运行时尚未归档。这里先采集并幂等落档（ALREADY_EXISTS 安全），
+    使当日快照即可包含动态候选；失败不阻断（回退纯种子，fail-closed）。
+    单写者约定不受影响：CI 由 workflow concurrency group 串行，本地由
+    ops 守卫串行（§39.5.5）。
+    """
+    try:
+        from datetime import datetime
+
+        from collector.schema import TZ_SHANGHAI
+
+        if trade_date != datetime.now(TZ_SHANGHAI).date().isoformat():
+            return  # 历史日无免费 universe 源，fail-closed
+
+        from collector import archive as _archive
+        from collector.modules.raw_archive import collect_industry_universe
+
+        result = collect_industry_universe(trade_date)
+        if result.get("ok"):
+            _archive.append_record(
+                "industry-universe-snapshot", result["record"]
+            )
+    except Exception:  # noqa: BLE001 回退种子口径，不阻断快照
+        pass
+
 
 def _collect_tracks(
     trade_date: str,
@@ -93,11 +141,13 @@ def _collect_tracks(
 ) -> dict[str, Any]:
     """委托真实主赛道采集器（collector.modules.tracks.collect_tracks）。
 
-    该采集器只读 daily raw archive，诚实缺口（沪深300 基准 / 红盘占比）置 None
+    该采集器只读 daily raw archive，诚实缺口（沪深300 基准）置 None
     并在 errors 注明，绝不伪造；返回 PARTIAL（据 coveragePct/decision 判定）或
     UNAVAILABLE。模块入参 modules 未被本函数使用，保留以兼容既有签名。
     """
     del modules
+
+    _ensure_universe_archived(trade_date)
 
     from collector.modules.tracks import collect_tracks
 

@@ -24,6 +24,8 @@ def score_tracks(
             cfg,
         )
 
+        dims = _dimension_flags(track)
+
         if (
             score is None
             or coverage
@@ -33,8 +35,9 @@ def score_tracks(
         ):
             decision = "INSUFFICIENT"
         else:
-            decision = _decide(
+            decision = _decide_four(
                 score,
+                dims,
                 decision_cfg,
             )
 
@@ -51,10 +54,150 @@ def score_tracks(
                     1,
                 ),
                 "decision": decision,
+                "dimensionPass": dims,
             }
         )
 
     return results
+
+
+def _dimension_flags(
+    track: dict[str, Any],
+) -> dict[str, Any]:
+    """四维度达标判定（范本第 8 表硬阈值；None = 数据不足，不算达标）。
+
+    - 资金：近 5 日成交额全市场前 5 且当日净流入>0 且连续净流入≥3 日；
+    - 趋势：5/10/20 多头排列 且 60 日 RPS≥80 且（可得时）跑赢沪深300；
+    - 情绪：涨停≥6 家 且 存在 2 连板及以上梯队 且 红盘占比≥70%；
+    - 逻辑：定性文案已配置（人工维护，视为达标）。
+    """
+    turnover_rank = _to_float(track.get("turnoverRank"))
+    inflow = _to_float(track.get("mainNetInflow"))
+    days = _to_float(track.get("continuousInflowDays"))
+
+    ma = track.get("maAlignment")
+    ma_ok: bool | None
+    if isinstance(ma, dict) and all(
+        ma.get(key) is not None for key in ("close", "ma5", "ma10", "ma20")
+    ):
+        ma_ok = (
+            ma["close"] > ma["ma5"]
+            and ma["ma5"] > ma["ma10"]
+            and ma["ma10"] > ma["ma20"]
+        )
+    else:
+        ma_ok = None
+
+    rps = _to_float(track.get("rps60"))
+    excess = _to_float(track.get("excessReturn20d"))
+
+    limit_up = _to_float(track.get("limitUpCount"))
+    ladder = track.get("ladderCompleteness")
+    ladder_ok: bool | None
+    if isinstance(ladder, dict):
+        ladder_ok = (
+            (ladder.get("twoBoardCount") or 0)
+            + (ladder.get("threePlusCount") or 0)
+            >= 1
+        )
+    else:
+        ladder_ok = None
+    red = _to_float(track.get("redStockRatio"))
+
+    catalyst = str(track.get("coreCatalyst") or "").strip()
+    earnings = str(track.get("earningsRealization") or "").strip()
+
+    capital_known = any(
+        value is not None for value in (turnover_rank, inflow, days)
+    )
+    capital = (
+        (
+            turnover_rank is not None
+            and turnover_rank <= 5
+            and (inflow or 0) > 0
+            and (days or 0) >= 3
+        )
+        if capital_known
+        else None
+    )
+
+    trend_known = ma_ok is not None or rps is not None or excess is not None
+    trend = (
+        (
+            bool(ma_ok)
+            and rps is not None
+            and rps >= 80
+            and (excess is None or excess > 0)
+        )
+        if trend_known
+        else None
+    )
+
+    emotion_known = any(
+        value is not None for value in (limit_up, ladder_ok, red)
+    )
+    emotion = (
+        (
+            (limit_up or 0) >= 6
+            and bool(ladder_ok)
+            and (red is not None and red >= 70)
+        )
+        if emotion_known
+        else None
+    )
+
+    logic_known = bool(catalyst) or bool(earnings)
+    logic = True if logic_known else None
+
+    return {
+        "capital": capital,
+        "trend": trend,
+        "emotion": emotion,
+        "logic": logic,
+    }
+
+
+def _decide_four(
+    score: float,
+    dims: dict[str, Any],
+    decision: dict[str, Any],
+) -> str:
+    """范本四级判定（R12-PLAN-4）。
+
+    - 核心主赛道：score≥pass_min 且四维度全部达标；
+    - 次主线/轮动主线：score≥pass_min 且资金+趋势达标、情绪/逻辑缺
+      ≤secondary_missing_dimensions_allowed 项（默认 1，含数据不足）；
+    - 短线支线：score≥watch_min 但不满足上两级（含"资金+趋势达标但
+      情绪逻辑双缺"的降级映射——范本无该形态独立档位，从严处理）；
+    - 一日游脉冲/回避：其余。
+    """
+    pass_min = float(decision["pass_min"])
+    watch_min = float(decision["watch_min"])
+    missing_allowed = int(
+        decision.get("secondary_missing_dimensions_allowed", 1)
+    )
+
+    values = [dims.get(key) for key in ("capital", "trend", "emotion", "logic")]
+
+    if score >= pass_min:
+        if all(value is True for value in values):
+            return "CORE_MAIN"
+        if (
+            dims.get("capital") is True
+            and dims.get("trend") is True
+            and sum(
+                1
+                for v in (dims.get("emotion"), dims.get("logic"))
+                if v is not True
+            )
+            <= missing_allowed
+        ):
+            return "SECONDARY_MAIN"
+
+    if score >= watch_min:
+        return "SHORT_LINE"
+
+    return "PULSE_AVOID"
 
 def _score_one(
     track: dict[str, Any],
@@ -253,6 +396,17 @@ def _score_one(
             ),
         )
     )
+
+    # R12 复核修订 P2-5：定性双列（催化/业绩）当前数据模型只有人工
+    # 维护的中文长文本、无 STRONG/CONFIRMED 枚举分级，_score_state 恒
+    # None。旧权重下剔除后恰好 80.0% 压线；对齐范本权重（逻辑维 15%）
+    # 后种子/未配置候选都会跌破 80 → 全员 INSUFFICIENT。定性列在引入
+    # 枚举分级数据之前一律不计入 coverage 分母（信息性展示），quant
+    # 缺口照常计入分母惩罚。
+    if _score_state(scoring["core_catalyst"], catalyst) is None:
+        configured_total -= float(weights["core_catalyst"])
+    if _score_state(scoring["earnings_realization"], earnings) is None:
+        configured_total -= float(weights["earnings_realization"])
 
     coverage = (
         valid_weight
@@ -660,18 +814,3 @@ def _to_float(
     return number
 
 
-def _decide(
-    score: float,
-    decision: dict[str, Any],
-) -> str:
-    if score >= float(
-        decision["pass_min"]
-    ):
-        return "PASS"
-
-    if score >= float(
-        decision["watch_min"]
-    ):
-        return "WATCH"
-
-    return "AVOID"

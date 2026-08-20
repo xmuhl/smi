@@ -1015,6 +1015,7 @@ def test_turnover_historical_via_exchange(
     fake.stock_zh_a_spot = stock_zh_a_spot
     fake.stock_sse_deal_daily = stock_sse_deal_daily
     fake.stock_szse_summary = stock_szse_summary
+    _real_akshare = sys.modules.get("akshare")
     sys.modules["akshare"] = fake
 
     try:
@@ -1038,7 +1039,10 @@ def test_turnover_historical_via_exchange(
             abs=0.01,
         )
     finally:
-        sys.modules.pop("akshare", None)
+        if _real_akshare is not None:
+            sys.modules["akshare"] = _real_akshare
+        else:
+            sys.modules.pop("akshare", None)
 
 def test_eastmoney_delay_adapter_parsing(
     monkeypatch,
@@ -1138,13 +1142,17 @@ def test_exchange_turnover_fails_closed_on_missing_szse_category(
 
     fake.stock_sse_deal_daily = stock_sse_deal_daily
     fake.stock_szse_summary = stock_szse_summary
+    _real_akshare = sys.modules.get("akshare")
     sys.modules["akshare"] = fake
 
     try:
         with pytest.raises(ValueError):
             _turnover_yuan_from_exchange("2026-07-20")
     finally:
-        sys.modules.pop("akshare", None)
+        if _real_akshare is not None:
+            sys.modules["akshare"] = _real_akshare
+        else:
+            sys.modules.pop("akshare", None)
 
 def test_exchange_turnover_fails_closed_on_missing_sse_column(
     monkeypatch,
@@ -1172,13 +1180,17 @@ def test_exchange_turnover_fails_closed_on_missing_sse_column(
         )
 
     fake.stock_sse_deal_daily = stock_sse_deal_daily
+    _real_akshare = sys.modules.get("akshare")
     sys.modules["akshare"] = fake
 
     try:
         with pytest.raises(ValueError):
             _turnover_yuan_from_exchange("2026-07-20")
     finally:
-        sys.modules.pop("akshare", None)
+        if _real_akshare is not None:
+            sys.modules["akshare"] = _real_akshare
+        else:
+            sys.modules.pop("akshare", None)
 
 def test_delay_cache_fetch_failure_does_not_poison_cache(
     monkeypatch,
@@ -1443,6 +1455,7 @@ def test_exchange_rejects_before_lower_bound(
         raise AssertionError("must not call network")
 
     fake.stock_sse_deal_daily = stock_sse_deal_daily
+    _real_akshare = sys.modules.get("akshare")
     sys.modules["akshare"] = fake
 
     try:
@@ -1450,7 +1463,10 @@ def test_exchange_rejects_before_lower_bound(
             _turnover_yuan_from_exchange("2021-12-26")
         assert called == []
     finally:
-        sys.modules.pop("akshare", None)
+        if _real_akshare is not None:
+            sys.modules["akshare"] = _real_akshare
+        else:
+            sys.modules.pop("akshare", None)
 
 def test_validator_turnover_lineage_negative_cases():
     """R9.2-N4：validator 深度契约负向 + legacy 豁免。"""

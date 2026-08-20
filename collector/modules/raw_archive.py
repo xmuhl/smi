@@ -24,12 +24,14 @@ from datetime import datetime
 from typing import Any, Callable
 
 from collector.config import load_yaml
+from collector.netguard import net_guard
 from collector.schema import TZ_SHANGHAI
 
 METHOD_INDEX_THS = "THS_INDEX_V1"
 METHOD_FLOW_THS = "THS_FLOW_V1"
 METHOD_ZT_POOL_EM = "EM_ZT_POOL_V1"
 METHOD_MEMBERSHIP_EM = "EM_BOARD_CONS_V1"
+METHOD_UNIVERSE_THS = "THS_INDUSTRY_SUMMARY_V1"
 
 # THS 历史指数请求起点（项目纪元；早于该日无回补意义）
 ARCHIVE_HISTORY_START = "20260101"
@@ -130,6 +132,7 @@ def _expanded_tracks() -> list[dict[str, Any]]:
 
 
 @_fail_closed
+@net_guard(timeout=90.0, retries=0)
 def collect_board_close(
     trade_date: str,
     track: dict[str, Any],
@@ -173,31 +176,7 @@ def collect_board_close(
     if row.empty:
         return {"ok": False, "reason": "DATE_NOT_FOUND", "record": None}
 
-    row = row.iloc[-1]
-
-    def num(key: str):
-        try:
-            value = float(row[key])
-        except (KeyError, TypeError, ValueError):
-            return None
-        return value if value == value else None
-
-    record = {
-        "tradeDate": trade_date,
-        "trackId": track["trackId"],
-        "trackName": track.get("trackName", ""),
-        "boardType": board_type,
-        "boardCode": track.get("boardCode", ""),
-        "boardName": track.get("boardName", ""),
-        "source": METHOD_INDEX_THS,
-        "symbolThs": symbol,
-        "open": num("开盘价"),
-        "high": num("最高价"),
-        "low": num("最低价"),
-        "close": num("收盘价"),
-        "volume": num("成交量"),
-        "amount": num("成交额"),
-    }
+    record = _ths_close_record(trade_date, track, row.iloc[-1])
 
     if record["close"] is None:
         return {"ok": False, "reason": "CLOSE_MISSING", "record": None}
@@ -206,6 +185,170 @@ def collect_board_close(
 
 
 @_fail_closed
+@net_guard(timeout=150.0, retries=0)
+def collect_board_close_history(
+    trade_date: str,
+    track: dict[str, Any],
+) -> dict[str, Any]:
+    """THS 板块指数历史全窗口多行（ARCHIVE_HISTORY_START → D）。
+
+    R12-PLAN-3：新入选候选板块（及历史不足的种子板块）一次性回补
+    THS 历史指数，使 MA/RPS/60 日收益等窗口指标立即可算。
+    幂等性由 append_record 的 tradeDate+trackId+boardCode 去重保证。
+    """
+    import akshare as ak
+
+    symbol = track.get("indexNameThs")
+
+    if not symbol:
+        return {"ok": False, "reason": "INDEX_NAME_THS_MISSING", "records": []}
+
+    board_type = track.get("boardType")
+
+    if board_type == "concept":
+        df = ak.stock_board_concept_index_ths(
+            symbol=symbol,
+            start_date=ARCHIVE_HISTORY_START,
+            end_date=trade_date.replace("-", ""),
+        )
+    elif board_type == "industry":
+        df = ak.stock_board_industry_index_ths(
+            symbol=symbol,
+            start_date=ARCHIVE_HISTORY_START,
+            end_date=trade_date.replace("-", ""),
+        )
+    else:
+        return {
+            "ok": False,
+            "reason": f"UNKNOWN_BOARD_TYPE:{board_type}",
+            "records": [],
+        }
+
+    if df is None or df.empty:
+        return {"ok": False, "reason": "EMPTY", "records": []}
+
+    df["日期"] = df["日期"].astype(str)
+
+    records: list[dict[str, Any]] = []
+    for _, row in df.iterrows():
+        record = _ths_close_record(str(row["日期"]), track, row)
+        if record["close"] is not None:
+            records.append(record)
+
+    if not records:
+        return {"ok": False, "reason": "EMPTY", "records": []}
+
+    return {"ok": True, "reason": "OK", "records": records}
+
+
+def _ths_close_record(
+    trade_date: str,
+    track: dict[str, Any],
+    row: Any,
+) -> dict[str, Any]:
+    """THS 指数行 → track-board-close 记录（当日/历史共用）。"""
+
+    def num(key: str):
+        try:
+            value = float(row[key])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return value if value == value else None
+
+    return {
+        "tradeDate": trade_date,
+        "trackId": track["trackId"],
+        "trackName": track.get("trackName", ""),
+        "boardType": track.get("boardType", ""),
+        "boardCode": track.get("boardCode", ""),
+        "boardName": track.get("boardName", ""),
+        "source": METHOD_INDEX_THS,
+        "symbolThs": track.get("indexNameThs", ""),
+        "open": num("开盘价"),
+        "high": num("最高价"),
+        "low": num("最低价"),
+        "close": num("收盘价"),
+        "volume": num("成交量"),
+        "amount": num("成交额"),
+    }
+
+
+@_fail_closed
+@net_guard(timeout=120.0, retries=0)
+def collect_industry_universe(
+    trade_date: str,
+) -> dict[str, Any]:
+    """THS 行业汇总当日全量（R12-PLAN-3，动态主赛道选池底座）。
+
+    一次调用返回全部行业板块的涨跌幅/成交额/净流入/涨跌家数；
+    附带一次东财行业名录调用补 BK 代码映射（join 失败 → boardCodeEm=None，
+    fail-closed 不伪造）。仅当日（历史日无免费源）。
+    """
+    import akshare as ak
+
+    if not _is_today(trade_date):
+        return {
+            "ok": False,
+            "reason": "HISTORICAL_UNIVERSE_UNSUPPORTED",
+            "record": None,
+        }
+
+    summary = ak.stock_board_industry_summary_ths()
+
+    if summary is None or summary.empty:
+        return {"ok": False, "reason": "EMPTY", "record": None}
+
+    em_codes: dict[str, str] = {}
+    try:
+        name_df = ak.stock_board_industry_name_em()
+        for _, em_row in name_df.iterrows():
+            name = str(em_row.get("板块名称") or "").strip()
+            code = str(em_row.get("板块代码") or "").strip()
+            if name and code:
+                em_codes[name] = code
+    except Exception:  # noqa: BLE001 代码映射失败不阻断主数据
+        em_codes = {}
+
+    def _col(row: Any, candidates: tuple[str, ...]):
+        for cand in candidates:
+            if cand in row:
+                return row[cand]
+        return None
+
+    items: list[dict[str, Any]] = []
+    for _, row in summary.iterrows():
+        name = str(row.get("板块") or "").strip()
+        if not name:
+            continue
+        items.append(
+            {
+                "boardName": name,
+                "boardCodeEm": em_codes.get(name),
+                "chgPct": _num(_col(row, ("涨跌幅",))),
+                "amount": _num(_col(row, ("总成交额", "成交额"))),
+                "netInflow": _num(_col(row, ("净流入", "净额", "主力净流入"))),
+                "riseCount": _int(_col(row, ("上涨家数",))),
+                "fallCount": _int(_col(row, ("下跌家数",))),
+            }
+        )
+
+    if not items:
+        return {"ok": False, "reason": "EMPTY", "record": None}
+
+    record = {
+        "tradeDate": trade_date,
+        "trackId": "*",
+        "boardCode": "*",
+        "source": METHOD_UNIVERSE_THS,
+        "items": items,
+        "counts": {"boardCount": len(items)},
+    }
+
+    return {"ok": True, "reason": "OK", "record": record}
+
+
+@_fail_closed
+@net_guard(timeout=90.0, retries=0)
 def collect_board_flow(
     trade_date: str,
     track: dict[str, Any],
@@ -274,6 +417,7 @@ def collect_board_flow(
 
 
 @_fail_closed
+@net_guard(timeout=120.0, retries=0)
 def collect_limit_up_pool(trade_date: str) -> dict[str, Any]:
     """东财涨停池当日全量（支持历史窗口内回补）。"""
     import akshare as ak
@@ -330,6 +474,7 @@ def collect_limit_up_pool(trade_date: str) -> dict[str, Any]:
 
 
 @_fail_closed
+@net_guard(timeout=120.0, retries=0)
 def collect_membership(
     trade_date: str,
     track: dict[str, Any],

@@ -122,7 +122,8 @@ jobs:
         if: ${{ steps.archive.outputs.exit_code == '0' && (steps.commit.outputs.changed == 'true' || inputs.deploy) }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # wrangler 4.122.0 要求 Node >= 22（R12-FIX-1）
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -149,3 +150,40 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npx wrangler pages deploy dist             --project-name smi             --branch main             --commit-dirty=true
+
+      # R12-FIX-4（复核修订）：archive-raw 不改写 latest.json，原 updatedAt
+      # 口径必然假失败；改为逐个比对站点 jsonl 与本地构建产物 md5。
+      - name: Verify deployment freshness
+        if: ${{ steps.archive.outputs.exit_code == '0' && (steps.commit.outputs.changed == 'true' || inputs.deploy) }}
+        run: |
+          BASE="https://smi-6s2.pages.dev/data/archive"
+          ok=1
+          checked=0
+          for f in track-board-close track-board-flow limit-up-pool track-membership-snapshot industry-universe-snapshot; do
+            LOCAL_MD5=$(md5sum "web/dist/data/archive/$f.jsonl" 2>/dev/null | cut -d" " -f1)
+            LOCAL_SIZE=$(stat -c%s "web/dist/data/archive/$f.jsonl" 2>/dev/null || echo 0)
+            if [ -z "$LOCAL_MD5" ] || [ "$LOCAL_SIZE" = "0" ]; then
+              echo "local dist file missing or empty: $f.jsonl (skipped)"
+              continue
+            fi
+            checked=$((checked + 1))
+            for attempt in 1 2 3 4 5 6; do
+              sleep 20
+              SITE_MD5=$(curl -fsS --max-time 20 "$BASE/$f.jsonl" 2>/dev/null | md5sum | cut -d" " -f1)
+              if [ -n "$SITE_MD5" ] && [ "$SITE_MD5" = "$LOCAL_MD5" ]; then
+                echo "MATCH $f.jsonl md5=$SITE_MD5"
+                break
+              fi
+              echo "attempt=$attempt $f mismatch or unreachable (local=$LOCAL_MD5 site=$SITE_MD5)"
+              if [ "$attempt" = "6" ]; then ok=0; fi
+            done
+          done
+          if [ "$checked" = "0" ]; then
+            echo "NO_LOCAL_ARCHIVE_FILES — build output incomplete"
+            exit 1
+          fi
+          if [ "$ok" != "1" ]; then
+            echo "SITE_ARCHIVE_MISMATCH after deploy"
+            exit 1
+          fi
+          echo "SITE_ARCHIVE_FRESH"

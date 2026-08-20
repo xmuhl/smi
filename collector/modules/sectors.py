@@ -12,6 +12,7 @@ from typing import Any
 
 from collector.adapters.sources import try_sources
 from collector.status import ModuleStatus
+from collector.netguard import net_guard
 
 
 def _to_entries(df, name_col: str, pct_col: str, code_col: str | None) -> list[dict[str, Any]]:
@@ -665,6 +666,7 @@ def _ths_historical_board_rank(
     }
 
 
+@net_guard(timeout=1800.0, retries=0)
 def _collect_sectors_historical(
     trade_date: str,
 ) -> dict[str, Any]:
@@ -749,8 +751,16 @@ def collect_sectors(
 
     if trade_date != today:
         # 历史回补分支：THS 板块历史指数 → D 日行业/概念 TOP5/BOTTOM5。
+        # 自带 1800s 护栏（首日无缓存串行拉取可达 ~13 分钟）。
         return _collect_sectors_historical(trade_date)
 
+    return _collect_sectors_today(trade_date)
+
+
+@net_guard(timeout=300.0, retries=0)
+def _collect_sectors_today(
+    trade_date: str,
+) -> dict[str, Any]:
     result: dict[str, Any] = {
         "status": ModuleStatus.FINAL.value,
         "dataDate": trade_date,

@@ -14,6 +14,7 @@ import pandas as pd
 from collector.adapters.sources import try_sources
 from collector.schema import TZ_SHANGHAI
 from collector.status import ModuleStatus
+from collector.netguard import net_guard
 
 
 def is_st(
@@ -147,77 +148,93 @@ def _fetch_historical_limit_pools(
     return result
 
 
+@net_guard(timeout=1200.0, retries=0)
+def _collect_sentiment_historical(
+    trade_date: str,
+) -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "status": ModuleStatus.UNAVAILABLE.value,
+        "dataDate": trade_date,
+        "source": ["EASTMONEY"],
+        "riseCount": None,
+        "fallCount": None,
+        "flatCount": None,
+        "suspendedCount": None,
+        "nonStLimitUpCount": None,
+        "stLimitUpCount": None,
+        "nonStLimitDownCount": None,
+        "stLimitDownCount": None,
+        "brokenLimitCount": None,
+    }
+
+    try:
+        pools = _fetch_historical_limit_pools(
+            trade_date
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {
+            **base,
+            "status": ModuleStatus.ERROR.value,
+            "errors": [str(exc)],
+        }
+
+    if pools is None:
+        return {
+            **base,
+            "reason": (
+                "HISTORICAL_LIMIT_POOL_UNAVAILABLE"
+            ),
+        }
+
+    return {
+        **base,
+        "status": ModuleStatus.PARTIAL.value,
+        "reason": "HISTORICAL_LIMIT_POOL_ONLY",
+        "nonStLimitUpCount": (
+            pools["nonStLimitUpCount"]
+        ),
+        "stLimitUpCount": pools[
+            "stLimitUpCount"
+        ],
+        "nonStLimitDownCount": (
+            pools["nonStLimitDownCount"]
+        ),
+        "stLimitDownCount": pools[
+            "stLimitDownCount"
+        ],
+        "brokenLimitCount": pools[
+            "brokenLimitCount"
+        ],
+        "limitSealRatePct": pools[
+            "limitSealRatePct"
+        ],
+        "maxLimitUpStreak": pools[
+            "maxLimitUpStreak"
+        ],
+        "errors": pools["errors"],
+        "warnings": pools["warnings"],
+    }
+
+
 def collect_sentiment(
     trade_date: str,
 ) -> dict[str, Any]:
+    # R12 复核修订 P3-15：dispatch 裸身（外层护栏会截断内层长时限），
+    # 当日/历史分支各自装饰。
     today = datetime.now(
         TZ_SHANGHAI
     ).date().isoformat()
 
     if trade_date != today:
-        base: dict[str, Any] = {
-            "status": ModuleStatus.UNAVAILABLE.value,
-            "dataDate": trade_date,
-            "source": ["EASTMONEY"],
-            "riseCount": None,
-            "fallCount": None,
-            "flatCount": None,
-            "suspendedCount": None,
-            "nonStLimitUpCount": None,
-            "stLimitUpCount": None,
-            "nonStLimitDownCount": None,
-            "stLimitDownCount": None,
-            "brokenLimitCount": None,
-        }
+        return _collect_sentiment_historical(trade_date)
 
-        try:
-            pools = _fetch_historical_limit_pools(
-                trade_date
-            )
-        except Exception as exc:  # noqa: BLE001
-            return {
-                **base,
-                "status": ModuleStatus.ERROR.value,
-                "errors": [str(exc)],
-            }
+    return _collect_sentiment_today(trade_date)
 
-        if pools is None:
-            return {
-                **base,
-                "reason": (
-                    "HISTORICAL_LIMIT_POOL_UNAVAILABLE"
-                ),
-            }
 
-        return {
-            **base,
-            "status": ModuleStatus.PARTIAL.value,
-            "reason": "HISTORICAL_LIMIT_POOL_ONLY",
-            "nonStLimitUpCount": (
-                pools["nonStLimitUpCount"]
-            ),
-            "stLimitUpCount": pools[
-                "stLimitUpCount"
-            ],
-            "nonStLimitDownCount": (
-                pools["nonStLimitDownCount"]
-            ),
-            "stLimitDownCount": pools[
-                "stLimitDownCount"
-            ],
-            "brokenLimitCount": pools[
-                "brokenLimitCount"
-            ],
-            "limitSealRatePct": pools[
-                "limitSealRatePct"
-            ],
-            "maxLimitUpStreak": pools[
-                "maxLimitUpStreak"
-            ],
-            "errors": pools["errors"],
-            "warnings": pools["warnings"],
-        }
-
+@net_guard(timeout=240.0, retries=1)
+def _collect_sentiment_today(
+    trade_date: str,
+) -> dict[str, Any]:
     yyyymmdd = trade_date.replace("-", "")
 
     result: dict[str, Any] = {

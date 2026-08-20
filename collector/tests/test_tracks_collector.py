@@ -288,8 +288,8 @@ def test_module_result_contract_and_validate_snapshot(monkeypatch):
     # 模块级字段齐全
     assert result["status"] == ModuleStatus.PARTIAL.value
     assert result["dataDate"] == TRADE_DATE
-    assert result["configVersion"] == "2.0"
-    assert result["effectiveFrom"] == "2026-07-01"
+    assert result["configVersion"] == "3.0"
+    assert result["effectiveFrom"] == "2026-08-20"
     assert result["effectiveTo"] == "2026-12-31"
     assert result["sourceSystem"] == "SELF"
     assert result["decision"] == "TRACKS_SUFFICIENT"
@@ -310,9 +310,12 @@ def test_module_result_contract_and_validate_snapshot(monkeypatch):
         assert it["rps60"] is None or (0 <= float(it["rps60"]) <= 100)
         assert isinstance(it["limitUpCount"], int) and it["limitUpCount"] >= 0
         assert isinstance(it["ladderCompleteness"], str) and len(it["ladderCompleteness"]) >= 1
-        assert it["redStockRatio"] is None  # 本轮诚实缺口
+        assert it["redStockRatio"] is None  # 无 universe 归档时诚实缺口
         assert isinstance(it["score"], (int, float)) and 0 <= float(it["score"]) <= 100
-        assert it["decision"] in {"核心防御主线", "次主线", "主跌浪", "退潮主线", "观察", "达标", "规避", "数据不足"}
+        assert it["decision"] in {
+            "核心主赛道", "次主线/轮动主线", "短线支线", "一日游脉冲/回避", "数据不足",
+            "核心防御主线", "次主线", "主跌浪", "退潮主线", "观察", "达标", "规避",
+        }
 
     # 放入最小快照（其他模块 UNAVAILABLE），validate_snapshot 不抛
     from collector.validators.schema import validate_snapshot

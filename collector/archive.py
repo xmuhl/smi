@@ -47,6 +47,7 @@ ARCHIVE_KINDS = (
     "track-board-flow",
     "limit-up-pool",
     "track-membership-snapshot",
+    "industry-universe-snapshot",
 )
 
 # track 专属归档：trackId/boardCode 为幂等键组成部分，必填非空
@@ -227,6 +228,64 @@ def _validate_line(record: dict[str, Any]) -> list[str]:
             if total != len(items):
                 errors.append(
                     f"counts sum {total} != len(items)={len(items)}"
+                )
+
+    elif kind == "industry-universe-snapshot":
+        # R12-PLAN-3：全市场行业板块每日快照（THS 行业汇总 + 东财代码映射），
+        # 为动态主赛道选池提供全市场口径的成交额/资金/红盘底座。
+        items = record.get("items")
+        items_ok = isinstance(items, list)
+
+        if not items_ok:
+            errors.append("items must be list")
+        else:
+            for index, item in enumerate(items):
+                if not isinstance(item, dict):
+                    errors.append(f"items[{index}] must be object")
+                    items_ok = False
+                    continue
+
+                if not str(item.get("boardName") or "").strip():
+                    errors.append(f"items[{index}] missing boardName")
+
+                code_em = item.get("boardCodeEm")
+                if code_em is not None and not re.fullmatch(
+                    r"BK\d+", str(code_em)
+                ):
+                    errors.append(
+                        f"items[{index}] invalid boardCodeEm: {code_em}"
+                    )
+
+                for field in ("chgPct", "amount", "netInflow"):
+                    value = item.get(field)
+                    if value is not None and not _is_finite_number(value):
+                        errors.append(
+                            f"items[{index}].{field} must be finite number or null"
+                        )
+
+                for field in ("riseCount", "fallCount"):
+                    value = item.get(field)
+                    if value is not None and not _non_negative_int(value):
+                        errors.append(
+                            f"items[{index}].{field} must be non-negative int or null"
+                        )
+
+        counts = record.get("counts")
+        counts_ok = isinstance(counts, dict)
+
+        if not counts_ok:
+            errors.append("counts must be object")
+        else:
+            board_count = counts.get("boardCount")
+            if not _non_negative_int(board_count):
+                errors.append("counts.boardCount must be non-negative int")
+                counts_ok = False
+
+        if items_ok and counts_ok:
+            if counts["boardCount"] != len(items):
+                errors.append(
+                    f"counts.boardCount {counts['boardCount']} "
+                    f"!= len(items)={len(items)}"
                 )
 
     elif kind == "track-membership-snapshot":

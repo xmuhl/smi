@@ -160,6 +160,12 @@ export function volumeStateText(
 export function decisionText(
   decision: string,
 ): string {
+  // R12-PLAN-4 四级判定（新枚举优先；PASS/WATCH/AVOID 兼容历史快照）
+  if (decision === "CORE_MAIN") return "核心主赛道";
+  if (decision === "SECONDARY_MAIN") return "次主线/轮动主线";
+  if (decision === "SHORT_LINE") return "短线支线";
+  if (decision === "PULSE_AVOID") return "一日游脉冲/回避";
+
   if (decision === "PASS") return "达标";
   if (decision === "WATCH") return "观察";
   if (decision === "AVOID") return "规避";
@@ -174,8 +180,23 @@ export function decisionText(
 export function decisionClass(
   decision: string,
 ): string {
-  if (decision === "PASS") return "up";
-  if (decision === "AVOID") return "down";
+  // 快照 items 的 decision 为中文标签（历史为 PASS 系英文码），两种都匹配
+  if (
+    decision === "CORE_MAIN" ||
+    decision === "核心主赛道" ||
+    decision === "PASS" ||
+    decision === "达标"
+  ) {
+    return "up";
+  }
+  if (
+    decision === "PULSE_AVOID" ||
+    decision === "一日游脉冲/回避" ||
+    decision === "AVOID" ||
+    decision === "规避"
+  ) {
+    return "down";
+  }
 
   return "flat";
 }

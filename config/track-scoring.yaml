@@ -1,15 +1,17 @@
+# R12-PLAN-4 权重对齐范本四维度 25/35/25/15：
+# 资金 25 = 10+10+5；趋势 35 = 10+10+15；情绪 25 = 8+8+9；逻辑 15 = 8+7
 weights:
   turnover_rank: 10
-  main_net_inflow: 15
-  continuous_inflow_days: 10
+  main_net_inflow: 10
+  continuous_inflow_days: 5
   ma_alignment: 10
-  rps60: 15
-  excess_return_20d: 10
+  rps60: 10
+  excess_return_20d: 15
   limit_up: 8
-  ladder_completeness: 7
-  red_stock_ratio: 5
-  core_catalyst: 5
-  earnings_realization: 5
+  ladder_completeness: 8
+  red_stock_ratio: 9
+  core_catalyst: 8
+  earnings_realization: 7
   total: 100
 
 scoring:
@@ -87,6 +89,9 @@ scoring:
     UNKNOWN: null
 
 decision:
+  # R12-PLAN-4 四级判定阈值（配合 calculators.tracks._decide_four）：
+  # CORE_MAIN / SECONDARY_MAIN / SHORT_LINE / PULSE_AVOID / INSUFFICIENT
   pass_min: 75
   watch_min: 55
   coverage_warn_pct: 80
+  secondary_missing_dimensions_allowed: 1

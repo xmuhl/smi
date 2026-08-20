@@ -14,7 +14,9 @@ from typing import Any
 import pandas as pd
 
 from collector.status import ModuleStatus
+from collector.netguard import net_guard
 
+@net_guard(timeout=180.0, retries=1)
 def collect_margin(
     trade_date: str,
     *,

@@ -20,8 +20,8 @@ from collector import archive as _archive
 from collector.config import load_yaml
 from collector.status import ModuleStatus
 
-CONFIG_VERSION = "2.0"
-EFFECTIVE_FROM = "2026-07-01"
+CONFIG_VERSION = "3.0"
+EFFECTIVE_FROM = "2026-08-20"
 EFFECTIVE_TO = "2026-12-31"
 SOURCE_SYSTEM = "SELF"
 
@@ -406,24 +406,281 @@ def _limit_up_stats(
     )
 
 
-def _red_stock_ratio(
-    member_records: list[dict[str, Any]],
-    trade_date: str,
-    track_id: str,
-) -> float | None:
-    """本轮诚实缺口：无当日成交行情源 → None（不伪造）。"""
-    # 仅探测是否存在当日成分快照（用于 errors 说明），RPS/红盘本身置 None。
-    return None
-
-
 def _decision_chinese(scorer_decision: str) -> str:
-    """把 score_tracks 的 PASS/WATCH/AVOID/INSUFFICIENT 映射为验收枚举中文文案。"""
+    """把四级判定 + 兼容枚举映射为验收枚举中文文案（R12-PLAN-4）。"""
     return {
+        # 范本四级判定
+        "CORE_MAIN": "核心主赛道",
+        "SECONDARY_MAIN": "次主线/轮动主线",
+        "SHORT_LINE": "短线支线",
+        "PULSE_AVOID": "一日游脉冲/回避",
+        "INSUFFICIENT": "数据不足",
+        # 兼容历史快照中的旧枚举
         "PASS": "达标",
         "WATCH": "观察",
         "AVOID": "规避",
-        "INSUFFICIENT": "数据不足",
     }.get(scorer_decision, "数据不足")
+
+
+# ---------------------------------------------------------------------------
+# R12-PLAN-1：动态候选池（消费 industry-universe-snapshot 归档）
+# ---------------------------------------------------------------------------
+
+def _universe_board_rows() -> dict[str, list[dict[str, Any]]]:
+    """industry-universe-snapshot → {boardName: 按日升序的指标行}。"""
+    records = _archive.read_records("industry-universe-snapshot")
+    per_board: dict[str, list[dict[str, Any]]] = {}
+    for rec in records:
+        items = rec.get("items")
+        if not isinstance(items, list):
+            continue
+        trade_date = str(rec.get("tradeDate") or "")
+        if not trade_date:
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("boardName") or "").strip()
+            if not name:
+                continue
+            per_board.setdefault(name, []).append(
+                {
+                    "date": trade_date,
+                    "boardCodeEm": item.get("boardCodeEm"),
+                    "chgPct": _to_float(item.get("chgPct")),
+                    "amount": _to_float(item.get("amount")),
+                    "netInflow": _to_float(item.get("netInflow")),
+                    "riseCount": item.get("riseCount"),
+                    "fallCount": item.get("fallCount"),
+                }
+            )
+    for name in per_board:
+        per_board[name] = sorted(per_board[name], key=lambda r: r["date"])
+    return per_board
+
+
+def _universe_known_dates(
+    per_board: dict[str, list[dict[str, Any]]],
+) -> list[str]:
+    """universe 归档覆盖的全部交易日（升序）——板块缺行即视为断档。"""
+    dates: set[str] = set()
+    for rows in per_board.values():
+        for row in rows:
+            if row.get("date"):
+                dates.add(row["date"])
+    return sorted(dates)
+
+
+def _universe_metrics(
+    rows: list[dict[str, Any]],
+    trade_date: str,
+    window_days: int,
+    known_dates: list[str] | None = None,
+) -> dict[str, Any]:
+    """单板块 universe 指标：近 N 日成交额、当日净流入、连续净流入天数、红盘占比。
+
+    R12 复核修订 P2-8：窗口与连续计数按归档覆盖日（known_dates）逐日截断，
+    板块缺行/数值缺失即断档——旧数据不计入"近 5 日"，避免跨缺口聚合失真。
+    红盘口径 = 上涨/(上涨+下跌)（THS 源无平盘列；口径在 yaml 注释明示）。
+    """
+    row_by_date = {r["date"]: r for r in rows if r.get("date")}
+    upto_dates = [
+        d for d in (known_dates or sorted(row_by_date)) if d <= trade_date
+    ]
+    today = row_by_date.get(trade_date)
+
+    window_amounts: list[float] = []
+    for d in reversed(upto_dates):
+        row = row_by_date.get(d)
+        if row is None or row.get("amount") is None:
+            break  # 断档：窗口到此为止
+        window_amounts.append(row["amount"])
+        if len(window_amounts) >= window_days:
+            break
+    five_day_amount = sum(window_amounts) if window_amounts else None
+
+    days = 0
+    if today is not None and (today.get("netInflow") or 0) > 0:
+        for d in reversed(upto_dates):
+            row = row_by_date.get(d)
+            if row is None:
+                break  # 断档：连续性终止
+            value = row.get("netInflow")
+            if value is None or value <= 0:
+                break
+            days += 1
+
+    red_ratio: float | None = None
+    if today is not None:
+        rise = today.get("riseCount")
+        fall = today.get("fallCount")
+        if isinstance(rise, (int, float)) and isinstance(fall, (int, float)):
+            total = rise + fall
+            if total > 0:
+                red_ratio = round(rise / total * 100.0, 1)
+
+    return {
+        "fiveDayAmount": five_day_amount,
+        "amountWindowDays": len(window_amounts),
+        "netInflow": today.get("netInflow") if today else None,
+        "continuousInflowDays": days,
+        "redStockRatio": red_ratio,
+        "riseCount": today.get("riseCount") if today else None,
+        "fallCount": today.get("fallCount") if today else None,
+        "boardCodeEm": today.get("boardCodeEm") if today else None,
+    }
+
+
+def _universe_ranking(
+    per_board: dict[str, list[dict[str, Any]]],
+    trade_date: str,
+    window_days: int,
+) -> list[dict[str, Any]]:
+    """全市场行业板块近 N 日成交额降序排名（不筛净流入——排名与资金
+    维度的净流入判定是两个独立指标，范本口径）。"""
+    known_dates = _universe_known_dates(per_board)
+    scored: list[dict[str, Any]] = []
+    for name, rows in per_board.items():
+        metrics = _universe_metrics(
+            rows, trade_date, window_days, known_dates=known_dates
+        )
+        if metrics["fiveDayAmount"] is None:
+            continue
+        scored.append({"boardName": name, **metrics})
+    scored.sort(key=lambda item: item["fiveDayAmount"], reverse=True)
+    for rank, item in enumerate(scored, start=1):
+        item["turnoverRank"] = rank
+        item["universeSize"] = len(scored)
+    return scored
+
+
+def select_candidate_boards(
+    trade_date: str,
+    per_board: dict[str, list[dict[str, Any]]] | None = None,
+) -> list[dict[str, Any]]:
+    """从 universe 归档选出当日动态候选（tracks 模块与 archive_raw 回补共用）。
+
+    口径（范本第 8 表资金维度）：近 N 日成交额全市场排名前 poolSize
+    且当日主力净流入为正的行业板块；按排名升序返回。
+    无当日 universe 记录 → []（fail-closed，调用方退化为纯种子）。
+    """
+    cfg = load_yaml("tracks.yaml")
+    selection = cfg.get("selection", {}) or {}
+    pool_size = int(selection.get("poolSize", 8))
+    window_days = int(selection.get("amountWindowDays", 5))
+    require_inflow = bool(selection.get("requirePositiveInflow", True))
+
+    if per_board is None:
+        per_board = _universe_board_rows()
+
+    today_exists = any(
+        any(r["date"] == trade_date for r in rows) for rows in per_board.values()
+    )
+    if not today_exists:
+        return []
+
+    ranked = _universe_ranking(per_board, trade_date, window_days)
+    return [
+        item
+        for item in ranked
+        if item["turnoverRank"] <= pool_size
+        and (
+            not require_inflow
+            or (item["netInflow"] is not None and item["netInflow"] > 0)
+        )
+    ][:pool_size]
+
+
+def dynamic_track_identity(cand: dict[str, Any]) -> dict[str, Any]:
+    """动态候选 → 归档/输出统一身份（tracks 模块与 archive_raw 回补共用，
+    保证 close 历史 trackId::boardCode 键一致）。"""
+    board_code = str(cand.get("boardCodeEm") or "").strip() or (
+        "THS-" + str(cand["boardName"])
+    )
+    return {
+        "trackId": "dyn_" + board_code,
+        "boardCode": board_code,
+        "boardName": str(cand["boardName"]),
+        "boardType": "industry",
+    }
+
+
+def _canonical_board_name(name: str) -> str:
+    """板块名规范化：去首尾空白与常见后缀（"行业"），用于精确等价匹配。
+
+    R12 复核修订 P2-6/P2-7：弃用双向子串包含（"电力"会误吞"电力设备"、
+    "医药生物"误配"医药商业"），只保留 精确相等 / 别名表命中 / 规范化相等。
+    """
+    text = str(name or "").strip()
+    if text.endswith("行业") and len(text) > 2:
+        text = text[: -len("行业")]
+    return text
+
+
+def _match_board_metadata(
+    board_name: str,
+    board_metadata: dict[str, Any],
+) -> dict[str, Any] | None:
+    """板块名 → boardMetadata 条目（精确名/别名表/规范化相等，禁子串）。"""
+    if not board_metadata:
+        return None
+    name = board_name.strip()
+    canon = _canonical_board_name(name)
+    for key, meta in board_metadata.items():
+        if key == name or _canonical_board_name(key) == canon:
+            return meta
+    for key, meta in board_metadata.items():
+        for alias in [key] + list((meta or {}).get("aliases", []) or []):
+            if alias and (
+                str(alias).strip() == name
+                or _canonical_board_name(str(alias)) == canon
+            ):
+                return meta
+    return None
+
+
+def _seed_match_names(seeds: list[dict[str, Any]]) -> set[str]:
+    """种子赛道全部候选名集合（用于动态候选去重）。"""
+    names: set[str] = set()
+    for tc in seeds:
+        for key in ("name", "expected_name", "index_name_ths"):
+            value = str(tc.get(key) or "").strip()
+            if value:
+                names.add(value)
+        for sub in tc.get("composite", []) or []:
+            for key in ("name", "index_name_ths"):
+                value = str(sub.get(key) or "").strip()
+                if value:
+                    names.add(value)
+    return names
+
+
+def _names_overlap(name: str, known: set[str]) -> bool:
+    """名称重合判定：精确相等或规范化相等（"电力"=="电力行业"）。"""
+    canon = _canonical_board_name(name)
+    return any(
+        k == name or _canonical_board_name(k) == canon for k in known if k
+    )
+
+
+def _find_universe_row(
+    names: list[str],
+    rank_by_name: dict[str, Any],
+) -> dict[str, Any] | None:
+    """按精确/规范化名称在 universe 排名表中找板块行（P2-6 对称修复）。"""
+    for name in names:
+        if name and name in rank_by_name:
+            return rank_by_name[name]
+    canon_by_key = {
+        _canonical_board_name(key): row for key, row in rank_by_name.items()
+    }
+    for name in names:
+        if not name:
+            continue
+        row = canon_by_key.get(_canonical_board_name(name))
+        if row is not None:
+            return row
+    return None
 
 
 def _make_track_item(
@@ -443,6 +700,7 @@ def _make_track_item(
         "trackId": track_id,
         "trackName": track_name,
         "positioning": positioning,
+        "selectionReason": raw.get("selection_reason", ""),
         "turnoverRank": raw.get("turnover_rank"),
         "mainNetInflow": raw.get("main_net_inflow"),
         "continuousInflowDays": raw.get("continuous_inflow_days"),
@@ -459,108 +717,203 @@ def _make_track_item(
         "score": scorer_out.get("score"),
         "coveragePct": scorer_out.get("coveragePct"),
         "decision": _decision_chinese(str(scorer_out.get("decision") or "INSUFFICIENT")),
+        "decisionCode": str(scorer_out.get("decision") or "INSUFFICIENT"),
+        "dimensionPass": scorer_out.get("dimensionPass"),
     }
 
 
 def collect_tracks(
     trade_date: str,
 ) -> dict[str, Any]:
-    """消费 daily raw archive 采集 4 赛道指标，返回 tracks 模块（PARTIAL/UNAVAILABLE）。"""
+    """消费 daily raw archive 采集主赛道指标（种子 + 每日动态候选池）。
+
+    R12-PLAN-1：动态候选从 industry-universe-snapshot 全市场口径选出；
+    资金/红盘指标优先 universe 口径，close 序列指标（MA/RPS）沿用
+    track-board-close（候选首次入选时由 archive_raw 回补历史）。
+    """
     cfg = load_yaml("tracks.yaml")
     tracks_cfg = cfg.get("tracks", [])
-    enabled = [tc for tc in tracks_cfg if tc.get("enabled", True)]
+    seeds = [tc for tc in tracks_cfg if tc.get("enabled", True)]
+    selection_cfg = cfg.get("selection", {}) or {}
+    board_metadata = cfg.get("boardMetadata", {}) or {}
+    window_days = int(selection_cfg.get("amountWindowDays", 5))
 
     close_records = _archive.read_records("track-board-close")
     flow_records = _archive.read_records("track-board-flow")
     pool_records = _archive.read_records("limit-up-pool")
-    member_records = _archive.read_records("track-membership-snapshot")
 
-    per_board = _group_close_by_board(close_records)
+    per_board = _universe_board_rows()
+    universe_today = any(
+        any(r["date"] == trade_date for r in rows)
+        for rows in per_board.values()
+    )
+    ranked = (
+        _universe_ranking(per_board, trade_date, window_days)
+        if universe_today
+        else []
+    )
+    rank_by_name = {item["boardName"]: item for item in ranked}
+    candidates = (
+        select_candidate_boards(trade_date, per_board=per_board)
+        if universe_today
+        else []
+    )
 
-    # ---- 1) universe 级派生：60 日收益与近 5 日 amount（全部 track 的板） ----
+    # ---- 0) 输出赛道列表：种子 + 动态候选（名称重合去重） ----
+    seed_names = _seed_match_names(seeds)
+
+    out_tracks: list[dict[str, Any]] = []
+    for tc in seeds:
+        out_tracks.append(
+            {
+                "trackId": tc["id"],
+                "trackName": tc.get("name", tc["id"]),
+                "positioning": tc.get("positioning", ""),
+                "descs": _track_board_descs(tc),
+                "matchNames": _track_match_names(tc),
+                "coreCatalyst": str(tc.get("coreCatalyst") or ""),
+                "earningsRealization": str(tc.get("earningsRealization") or ""),
+                "kind": "seed",
+                "universe": None,
+                "selectionReason": "seed",
+            }
+        )
+
+    for cand in candidates:
+        if _names_overlap(str(cand["boardName"]), seed_names):
+            continue
+        meta = _match_board_metadata(str(cand["boardName"]), board_metadata) or {}
+        identity = dynamic_track_identity(cand)
+        out_tracks.append(
+            {
+                "trackId": identity["trackId"],
+                "trackName": identity["boardName"],
+                "positioning": str(meta.get("positioning") or ""),
+                "descs": [
+                    {
+                        "boardCode": identity["boardCode"],
+                        "indexNameThs": identity["boardName"],
+                        "expectedName": identity["boardName"],
+                        "weight": 1.0,
+                    }
+                ],
+                "matchNames": [identity["boardName"]],
+                "coreCatalyst": str(meta.get("coreCatalyst") or ""),
+                "earningsRealization": str(meta.get("earningsRealization") or ""),
+                "kind": "dynamic",
+                "universe": cand,
+                "selectionReason": (
+                    f"dynamic:rank={cand['turnoverRank']}/{cand['universeSize']}"
+                    f",inflow={cand['netInflow']}"
+                ),
+            }
+        )
+
+    close_grouped = _group_close_by_board(close_records)
+
+    # ---- 1) universe 级派生：60 日收益（RPS 百分位底座）与近 5 日 amount ----
     returns: dict[str, float] = {}
     amounts: dict[str, float] = {}
-    for tc in enabled:
-        track_id = tc["id"]
-        descs = _track_board_descs(tc)
-        comb = _combine_close_series(per_board, track_id, descs)
-        # composite：直接以合成 close 序列参与 universe（一个 entry）；单板以 boardCode。
-        if len(descs) == 1:
-            key = f"{track_id}::{descs[0]['boardCode']}"
-            ret = _sixty_day_return(comb)
-            amt = _five_day_amount(comb)
-            if ret is not None:
-                returns[key] = ret
-            if amt is not None:
-                amounts[key] = amt
-        else:
-            # composite 用一个合成键
-            key = f"{track_id}::composite"
-            ret = _sixty_day_return(comb)
-            amt = _five_day_amount(comb)
-            if ret is not None:
-                returns[key] = ret
-            if amt is not None:
-                amounts[key] = amt
+    for ot in out_tracks:
+        track_id = ot["trackId"]
+        descs = ot["descs"]
+        comb = _combine_close_series(close_grouped, track_id, descs)
+        key = (
+            f"{track_id}::{descs[0]['boardCode']}"
+            if len(descs) == 1
+            else f"{track_id}::composite"
+        )
+        ret = _sixty_day_return(comb)
+        amt = _five_day_amount(comb)
+        if ret is not None:
+            returns[key] = ret
+        if amt is not None:
+            amounts[key] = amt
 
     # ---- 2) 每赛道指标 ----
     raw_tracks: list[dict[str, Any]] = []
-    module_errors: list[str] = [ERR_HS300_SEED_UNAVAILABLE, ERR_RED_RATIO_SOURCE_UNAVAILABLE]
+    module_errors: list[str] = [ERR_HS300_SEED_UNAVAILABLE]
+    if not universe_today:
+        module_errors.append(ERR_RED_RATIO_SOURCE_UNAVAILABLE)
 
-    for tc in enabled:
-        track_id = tc["id"]
-        track_name = tc.get("name", track_id)
-        positioning = tc.get("positioning", "")
-        descs = _track_board_descs(tc)
-        comb = _combine_close_series(per_board, track_id, descs)
+    for ot in out_tracks:
+        track_id = ot["trackId"]
+        track_name = ot["trackName"]
+        descs = ot["descs"]
+        comb = _combine_close_series(close_grouped, track_id, descs)
 
-        # 均线：用合成序列
         ma = _compute_ma(comb)
-        ret = _sixty_day_return(comb)
-        amt = _five_day_amount(comb)
-
-        # universe key（与上面一致）
         universe_key = (
             f"{track_id}::{descs[0]['boardCode']}"
             if len(descs) == 1
             else f"{track_id}::composite"
         )
-
         rps60 = _rps_percentile(returns, universe_key)
-        turnover_rank = _turnover_rank(amounts, universe_key)
-        turnover_universe = len(amounts)
 
-        # 资金流：单板直接取；composite 用当日两个子板 0.5 加权合成
-        inflow: float | None
+        # universe 匹配（动态候选即自身；种子按精确/规范化名称找行业行）
+        uni = ot.get("universe")
+        if uni is None:
+            uni = _find_universe_row(ot["matchNames"], rank_by_name)
+
+        # 成交额排名：优先 universe 全市场口径，回退归档板块互排
+        if uni is not None:
+            turnover_rank = uni["turnoverRank"]
+            turnover_universe = uni["universeSize"]
+        else:
+            turnover_rank = _turnover_rank(amounts, universe_key)
+            turnover_universe = len(amounts)
+
+        # 资金流：优先 universe 当日净流入/连续天数，回退 flow 归档
+        legacy_inflow: float | None
         if len(descs) == 1:
-            inflow = _main_net_inflow(flow_records, track_id, descs[0]["boardCode"], trade_date)
+            legacy_inflow = _main_net_inflow(
+                flow_records, track_id, descs[0]["boardCode"], trade_date
+            )
+            legacy_days = _continuous_inflow_days(
+                flow_records, track_id, descs[0]["boardCode"], trade_date
+            )
         else:
             vals = []
             for d in descs:
-                v = _main_net_inflow(flow_records, track_id, d["boardCode"], trade_date)
+                v = _main_net_inflow(
+                    flow_records, track_id, d["boardCode"], trade_date
+                )
                 if v is not None:
                     vals.append(d["weight"] * v)
-            inflow = sum(vals) if vals else None
+            legacy_inflow = sum(vals) if vals else None
+            legacy_days = _composite_continuous_inflow_days(
+                flow_records, track_id, descs, trade_date
+            )
 
-        # 连续净流入天数：单板直接用；composite 合成当日流量后重新判断
-        if len(descs) == 1:
-            days = _continuous_inflow_days(flow_records, track_id, descs[0]["boardCode"], trade_date)
+        if uni is not None and uni.get("netInflow") is not None:
+            inflow = uni["netInflow"]
+            days = int(uni["continuousInflowDays"])
         else:
-            days = _composite_continuous_inflow_days(flow_records, track_id, descs, trade_date)
+            inflow = legacy_inflow
+            days = legacy_days
+
+        # 红盘占比：universe 当日涨跌家数（修复 RED_RATIO_SOURCE_UNAVAILABLE）
+        red_stock_ratio = (
+            uni.get("redStockRatio") if uni is not None else None
+        )
 
         # 涨停池
         pool_items = _limit_up_daily(pool_records, trade_date)
-        match_names = _track_match_names(tc)
-        limit_up_count, ladder_counts, ladder_label = _limit_up_stats(pool_items, match_names)
+        limit_up_count, ladder_counts, ladder_label = _limit_up_stats(
+            pool_items, ot["matchNames"]
+        )
 
-        # 定性配置（从 tracks.yaml）
-        core_catalyst = str(tc.get("coreCatalyst") or "")
-        earnings = str(tc.get("earningsRealization") or "")
+        # 涨停率 = 涨停数 / 板块公司数（universe 上涨+下跌家数近似成分数；
+        # R12 复核修订：补齐评分器 limitUpRate 输入，否则情绪维权重被剔除）
+        limit_up_rate: float | None = None
+        if limit_up_count is not None and uni is not None:
+            rise = uni.get("riseCount")
+            fall = uni.get("fallCount")
+            if isinstance(rise, (int, float)) and isinstance(fall, (int, float)):
+                total = rise + fall
+                if total > 0:
+                    limit_up_rate = round(limit_up_count / total * 100.0, 2)
 
-        # 红盘占比：诚实缺口
-        red_stock_ratio = _red_stock_ratio(member_records, trade_date, track_id)
-
-        # 结构化原始指标（供 score_tracks）
         raw = {
             "date": trade_date,
             "ma_data": ma,
@@ -577,14 +930,15 @@ def collect_tracks(
             "ladder_counts": ladder_counts,
             "ladder_completeness": ladder_label,
             "red_stock_ratio": red_stock_ratio,
-            "core_catalyst": core_catalyst,
-            "earnings_realization": earnings,
+            "core_catalyst": ot["coreCatalyst"],
+            "earnings_realization": ot["earningsRealization"],
+            "selection_reason": ot["selectionReason"],
         }
 
         tracks_input = {
             "trackId": track_id,
             "trackName": track_name,
-            "positioning": positioning,
+            "positioning": ot["positioning"],
             "turnoverRank": raw["turnover_rank"],
             "turnoverUniverseSize": raw["turnover_universe_size"],
             "mainNetInflow": raw["main_net_inflow"],
@@ -592,14 +946,17 @@ def collect_tracks(
             "maAlignment": raw["ma_data"],
             "rps60": raw["rps60"],
             "excessReturn20d": raw["excess_return_20d_pct"],
+            "limitUpCount": raw["limit_up_count"],
+            "limitUpRate": limit_up_rate,
             "ladderCompleteness": raw["ladder_counts"],
+            "ladderLabel": raw["ladder_completeness"],
             "redStockRatio": raw["red_stock_ratio"],
-            "coreCatalyst": core_catalyst,
-            "earningsRealization": earnings,
+            "coreCatalyst": ot["coreCatalyst"],
+            "earningsRealization": ot["earningsRealization"],
         }
         raw_tracks.append({"raw": raw, "input": tracks_input})
 
-    # ---- 3) 评分 ----
+    # ---- 3) 评分（含四级判定） ----
     from collector.calculators.tracks import score_tracks
 
     scored = score_tracks([rt["input"] for rt in raw_tracks])
@@ -627,7 +984,6 @@ def collect_tracks(
         )
         items.append(item)
 
-        # coverage：已实现指标 / 槽位
         implemented = 0
         for field in _INDICATOR_FIELDS:
             val = rt["raw"].get(field)
@@ -661,7 +1017,8 @@ def collect_tracks(
             "decision": "TRACKS_SUFFICIENT",
             "reason": (
                 "PARTIAL_TRACKS_SUFFICIENT; "
-                "excessReturn20d/redStockRatio 为诚实缺口（见 errors）"
+                "excessReturn20d 为诚实缺口（见 errors）；"
+                f"候选池={len(candidates)}（universe {'OK' if universe_today else 'UNAVAILABLE'}）"
             ),
             "errors": module_errors,
             "items": items,
