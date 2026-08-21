@@ -1,15 +1,15 @@
 {
   "reportCommitSemantics": "two-commit：先提交输入树后运行验收，报告单独提交。evaluatedCommit=被验收输入树(HEAD)所在提交；dirty=true 表示未提交改动存在，输入树未完全固化。",
   "provenance": {
-    "repoCommit": "715938a4439701d5db0b11a3c64a4cf2403a089a",
-    "evaluatedCommit": "715938a4439701d5db0b11a3c64a4cf2403a089a",
-    "dirty": false,
-    "standardSha256": "9edcf4acd4f39682d8efb81fa4ff0a6e22299f97a44a1bdad478135a2ef80f4c",
-    "acceptorSha256": "4af6b8634d57fc663852eb2b8439f129f20982418027126e53613c533663e546",
-    "manifestSha256": "f8926be8ad051a22549a4eb362933d61d154aaad557a494af7c5ea515de49f1f",
+    "repoCommit": "19107b9d93ca2e09e4c8b06fb001f3c402be689e",
+    "evaluatedCommit": "19107b9d93ca2e09e4c8b06fb001f3c402be689e",
+    "dirty": true,
+    "standardSha256": "647178f329dc0af1e043662c37857bac99cbf1b3ff4fc1ad94a99e42f990b485",
+    "acceptorSha256": "07ae351fd3ddcba5f6254541889deef6fd58dd32e48f55e896ae6afb87dd5534",
+    "manifestSha256": "b1a57c1006c38cb1d5574face345d4eab33c9afa59da247e3dd3c3f849bb3211",
     "schemaVersion": "1.2",
     "perDateSnapshotSha256": {
-      "2026-07-17": "029c2c44df4a07ff6d755fd50fb9878899d7a367dfea41e1f7fe8a3825350f9f",
+      "2026-07-17": "0d2fde650220cab8e3c95e851515998f936c0fbcd279be55754268c7548061c5",
       "2026-07-20": "cf4dc07d6aad8dd3a538bf057c84d66c9ef5cb44583d8843de552c67339c1720",
       "2026-07-21": "12f2b4e43df12fe78a5cd1317bf1619010dc23a6d3d21216414fc648e67bee91",
       "2026-07-22": "5935fc234c73bf6f2bdd41211e25cc799879f081beb5d64d06f8ad0714a52511",
@@ -29,16 +29,20 @@
       "2026-08-11": "f5cc2fd78f65ad7f51074e3b40c158413f3ab880b762c70ddbeb08f5176a5181",
       "2026-08-12": "e943e3ff8436e808b20c02cf0ea5610d9a1ef28820764b1a8c90639255fed563",
       "2026-08-13": "a8fee873a55bc640a74bd2b6e907c17572c25531c9026233adced19b6ddc04a2",
-      "2026-08-14": "68181e37ef54c5d633e49950f48d653759cc603d2aedb80535d2f30e808b2398"
+      "2026-08-14": "3bf285f0d5c709903f5a359b536f03710457dfd52ef7db52b5bd793b29aed398",
+      "2026-08-17": "89933767c0b4ac2c6a4a086d897ae033bc5d8f59d203f6035a2c78c966f9339e",
+      "2026-08-18": "c7697b630286089cea35382aa8bc1aacc5b04e85ce94f10d7ad900b20a6ebdb1",
+      "2026-08-19": "c5a0dda910b42c877ea060f244a213dfb07324c033bd0c88f67cc7c171f784f5",
+      "2026-08-20": "8d0594325846920a6f00ea668bafcbf79c6bd1acb14da324ced88c5d1892473c"
     },
     "pythonVersion": "3.13.5",
-    "generatedAt": "2026-08-17T16:07:05.636161+08:00"
+    "generatedAt": "2026-08-21T10:29:48.428386+08:00"
   },
   "standard": "docs\\acceptance\\template-standard.json",
   "dates": {
     "2026-07-17": {
       "gap": null,
-      "overall": "PASS",
+      "overall": "FAIL",
       "invariants": {
         "INV-DATE-LOOKAHEAD": true,
         "INV-UNIT-亿元": true,
@@ -47,7 +51,7 @@
         "INV-TURNOVER-IDENTITY": true,
         "INV-SENTIMENT-WIDTH": true,
         "INV-ENUM-SOURCE-METHOD": true,
-        "INV-REF-EXACT": true,
+        "INV-REF-EXACT": false,
         "INV-NORTHBOUND-PIT": true
       },
       "modules": {
@@ -64,12 +68,24 @@
         },
         "turnover": {
           "status": "FINAL",
-          "pass": true,
+          "pass": false,
           "rule": "turnover_V2",
           "details": [
             {
-              "passed": true,
-              "detail": "turnover_V2: COMPARABLE 状态机通过"
+              "passed": false,
+              "detail": "referenceAssertion[turnoverPrevious] 期望数值 24035.65，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "referenceAssertion[turnoverDelta] 期望数值 2513.93，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "referenceAssertion[turnoverChangePct] 期望数值 10.46，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "referenceAssertion[volumeState] 期望 'EXPANSION'，实际 'UNKNOWN'"
             }
           ]
         },
@@ -141,12 +157,20 @@
         },
         "summary": {
           "status": "FINAL",
-          "pass": true,
+          "pass": false,
           "rule": "summary_V2",
           "details": [
             {
-              "passed": true,
-              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+              "passed": false,
+              "detail": "trackConclusion 需至少提及 2 条赛道判定字符串，实际 0"
+            },
+            {
+              "passed": false,
+              "detail": "summary.marketEnvironment 不得含 ['暂无']，实际 '沪深两市成交额 26549 亿元；暂无前一交易日可比数据，本项不作量能方向判断。'"
+            },
+            {
+              "passed": false,
+              "detail": "summary.marketEnvironment 需包含 '放量'，实际 '沪深两市成交额 26549 亿元；暂无前一交易日可比数据，本项不作量能方向判断。'"
             }
           ]
         }
@@ -1701,40 +1725,12 @@
         },
         "sectorPerformance": {
           "status": "FINAL",
-          "pass": false,
+          "pass": true,
           "rule": "sectorPerformance_V2",
           "details": [
             {
-              "passed": false,
-              "detail": "industryBottom5[2].changePct 应为负: 0.33"
-            },
-            {
-              "passed": false,
-              "detail": "industryBottom5[3].changePct 应为负: 0.71"
-            },
-            {
-              "passed": false,
-              "detail": "industryBottom5[4].changePct 应为负: 0.95"
-            },
-            {
-              "passed": false,
-              "detail": "conceptBottom5[0].changePct 应为负: 0.12"
-            },
-            {
-              "passed": false,
-              "detail": "conceptBottom5[1].changePct 应为负: 0.9"
-            },
-            {
-              "passed": false,
-              "detail": "conceptBottom5[2].changePct 应为负: 1.1"
-            },
-            {
-              "passed": false,
-              "detail": "conceptBottom5[3].changePct 应为负: 1.15"
-            },
-            {
-              "passed": false,
-              "detail": "conceptBottom5[4].changePct 应为负: 1.2"
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
             }
           ]
         },
@@ -2693,24 +2689,12 @@
         },
         "sectorPerformance": {
           "status": "FINAL",
-          "pass": false,
+          "pass": true,
           "rule": "sectorPerformance_V2",
           "details": [
             {
-              "passed": false,
-              "detail": "industryBottom5[4].changePct 应为负: 0.15"
-            },
-            {
-              "passed": false,
-              "detail": "conceptBottom5[2].changePct 应为负: 0.0"
-            },
-            {
-              "passed": false,
-              "detail": "conceptBottom5[3].changePct 应为负: 0.21"
-            },
-            {
-              "passed": false,
-              "detail": "conceptBottom5[4].changePct 应为负: 0.24"
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
             }
           ]
         },
@@ -4823,15 +4807,10 @@
           ]
         },
         "margin": {
-          "status": "PENDING",
+          "status": "FINAL",
           "pass": true,
           "rule": "margin_V2",
-          "details": [
-            {
-              "passed": true,
-              "detail": "PENDING D0 分支通过"
-            }
-          ]
+          "details": []
         },
         "tracks": {
           "status": "UNAVAILABLE",
@@ -5120,13 +5099,1176 @@
           ]
         }
       }
+    },
+    "2026-08-17": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "字段缺失: limitSealRatePct"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: maxLimitUpStreak"
+            },
+            {
+              "passed": false,
+              "detail": "非参考日 limitSealRatePct 缺失/null（状态为 FINAL）需缺口说明"
+            },
+            {
+              "passed": false,
+              "detail": "非参考日 maxLimitUpStreak 缺失/null（状态为 FINAL）需缺口说明"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "mode='POST_20240819_QUARTERLY_ONLY' 不在枚举 ['POST_20240819_LEGACY_IMPORTED', 'POST_20240819_OFFICIAL_REPLACEMENT']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            }
+          ]
+        },
+        "margin": {
+          "status": "ERROR",
+          "pass": false,
+          "rule": "margin_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='ERROR' 不在枚举 ['FINAL', 'PENDING']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: financingBalance"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: securitiesLendingBalance"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: marginBalance"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: marginBalanceChange"
+            },
+            {
+              "passed": false,
+              "detail": "status 非法: 'ERROR'"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "tracks_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: effectiveFrom"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: effectiveTo"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: sourceSystem"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveFrom 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "模块级 effectiveTo 缺失（需覆盖 tradeDate）"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 date"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 turnoverRank"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 continuousInflowDays"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[0].coreCatalyst 非字符串: {'state': 'UNKNOWN', 'text': ''}"
+            },
+            {
+              "passed": false,
+              "detail": "items[0].earningsRealization 非字符串: {'state': 'UNKNOWN', 'text': ''}"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 score"
+            },
+            {
+              "passed": false,
+              "detail": "items[0].decision='INSUFFICIENT' 不在枚举 ['核心防御主线', '次主线', '主跌浪', '退潮主线', '观察', '达标', '规避', '数据不足']"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 date"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 turnoverRank"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 continuousInflowDays"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[1].coreCatalyst 非字符串: {'state': 'UNKNOWN', 'text': ''}"
+            },
+            {
+              "passed": false,
+              "detail": "items[1].earningsRealization 非字符串: {'state': 'UNKNOWN', 'text': ''}"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 score"
+            },
+            {
+              "passed": false,
+              "detail": "items[1].decision='INSUFFICIENT' 不在枚举 ['核心防御主线', '次主线', '主跌浪', '退潮主线', '观察', '达标', '规避', '数据不足']"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 date"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 turnoverRank"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 continuousInflowDays"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[2].coreCatalyst 非字符串: {'state': 'UNKNOWN', 'text': ''}"
+            },
+            {
+              "passed": false,
+              "detail": "items[2].earningsRealization 非字符串: {'state': 'UNKNOWN', 'text': ''}"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 score"
+            },
+            {
+              "passed": false,
+              "detail": "items[2].decision='INSUFFICIENT' 不在枚举 ['核心防御主线', '次主线', '主跌浪', '退潮主线', '观察', '达标', '规避', '数据不足']"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 date"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 turnoverRank"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 continuousInflowDays"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[3].coreCatalyst 非字符串: {'state': 'UNKNOWN', 'text': ''}"
+            },
+            {
+              "passed": false,
+              "detail": "items[3].earningsRealization 非字符串: {'state': 'UNKNOWN', 'text': ''}"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 score"
+            },
+            {
+              "passed": false,
+              "detail": "items[3].decision='INSUFFICIENT' 不在枚举 ['核心防御主线', '次主线', '主跌浪', '退潮主线', '观察', '达标', '规避', '数据不足']"
+            },
+            {
+              "passed": false,
+              "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[0] date 缺失或 != tradeDate 2026-08-17，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[1] date 缺失或 != tradeDate 2026-08-17，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[2] date 缺失或 != tradeDate 2026-08-17，实际 None"
+            },
+            {
+              "passed": false,
+              "detail": "tracks.items[3] date 缺失或 != tradeDate 2026-08-17，实际 None"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-18": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "ERROR",
+          "pass": false,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='ERROR' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: turnoverToday"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: method"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: comparisonStatus"
+            },
+            {
+              "passed": false,
+              "detail": "comparisonStatus 缺失"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: riseCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: fallCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: flatCount"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "margin_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "字段为 null: marginBalanceChange"
+            },
+            {
+              "passed": false,
+              "detail": "FINAL 需 marginBalanceChange"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "tracks_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "配置生效区间 2026-08-20..2026-12-31 未覆盖 tradeDate 2026-08-18"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 turnoverRank"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-19": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: PREVIOUS_UNAVAILABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 8 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 5 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "ERROR",
+          "pass": false,
+          "rule": "margin_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='ERROR' 不在枚举 ['FINAL', 'PENDING']"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: financingBalance"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: securitiesLendingBalance"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: marginBalance"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: marginBalanceChange"
+            },
+            {
+              "passed": false,
+              "detail": "status 非法: 'ERROR'"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "tracks_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 turnoverRank"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 mainNetInflow"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 limitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 ladderCompleteness"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "trackId 集合 ['dividend_cnsoe', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "marketEnvironment 含占位词 '暂无'"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-20": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "PENDING",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "PENDING D0 分支通过"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "tracks_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[0] 缺必填字段 redStockRatio"
+            },
+            {
+              "passed": false,
+              "detail": "items[1] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[1].decision='一日游脉冲/回避' 不在枚举 ['核心防御主线', '次主线', '主跌浪', '退潮主线', '观察', '达标', '规避', '数据不足']"
+            },
+            {
+              "passed": false,
+              "detail": "items[2] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[2].decision='短线支线' 不在枚举 ['核心防御主线', '次主线', '主跌浪', '退潮主线', '观察', '达标', '规避', '数据不足']"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[3] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[4] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[4] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[4] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[4].coreCatalyst 长度<2"
+            },
+            {
+              "passed": false,
+              "detail": "items[4].coreCatalyst 中文字符占比过低"
+            },
+            {
+              "passed": false,
+              "detail": "items[4].earningsRealization 长度<2"
+            },
+            {
+              "passed": false,
+              "detail": "items[4].earningsRealization 中文字符占比过低"
+            },
+            {
+              "passed": false,
+              "detail": "items[5] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[5] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[5] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[5].coreCatalyst 长度<2"
+            },
+            {
+              "passed": false,
+              "detail": "items[5].coreCatalyst 中文字符占比过低"
+            },
+            {
+              "passed": false,
+              "detail": "items[5].earningsRealization 长度<2"
+            },
+            {
+              "passed": false,
+              "detail": "items[5].earningsRealization 中文字符占比过低"
+            },
+            {
+              "passed": false,
+              "detail": "items[6] 缺必填字段 maAlignment"
+            },
+            {
+              "passed": false,
+              "detail": "items[6] 缺必填字段 rps60"
+            },
+            {
+              "passed": false,
+              "detail": "items[6] 缺必填字段 excessReturn20d"
+            },
+            {
+              "passed": false,
+              "detail": "items[6].coreCatalyst 长度<2"
+            },
+            {
+              "passed": false,
+              "detail": "items[6].coreCatalyst 中文字符占比过低"
+            },
+            {
+              "passed": false,
+              "detail": "items[6].earningsRealization 长度<2"
+            },
+            {
+              "passed": false,
+              "detail": "items[6].earningsRealization 中文字符占比过低"
+            },
+            {
+              "passed": false,
+              "detail": "trackId 集合 ['dividend_cnsoe', 'dyn_THS-化学制药', 'dyn_THS-医疗服务', 'dyn_THS-通信设备', 'healthcare', 'power', 'semiconductor_ai'] 与 referenceAssertions 集合 ['医药生物_创新药_CRO', '半导体_CPO_AI算力', '电力_火电_水电', '高股息_中特估'] 不一致"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
     }
   },
   "summary": {
-    "passDates": [
-      "2026-07-17"
-    ],
+    "passDates": [],
     "failDates": [
+      "2026-07-17",
       "2026-07-20",
       "2026-07-21",
       "2026-07-22",
@@ -5146,7 +6288,11 @@
       "2026-08-11",
       "2026-08-12",
       "2026-08-13",
-      "2026-08-14"
+      "2026-08-14",
+      "2026-08-17",
+      "2026-08-18",
+      "2026-08-19",
+      "2026-08-20"
     ],
     "moduleFailCounts": [
       {
@@ -5155,35 +6301,35 @@
       },
       {
         "module": "turnover",
-        "failDates": 0
-      },
-      {
-        "module": "sentiment",
-        "failDates": 20
-      },
-      {
-        "module": "sectorPerformance",
         "failDates": 2
       },
       {
+        "module": "sentiment",
+        "failDates": 22
+      },
+      {
+        "module": "sectorPerformance",
+        "failDates": 0
+      },
+      {
         "module": "fundFlow",
-        "failDates": 19
+        "failDates": 21
       },
       {
         "module": "northbound",
-        "failDates": 0
+        "failDates": 1
       },
       {
         "module": "margin",
-        "failDates": 0
+        "failDates": 3
       },
       {
         "module": "tracks",
-        "failDates": 20
+        "failDates": 24
       },
       {
         "module": "summary",
-        "failDates": 0
+        "failDates": 2
       }
     ]
   }

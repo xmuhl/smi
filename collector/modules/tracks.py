@@ -20,7 +20,7 @@ from collector import archive as _archive
 from collector.config import load_yaml
 from collector.status import ModuleStatus
 
-CONFIG_VERSION = "3.0"
+CONFIG_VERSION = "3.1"
 EFFECTIVE_FROM = "2026-08-20"
 EFFECTIVE_TO = "2026-12-31"
 SOURCE_SYSTEM = "SELF"
@@ -591,6 +591,146 @@ def select_candidate_boards(
     ][:pool_size]
 
 
+def _entry_ok(item: dict[str, Any], pool_size: int, require_inflow: bool) -> bool:
+    """单日准入条件：成交额排名 <= poolSize 且（可选）当日净流入为正。"""
+    rank = item.get("turnoverRank")
+    if rank is None or rank > pool_size:
+        return False
+    if require_inflow:
+        inflow = item.get("netInflow")
+        if inflow is None or inflow <= 0:
+            return False
+    return True
+
+
+def _exit_hit(item: dict[str, Any] | None, exit_rank_max: int, require_inflow: bool) -> bool:
+    """单日触及出池条件：当日缺行 / 排名跌出 exitRankMax / 净流入非正。"""
+    if item is None:
+        return True
+    rank = item.get("turnoverRank")
+    if rank is None or rank > exit_rank_max:
+        return True
+    if require_inflow:
+        inflow = item.get("netInflow")
+        if inflow is None or inflow <= 0:
+            return True
+    return False
+
+
+def select_scoring_pool(
+    trade_date: str,
+    per_board: dict[str, list[dict[str, Any]]] | None = None,
+) -> list[dict[str, Any]]:
+    """正式评分池（R13-P2-01 迟滞版动态选池）。
+
+    与 select_candidate_boards（单日发现口径）的差异：
+    - 入池需连续确认：近 entryWindowDays 个归档日内 >= entryMinDays 日满足
+      准入条件（归档历史不足时按实际天数收敛，冷启动退化为单日规则）；
+    - 出池需连续确认：连续 exitConfirmDays 日触及出池条件才退出，且出池
+      排名阈值 exitRankMax 与入池 poolSize 分离（双阈值防 8/9 抖动）；
+    - 池成员资格从 universe 归档全历史逐日递推，无需额外状态文件。
+    无当日 universe 记录 → []（fail-closed，调用方退化为纯种子）。
+    """
+    cfg = load_yaml("tracks.yaml")
+    selection = cfg.get("selection", {}) or {}
+    pool_size = int(selection.get("poolSize", 8))
+    window_days = int(selection.get("amountWindowDays", 5))
+    require_inflow = bool(selection.get("requirePositiveInflow", True))
+    entry_window = int(selection.get("entryWindowDays", 3))
+    entry_min = int(selection.get("entryMinDays", 2))
+    exit_rank_max = int(selection.get("exitRankMax", 12))
+    exit_confirm = int(selection.get("exitConfirmDays", 2))
+
+    if per_board is None:
+        per_board = _universe_board_rows()
+
+    known_dates = [
+        d for d in _universe_known_dates(per_board) if d <= trade_date
+    ]
+    if trade_date not in known_dates:
+        return []
+
+    rank_by_date: dict[str, dict[str, dict[str, Any]]] = {}
+    for d in known_dates:
+        rank_by_date[d] = {
+            item["boardName"]: item
+            for item in _universe_ranking(per_board, d, window_days)
+        }
+
+    pool: list[str] = []
+    exit_streak: dict[str, int] = {}
+    for d in known_dates:
+        today_rows = rank_by_date[d]
+        window = known_dates[
+            max(0, known_dates.index(d) - entry_window + 1) : known_dates.index(d) + 1
+        ]
+        # 冷启动收敛：归档历史不足 entryMinDays 时按实际窗口天数要求
+        eff_min = min(entry_min, len(window))
+
+        # 1) 存量成员出池确认
+        kept: list[str] = []
+        for name in pool:
+            item = today_rows.get(name)
+            streak = exit_streak.get(name, 0) + (
+                1 if _exit_hit(item, exit_rank_max, require_inflow) else 0
+            )
+            if streak >= exit_confirm:
+                exit_streak.pop(name, None)
+                continue
+            exit_streak[name] = streak
+            kept.append(name)
+
+        # 2) 新成员入池确认
+        for name, item in today_rows.items():
+            if name in kept:
+                continue
+            hits = 0
+            for wd in window:
+                wi = rank_by_date.get(wd, {}).get(name)
+                if wi is not None and _entry_ok(wi, pool_size, require_inflow):
+                    hits += 1
+            if hits >= eff_min:
+                kept.append(name)
+                exit_streak[name] = 0
+
+        pool = kept
+
+    # 输出当日有 universe 行的池成员（缺行成员保留池籍但当日不可评分）
+    items = [
+        rank_by_date[trade_date][name]
+        for name in pool
+        if name in rank_by_date[trade_date]
+    ]
+    items.sort(key=lambda item: item["turnoverRank"])
+    return items
+
+
+def select_discovery_pool(
+    trade_date: str,
+    per_board: dict[str, list[dict[str, Any]]] | None = None,
+    rank_max: int | None = None,
+) -> list[dict[str, Any]]:
+    """预热池（R13-P2-01）：成交额排名前 prewarmRankMax 的板块。
+
+    不筛当日净流入——预热目的是让 archive-raw 对"接近入池"的板块持续
+    回补 close 历史，消除首次入选后的冷启动；预热数据不直接参与评分。
+    """
+    cfg = load_yaml("tracks.yaml")
+    selection = cfg.get("selection", {}) or {}
+    window_days = int(selection.get("amountWindowDays", 5))
+    if rank_max is None:
+        rank_max = int(selection.get("prewarmRankMax", 16))
+
+    if per_board is None:
+        per_board = _universe_board_rows()
+
+    if trade_date not in _universe_known_dates(per_board):
+        return []
+
+    ranked = _universe_ranking(per_board, trade_date, window_days)
+    return [item for item in ranked if item["turnoverRank"] <= rank_max]
+
+
 def dynamic_track_identity(cand: dict[str, Any]) -> dict[str, Any]:
     """动态候选 → 归档/输出统一身份（tracks 模块与 archive_raw 回补共用，
     保证 close 历史 trackId::boardCode 键一致）。"""
@@ -690,11 +830,25 @@ def _make_track_item(
     positioning: str,
     raw: dict[str, Any],
     scorer_out: dict[str, Any],
+    min_history_days: int = 20,
 ) -> dict[str, Any]:
     """把结构化原始指标 + 评分结果映射为 16 列 typed 输出项。"""
     ma_label = _ma_alignment_label(raw.get("ma_data"))
     excess_label = raw.get("excess_label")
     red_ratio = raw.get("red_stock_ratio")
+    # R13-P2-01/P2-02：数据就绪状态。动态候选 close 历史不足
+    # min_history_days → WARMING_UP（冷启动，与 FETCH_FAILED 语义分离）；
+    # 否则沿用评分器的 READY/DEGRADED/INSUFFICIENT。
+    readiness = str(scorer_out.get("dataReadiness") or "INSUFFICIENT")
+    history_days = raw.get("history_days")
+    # WARMING_UP 与 coverage 分层正交：动态候选 close 历史不足即标记
+    # （冷启动语义，独立于评分置信度），decision 仍按实际数据输出。
+    if (
+        raw.get("track_kind") == "dynamic"
+        and isinstance(history_days, int)
+        and history_days < min_history_days
+    ):
+        readiness = "WARMING_UP"
     return {
         "date": raw["date"],
         "trackId": track_id,
@@ -719,6 +873,8 @@ def _make_track_item(
         "decision": _decision_chinese(str(scorer_out.get("decision") or "INSUFFICIENT")),
         "decisionCode": str(scorer_out.get("decision") or "INSUFFICIENT"),
         "dimensionPass": scorer_out.get("dimensionPass"),
+        "dataReadiness": readiness,
+        "historyDays": history_days,
     }
 
 
@@ -754,7 +910,7 @@ def collect_tracks(
     )
     rank_by_name = {item["boardName"]: item for item in ranked}
     candidates = (
-        select_candidate_boards(trade_date, per_board=per_board)
+        select_scoring_pool(trade_date, per_board=per_board)
         if universe_today
         else []
     )
@@ -933,6 +1089,9 @@ def collect_tracks(
             "core_catalyst": ot["coreCatalyst"],
             "earnings_realization": ot["earningsRealization"],
             "selection_reason": ot["selectionReason"],
+            # R13-P2-01：close 历史深度（交易日数），供 WARMING_UP 判定
+            "history_days": len(comb),
+            "track_kind": ot["kind"],
         }
 
         tracks_input = {
@@ -981,6 +1140,7 @@ def collect_tracks(
             positioning=rt["input"]["positioning"],
             raw=rt["raw"],
             scorer_out=sc,
+            min_history_days=int(selection_cfg.get("minHistoryDays", 20)),
         )
         items.append(item)
 
@@ -1000,42 +1160,86 @@ def collect_tracks(
 
     data_date_ok = all(item["date"] == trade_date for item in items)
 
-    if (
-        module_coverage >= 80.0
-        and all_scores_present
-        and data_date_ok
-        and items
-    ):
-        return {
-            "status": ModuleStatus.PARTIAL.value,
-            "dataDate": trade_date,
-            "configVersion": CONFIG_VERSION,
-            "effectiveFrom": EFFECTIVE_FROM,
-            "effectiveTo": EFFECTIVE_TO,
-            "sourceSystem": SOURCE_SYSTEM,
-            "coveragePct": module_coverage,
-            "decision": "TRACKS_SUFFICIENT",
-            "reason": (
-                "PARTIAL_TRACKS_SUFFICIENT; "
-                "excessReturn20d 为诚实缺口（见 errors）；"
-                f"候选池={len(candidates)}（universe {'OK' if universe_today else 'UNAVAILABLE'}）"
-            ),
-            "errors": module_errors,
-            "items": items,
-        }
+    # R13-P2-02：三态 coverage 门禁（配置驱动，替代单一硬门槛 80）。
+    # - 关键输入缺失（无输出项/日期身份错误/全部评分缺失）→ 直接
+    #   UNAVAILABLE（critical，不允许 coverage 绕过）；
+    # - coverage >= target → PARTIAL/TRACKS_SUFFICIENT/READY；
+    # - floor <= coverage < target → PARTIAL/TRACKS_DEGRADED/DEGRADED
+    #   （保留可用评分，降置信，不再一刀切 UNAVAILABLE）；
+    # - coverage < floor → UNAVAILABLE/TRACKS_INSUFFICIENT/FAILED。
+    scoring_decision_cfg = (
+        load_yaml("track-scoring.yaml").get("decision", {}) or {}
+    )
+    coverage_target = float(
+        scoring_decision_cfg.get("coverage_target_pct", 80.0)
+    )
+    coverage_floor = float(
+        scoring_decision_cfg.get("coverage_hard_floor_pct", 65.0)
+    )
+    any_score = any(
+        scored_by_idx[rt["input"]["trackId"]].get("score") is not None
+        for rt in raw_tracks
+    )
+    critical_failed = (not items) or (not data_date_ok) or (not any_score)
+    warming_boards = [
+        item["trackName"]
+        for item in items
+        if item.get("dataReadiness") == "WARMING_UP"
+    ]
 
-    return {
-        "status": ModuleStatus.UNAVAILABLE.value,
+    base: dict[str, Any] = {
         "dataDate": trade_date,
         "configVersion": CONFIG_VERSION,
         "effectiveFrom": EFFECTIVE_FROM,
         "effectiveTo": EFFECTIVE_TO,
         "sourceSystem": SOURCE_SYSTEM,
         "coveragePct": module_coverage,
-        "decision": "TRACKS_INSUFFICIENT",
-        "reason": "TRACK_METRICS_INSUFFICIENT_COVERAGE",
+        "coverageTargetPct": coverage_target,
+        "coverageHardFloorPct": coverage_floor,
         "errors": module_errors,
         "items": items,
+        # R13-P2-01：冷启动板块清单（信息性，不计失败）
+        "warmingUpBoards": warming_boards,
+    }
+
+    if critical_failed or module_coverage < coverage_floor:
+        return {
+            "status": ModuleStatus.UNAVAILABLE.value,
+            **base,
+            "decision": "TRACKS_INSUFFICIENT",
+            "dataReadiness": "FAILED",
+            "reason": (
+                "TRACK_CRITICAL_INPUT_MISSING"
+                if critical_failed
+                else "TRACK_METRICS_INSUFFICIENT_COVERAGE"
+            ),
+        }
+
+    if module_coverage >= coverage_target:
+        return {
+            "status": ModuleStatus.PARTIAL.value,
+            **base,
+            "decision": "TRACKS_SUFFICIENT",
+            "dataReadiness": "READY",
+            "reason": (
+                "PARTIAL_TRACKS_SUFFICIENT; "
+                "excessReturn20d 为诚实缺口（见 errors）；"
+                f"候选池={len(candidates)}（universe {'OK' if universe_today else 'UNAVAILABLE'}）"
+            ),
+        }
+
+    return {
+        "status": ModuleStatus.PARTIAL.value,
+        **base,
+        "decision": "TRACKS_DEGRADED",
+        "dataReadiness": "DEGRADED",
+        "reason": (
+            "PARTIAL_TRACKS_DEGRADED; "
+            f"coverage {module_coverage} 处于 [{coverage_floor}, "
+            f"{coverage_target}) 区间，保留可用评分并降置信；"
+            "excessReturn20d 为诚实缺口（见 errors）；"
+            f"候选池={len(candidates)}（universe {'OK' if universe_today else 'UNAVAILABLE'}）"
+        ),
     }
 
 

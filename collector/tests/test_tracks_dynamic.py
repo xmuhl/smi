@@ -595,6 +595,10 @@ def test_p1_3_ensure_universe_archived(monkeypatch):
             import datetime as _d
             return _d.datetime(2026, 8, 20, 17, 0, tzinfo=tz)
 
+    # _ensure_universe_archived 使用模块级 datetime 做"当日"判定，
+    # 必须显式 patch 时间源，否则测试跨日即红（时间炸弹）。
+    monkeypatch.setattr(common, "datetime", _FakeDT)
+
     monkeypatch.setattr("collector.schema.TZ_SHANGHAI", None, raising=False)
     import collector.schema as schema
     monkeypatch.setattr(schema, "TZ_SHANGHAI", __import__("datetime").timezone(__import__("datetime").timedelta(hours=8)))
@@ -622,3 +626,222 @@ def test_p1_3_ensure_universe_archived(monkeypatch):
         "collector.modules.raw_archive.collect_industry_universe", boom
     )
     common._ensure_universe_archived("2026-08-20")  # 不抛异常即通过
+
+
+# ---------------------------------------------------------------------------
+# R13-P2-01：迟滞选池（入池确认/出池确认/双阈值/冷启动）与预热池
+# ---------------------------------------------------------------------------
+
+def _uni_records(plan_by_date: dict) -> list[dict]:
+    """plan_by_date: {date: [(name, amount, inflow, code), ...]}"""
+    records = []
+    for dt, rows in plan_by_date.items():
+        records.append(
+            _uni_record(
+                dt,
+                [
+                    _uni_row(name, amount, inflow, code=code)
+                    for name, amount, inflow, code in rows
+                ],
+            )
+        )
+    return records
+
+
+def test_r13_p2_01_entry_needs_two_of_three_days(monkeypatch):
+    """入池迟滞：近 3 日至少 2 日满足准入才入池（单日翻正不入池）。"""
+    records = _uni_records({
+        D2: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
+             ("房地产", 650.0, -1.0, "BK0451"), ("医药生物", 700.0, -2.0, "BK1216")],
+        D1: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, -1.0, "BK0437"),
+             ("房地产", 650.0, -1.0, "BK0451"), ("医药生物", 700.0, -2.0, "BK1216")],
+        TRADE_DATE: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
+                     ("房地产", 650.0, 1.0, "BK0451"), ("医药生物", 700.0, -2.0, "BK1216")],
+    })
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+
+    names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
+    assert "银行" in names        # 3/3 满足
+    assert "煤炭" in names        # 2/3 满足（D1 净流出中断）
+    assert "房地产" not in names  # 仅当日翻正 1/3 → 不入池
+    assert "医药生物" not in names
+
+
+def test_r13_p2_01_exit_needs_two_consecutive_failures(monkeypatch):
+    """出池迟滞：连续 2 日触及出池条件才退出（单日失败保留池籍）。"""
+    records = _uni_records({
+        D2: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437")],
+        D1: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, -1.0, "BK0437")],
+        TRADE_DATE: [("银行", 900.0, -1.0, "BK0475"), ("煤炭", 800.0, -1.0, "BK0437")],
+    })
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+
+    names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
+    assert "银行" in names        # 仅当日失败（streak=1）→ 保留
+    assert "煤炭" not in names    # 连续 2 日失败 → 出池
+
+
+def test_r13_p2_01_cold_start_falls_back_to_single_day(monkeypatch):
+    """冷启动：归档历史不足 entryMinDays 时按实际天数收敛（单日可入池）。"""
+    records = _uni_records({
+        TRADE_DATE: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437")],
+    })
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+
+    names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
+    assert names == ["银行", "煤炭"]
+
+
+def test_r13_p2_01_dual_rank_threshold(monkeypatch):
+    """双阈值：排名 9~12 的存量成员保留（exitRankMax=12），连续 2 日 >12 出池。
+
+    排名口径是近 amountWindowDays 日累计成交额（范本口径）：第 k 日的
+    排名由 D2..当日累计和决定，各日数据按此推算——
+    - 证券X：D2 rank7 入池；D1 rank12 / T rank9 落入 (8,12] 保留区 → 留池；
+    - 医药Y：D2 rank1 入池；D1/T 连续 2 日 rank14 > 12 → 出池；
+    - 板块07：仅 D1 rank7 一日命中准入（<entryMinDays=2）→ 不入池；
+    - 板块08：D1 rank8 + T rank7 两日命中 → T 日入池（正向对照）。
+    净流入全正，排除资金条件干扰，只考察排名阈值。
+    """
+    boards = [
+        # (name, D2, D1, T, code)
+        ("医药Y", 1100.0, 20.0, 20.0, "BK9002"),
+        ("板块01", 1000.0, 1000.0, 1000.0, "BK8001"),
+        ("板块02", 990.0, 990.0, 990.0, "BK8002"),
+        ("板块03", 980.0, 980.0, 980.0, "BK8003"),
+        ("板块04", 970.0, 970.0, 970.0, "BK8004"),
+        ("板块05", 960.0, 960.0, 960.0, "BK8005"),
+        ("证券X", 955.0, 200.0, 1145.0, "BK9001"),
+        ("板块06", 950.0, 950.0, 950.0, "BK8006"),
+        ("板块07", 99.0, 1300.0, 50.0, "BK8007"),
+        ("板块08", 95.0, 1150.0, 1150.0, "BK8008"),
+        ("板块09", 90.0, 1120.0, 1120.0, "BK8009"),
+        ("板块10", 85.0, 1100.0, 1100.0, "BK8010"),
+        ("板块11", 80.0, 1080.0, 1080.0, "BK8011"),
+        ("板块12", 75.0, 1060.0, 1060.0, "BK8012"),
+    ]
+    records = _uni_records({
+        D2: [(n, d2, 1.0, code) for n, d2, _1, _2, code in boards],
+        D1: [(n, d1, 1.0, code) for n, _1, d1, _2, code in boards],
+        TRADE_DATE: [(n, t, 1.0, code) for n, _1, _2, t, code in boards],
+    })
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+
+    names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
+    assert "证券X" in names     # D1 rank12 / T rank9 ∈ (8,12] 保留区 → 留池
+    assert "医药Y" not in names  # D1/T 连续 2 日 rank14 > exitRankMax=12 → 出池
+    assert "板块07" not in names  # 仅 D1 一日命中准入 < entryMinDays=2 → 不入池
+    assert "板块08" in names     # D1 rank8 + T rank7 两日命中 → 入池（正向对照）
+
+
+def test_r13_p2_01_discovery_pool_ignores_inflow(monkeypatch):
+    """预热池：只按成交额排名取前 N，不筛净流入（含净流出板块）。"""
+    _patch_archive(
+        monkeypatch, {"industry-universe-snapshot": _fake_universe()}
+    )
+    pool = tracks_mod.select_discovery_pool(TRADE_DATE, rank_max=4)
+    names = [c["boardName"] for c in pool]
+    assert names == ["银行", "煤炭", "医药生物", "房地产"]  # 医药净流出仍入预热池
+    assert "证券" not in names
+
+
+def test_r13_p2_01_dynamic_candidate_warming_up(monkeypatch):
+    """动态候选 close 历史不足 → dataReadiness=WARMING_UP（非获取失败）。"""
+    _patch_archive(
+        monkeypatch, {"industry-universe-snapshot": _fake_universe()}
+    )
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    bank = next(it for it in result["items"] if it["trackId"] == "dyn_BK0475")
+    assert bank["dataReadiness"] == "WARMING_UP"
+    assert bank["historyDays"] == 0
+    # 种子不受 WARMING_UP 影响
+    power = next(it for it in result["items"] if it["trackId"] == "power")
+    assert power["dataReadiness"] != "WARMING_UP"
+
+
+# ---------------------------------------------------------------------------
+# R13-P2-02：coverage 三态分级（评分器 + 校验器）
+# ---------------------------------------------------------------------------
+
+def _quant_track(**overrides):
+    base = {
+        "trackId": "t1",
+        "trackName": "测试赛道",
+        "turnoverRank": 1,
+        "turnoverUniverseSize": 10,
+        "mainNetInflow": 5.0,
+        "continuousInflowDays": 3,
+        "maAlignment": {"close": 13.0, "ma5": 12.0, "ma10": 11.0, "ma20": 10.0},
+        "rps60": 90.0,
+        "excessReturn20d": 3.0,
+        "limitUpRate": 2.0,
+        "ladderCompleteness": {"firstBoardCount": 2, "twoBoardCount": 1, "threePlusCount": 0},
+        "redStockRatio": 75.0,
+        "coreCatalyst": "测试催化",
+        "earningsRealization": "测试业绩",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_r13_p2_02_scorer_three_tier():
+    from collector.calculators.tracks import score_tracks
+
+    # READY：仅 excess 缺失（15 权重）→ 85-15=70/85=82.4% ≥ target(80)
+    ready = score_tracks([_quant_track()])[0]
+    assert ready["dataReadiness"] == "READY"
+    assert ready["decision"] != "INSUFFICIENT"
+
+    # DEGRADED：再缺 rps60(10) 与 redStockRatio(9) → 51/85=60%…
+    # 精确构造：缺 excess(15)+rps(10) → 60/85=70.6% ∈ [65,80)
+    degraded = score_tracks([
+        _quant_track(excessReturn20d=None, rps60=None)
+    ])[0]
+    assert 65.0 <= degraded["coveragePct"] < 80.0
+    assert degraded["dataReadiness"] == "DEGRADED"
+    assert degraded["decision"] != "INSUFFICIENT"  # 保留评分，不一刀切
+
+    # INSUFFICIENT：仅 turnover/inflow/days → 25/85=29.4% < floor(65)
+    poor = score_tracks([
+        _quant_track(
+            maAlignment=None, rps60=None, excessReturn20d=None,
+            limitUpRate=None, ladderCompleteness=None, redStockRatio=None,
+        )
+    ])[0]
+    assert poor["dataReadiness"] == "INSUFFICIENT"
+    assert poor["decision"] == "INSUFFICIENT"
+
+
+def test_r13_p2_02_validator_accepts_degraded():
+    from collector.validators.schema import _validate_partial_module
+
+    base = {"status": "PARTIAL", "dataDate": TRADE_DATE}
+    # DEGRADED + 70 ∈ [floor, target) → 通过
+    errors: list[str] = []
+    _validate_partial_module(
+        "tracks", {**base, "decision": "TRACKS_DEGRADED", "coveragePct": 70.0},
+        TRADE_DATE, errors,
+    )
+    assert errors == []
+    # SUFFICIENT + 70 < target → 拒绝
+    errors = []
+    _validate_partial_module(
+        "tracks", {**base, "decision": "TRACKS_SUFFICIENT", "coveragePct": 70.0},
+        TRADE_DATE, errors,
+    )
+    assert errors
+    # DEGRADED + 85 ≥ target → 状态矛盾，拒绝
+    errors = []
+    _validate_partial_module(
+        "tracks", {**base, "decision": "TRACKS_DEGRADED", "coveragePct": 85.0},
+        TRADE_DATE, errors,
+    )
+    assert errors
+    # 低于 floor → 拒绝
+    errors = []
+    _validate_partial_module(
+        "tracks", {**base, "decision": "TRACKS_DEGRADED", "coveragePct": 60.0},
+        TRADE_DATE, errors,
+    )
+    assert errors
+

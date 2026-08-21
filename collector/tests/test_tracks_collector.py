@@ -288,7 +288,7 @@ def test_module_result_contract_and_validate_snapshot(monkeypatch):
     # 模块级字段齐全
     assert result["status"] == ModuleStatus.PARTIAL.value
     assert result["dataDate"] == TRADE_DATE
-    assert result["configVersion"] == "3.0"
+    assert result["configVersion"] == "3.1"
     assert result["effectiveFrom"] == "2026-08-20"
     assert result["effectiveTo"] == "2026-12-31"
     assert result["sourceSystem"] == "SELF"
@@ -330,6 +330,45 @@ def test_module_result_contract_and_validate_snapshot(monkeypatch):
         "northbound",
         "margin",
         "summary",
+    ):
+        snapshot["modules"][name] = {
+            "status": ModuleStatus.UNAVAILABLE.value,
+            "dataDate": TRADE_DATE,
+            "source": ["TEST"],
+            "name": name,
+        }
+    snapshot["modules"]["tracks"] = result
+    finalize_snapshot(snapshot)
+    validate_snapshot(snapshot)
+
+
+def test_r13_p2_02_module_degraded_band(monkeypatch):
+    """R13-P2-02：模块 coverage 落入 [floor, target) → PARTIAL/TRACKS_DEGRADED。
+
+    healthcare 抽掉资金流 → 该赛道 7/11=63.6%，其余 3 赛道 9/11=81.8%，
+    模块均值 77.3% ∈ [65, 80) → 降级带（保留可用评分，不再 UNAVAILABLE）。
+    """
+    fake = _build_fake_archive()
+    fake["track-board-flow"] = [
+        r for r in fake["track-board-flow"] if r["boardCode"] != "BK1216"
+    ]
+    _patch_archive(monkeypatch, fake)
+
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    assert result["status"] == ModuleStatus.PARTIAL.value
+    assert result["decision"] == "TRACKS_DEGRADED"
+    assert result["dataReadiness"] == "DEGRADED"
+    assert 65.0 <= result["coveragePct"] < 80.0
+    assert result["coverageTargetPct"] == 80.0
+    assert result["coverageHardFloorPct"] == 65.0
+
+    # 降级带同样过 schema 校验器（PARTIAL + TRACKS_DEGRADED 合法）
+    from collector.validators.schema import validate_snapshot
+
+    snapshot = new_snapshot(TRADE_DATE)
+    for name in (
+        "marketIndex", "turnover", "sentiment", "sectorPerformance",
+        "fundFlow", "northbound", "margin", "summary",
     ):
         snapshot["modules"][name] = {
             "status": ModuleStatus.UNAVAILABLE.value,

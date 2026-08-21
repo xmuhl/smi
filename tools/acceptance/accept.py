@@ -51,6 +51,7 @@ from datetime import datetime, timezone
 # 项目根相对路径（脚本通常在 smi 目录下运行）。
 STANDARD_PATH = os.path.join("docs", "acceptance", "template-standard.json")
 MANIFEST_PATH = os.path.join("web", "public", "data", "manifest.json")
+LATEST_PATH = os.path.join("web", "public", "data", "latest.json")
 DAILY_DIR = os.path.join("web", "public", "data", "daily")
 DEFAULT_REPORT = os.path.join("work", "acceptance", "baseline-report.json")
 
@@ -2290,6 +2291,115 @@ def evaluate_modules(snapshot, standard, trade_date, manifest, daily_dir=None, c
     return checks, all_pass, inv_results
 
 
+def _validate_manifest_latest_identity(manifest, daily_dir=None):
+    """校验 manifest/latest/daily 顶层身份闭合（R13-P3-02）。
+
+    返回 gap 字符串列表；空列表表示通过。
+    """
+    daily_dir = daily_dir or DAILY_DIR
+    gaps = []
+
+    if not isinstance(manifest, dict):
+        return ["manifest 不是 object"]
+
+    available = manifest.get("availableDates")
+    if not isinstance(available, list) or not all(
+        isinstance(v, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", v)
+        for v in available
+    ):
+        return ["manifest.availableDates 非严格 YYYY-MM-DD 字符串数组"]
+
+    if len(available) != len(set(available)):
+        gaps.append("manifest.availableDates 存在重复日期")
+
+    if available != sorted(available):
+        gaps.append("manifest.availableDates 必须按日期升序排列")
+
+    captured = manifest.get("latestCapturedDate")
+    close_complete = manifest.get("latestCloseCompleteDate")
+    final = manifest.get("latestFinalDate")
+    latest_alias = manifest.get("latestDate")
+
+    if available:
+        if captured != available[-1]:
+            gaps.append(
+                "manifest.latestCapturedDate "
+                f"{captured!r} != availableDates 最大日期 {available[-1]!r}"
+            )
+    elif captured is not None:
+        gaps.append("availableDates 为空时 latestCapturedDate 必须为 null")
+
+    if latest_alias != captured:
+        gaps.append(
+            f"manifest.latestDate {latest_alias!r} "
+            f"!= latestCapturedDate {captured!r}"
+        )
+
+    for name, value in (
+        ("latestCapturedDate", captured),
+        ("latestCloseCompleteDate", close_complete),
+        ("latestFinalDate", final),
+    ):
+        if value is None:
+            continue
+        if value not in available:
+            gaps.append(f"manifest.{name}={value!r} 不在 availableDates 中")
+
+    non_null_chain = [
+        value for value in (final, close_complete, captured) if value is not None
+    ]
+    if non_null_chain != sorted(non_null_chain):
+        gaps.append(
+            "manifest 三指针顺序必须满足 "
+            "latestFinalDate <= latestCloseCompleteDate <= latestCapturedDate"
+        )
+
+    if captured is None:
+        if os.path.exists(LATEST_PATH):
+            gaps.append("latestCapturedDate=null 但 latest.json 仍存在")
+        return gaps
+
+    if not os.path.exists(LATEST_PATH):
+        gaps.append(f"latest.json 缺失: {LATEST_PATH}")
+        return gaps
+
+    try:
+        with open(LATEST_PATH, "r", encoding="utf-8") as fh:
+            latest_snapshot = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        gaps.append(f"latest.json 无法读取/解析: {exc}")
+        return gaps
+
+    latest_trade_date = (
+        latest_snapshot.get("tradeDate") if isinstance(latest_snapshot, dict) else None
+    )
+    if latest_trade_date != captured:
+        gaps.append(
+            f"latest.json.tradeDate={latest_trade_date!r} "
+            f"!= manifest.latestCapturedDate={captured!r}"
+        )
+
+    daily_path = os.path.join(daily_dir, captured[:4], f"{captured}.json")
+    if not os.path.exists(daily_path):
+        gaps.append(f"latestCapturedDate 对应 daily 文件缺失: {daily_path}")
+        return gaps
+
+    try:
+        with open(daily_path, "r", encoding="utf-8") as fh:
+            daily_snapshot = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        gaps.append(f"latestCapturedDate 对应 daily 文件无法读取/解析: {exc}")
+        return gaps
+
+    daily_trade_date = (
+        daily_snapshot.get("tradeDate") if isinstance(daily_snapshot, dict) else None
+    )
+    if daily_trade_date != captured:
+        gaps.append(f"{daily_path}.tradeDate={daily_trade_date!r} != {captured!r}")
+
+    return gaps
+
+
 def build_entry(trade_date, manifest, standard, daily_dir=None):
     daily_dir = daily_dir or DAILY_DIR
     yyyy = trade_date[:4]
@@ -2305,8 +2415,40 @@ def build_entry(trade_date, manifest, standard, daily_dir=None):
             "overall": "FAIL",
             "pass": False,
         }
-    with open(path, "r", encoding="utf-8") as fh:
-        snapshot = json.load(fh)
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            snapshot = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        for name in MODULE_ORDER:
+            modules_out[name] = _result(
+                "_", False, [_detail_gap(f"FILE_INVALID: {exc}")], "_"
+            )
+        return {
+            "gap": "FILE_INVALID",
+            "schemaValid": False,
+            "modules": modules_out,
+            "overall": "FAIL",
+            "pass": False,
+        }
+    # R13-P3-02：文件名日期与快照根 tradeDate 身份必须一致
+    actual_trade_date = (
+        snapshot.get("tradeDate") if isinstance(snapshot, dict) else None
+    )
+    if actual_trade_date != trade_date:
+        msg = (
+            "SNAPSHOT_IDENTITY_MISMATCH: "
+            f"pathDate={trade_date!r}, "
+            f"snapshot.tradeDate={actual_trade_date!r}"
+        )
+        for name in MODULE_ORDER:
+            modules_out[name] = _result("_", False, [_detail_gap(msg)], "_")
+        return {
+            "gap": "SNAPSHOT_IDENTITY_MISMATCH",
+            "schemaValid": False,
+            "modules": modules_out,
+            "overall": "FAIL",
+            "pass": False,
+        }
     checks, all_pass, inv_results = evaluate_modules(snapshot, standard, trade_date, manifest, daily_dir)
     modules_out = checks
     overall_pass = all_pass
@@ -2418,8 +2560,19 @@ def main(argv=None):
     if not os.path.exists(MANIFEST_PATH):
         sys.stderr.write(f"日期清单缺失: {MANIFEST_PATH}\n")
         sys.exit(2)
-    with open(MANIFEST_PATH, "r", encoding="utf-8") as fh:
-        manifest = json.load(fh)
+    try:
+        with open(MANIFEST_PATH, "r", encoding="utf-8") as fh:
+            manifest = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"manifest 无法读取/解析: {exc}\n")
+        sys.exit(2)
+
+    # R13-P3-02：manifest/latest/daily 顶层身份闭合预检（退出码 4）
+    identity_errors = _validate_manifest_latest_identity(manifest, DAILY_DIR)
+    if identity_errors:
+        for error in identity_errors:
+            sys.stderr.write(f"身份自检失败: {error}\n")
+        sys.exit(4)
 
     if args.date:
         dates = [args.date]

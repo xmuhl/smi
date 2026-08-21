@@ -62,6 +62,8 @@ def _boards_needing_history(
     from collector.modules.tracks import (
         dynamic_track_identity,
         select_candidate_boards,
+    select_discovery_pool,
+    select_scoring_pool,
     )
 
     threshold = (
@@ -98,11 +100,19 @@ def _boards_needing_history(
             }
         )
 
+    # R13-P2-01 预热池：正式评分池（迟滞选池）∪ 发现池（成交额前
+    # prewarmRankMax，不筛净流入）一并回补 close 历史，消除首次入选后
+    # 才开始累积历史的冷启动；预热数据不直接参与评分。
     try:
-        for cand in select_candidate_boards(target):
+        seen: set[tuple[str, str]] = set()
+        for cand in (
+            select_scoring_pool(target) + select_discovery_pool(target)
+        ):
             identity = dynamic_track_identity(cand)
-            if (identity["trackId"], identity["boardCode"]) in existing_keys:
+            key = (identity["trackId"], identity["boardCode"])
+            if key in existing_keys or key in seen:
                 continue
+            seen.add(key)
             boards.append(
                 {
                     "trackId": identity["trackId"],

@@ -413,20 +413,40 @@ def _validate_partial_module(
                 f"{module.get('dataDate')} != tradeDate {trade_date}"
             )
 
-        if module.get("decision") != "TRACKS_SUFFICIENT":
+        # R13-P2-02：三态 coverage 门禁——TRACKS_SUFFICIENT(READY) 要求
+        # coverage>=target；TRACKS_DEGRADED 允许 [floor, target) 区间。
+        # 阈值以 config/track-scoring.yaml 为单一真源。
+        from collector.config import load_yaml
+
+        _dcfg = load_yaml("track-scoring.yaml").get("decision", {}) or {}
+        _target = float(_dcfg.get("coverage_target_pct", 80.0))
+        _floor = float(_dcfg.get("coverage_hard_floor_pct", 65.0))
+
+        decision = module.get("decision")
+        if decision not in ("TRACKS_SUFFICIENT", "TRACKS_DEGRADED"):
             errors.append(
-                "tracks: PARTIAL decision must be TRACKS_SUFFICIENT"
+                "tracks: PARTIAL decision must be TRACKS_SUFFICIENT "
+                "or TRACKS_DEGRADED"
             )
 
         coverage = module.get("coveragePct")
 
         if (
             not _is_finite_number(coverage)
-            or float(coverage) < 80.0
+            or float(coverage) < _floor
             or float(coverage) > 100.0
         ):
             errors.append(
-                "tracks: PARTIAL coveragePct must be finite within [80, 100]"
+                f"tracks: PARTIAL coveragePct must be finite within "
+                f"[{_floor}, 100]"
+            )
+        elif decision == "TRACKS_SUFFICIENT" and float(coverage) < _target:
+            errors.append(
+                f"tracks: TRACKS_SUFFICIENT requires coveragePct >= {_target}"
+            )
+        elif decision == "TRACKS_DEGRADED" and float(coverage) >= _target:
+            errors.append(
+                f"tracks: TRACKS_DEGRADED requires coveragePct < {_target}"
             )
 
         return

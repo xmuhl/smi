@@ -116,10 +116,9 @@ def _ensure_universe_archived(trade_date: str) -> None:
     ops 守卫串行（§39.5.5）。
     """
     try:
-        from datetime import datetime
-
-        from collector.schema import TZ_SHANGHAI
-
+        # 使用模块级 datetime/TZ_SHANGHAI（而非函数内局部导入），
+        # 保证测试可 monkeypatch 时间源（时间炸弹教训：硬编码日期测试
+        # 跨日必红，见 test_p1_3_ensure_universe_archived）。
         if trade_date != datetime.now(TZ_SHANGHAI).date().isoformat():
             return  # 历史日无免费 universe 源，fail-closed
 

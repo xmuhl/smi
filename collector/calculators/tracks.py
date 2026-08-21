@@ -15,6 +15,17 @@ def score_tracks(
 ) -> list[dict[str, Any]]:
     cfg = load_yaml("track-scoring.yaml")
     decision_cfg = cfg["decision"]
+    # R13-P2-02：三态 coverage 门禁。INSUFFICIENT 只由硬下限触发；
+    # [floor, target) 区间保留评分但标 DEGRADED（降置信，不再一刀切）。
+    coverage_target = float(
+        decision_cfg.get(
+            "coverage_target_pct",
+            decision_cfg["coverage_warn_pct"],
+        )
+    )
+    coverage_floor = float(
+        decision_cfg.get("coverage_hard_floor_pct", 65.0)
+    )
 
     results: list[dict[str, Any]] = []
 
@@ -26,19 +37,17 @@ def score_tracks(
 
         dims = _dimension_flags(track)
 
-        if (
-            score is None
-            or coverage
-            < float(
-                decision_cfg["coverage_warn_pct"]
-            )
-        ):
+        if score is None or coverage < coverage_floor:
             decision = "INSUFFICIENT"
+            readiness = "INSUFFICIENT"
         else:
             decision = _decide_four(
                 score,
                 dims,
                 decision_cfg,
+            )
+            readiness = (
+                "READY" if coverage >= coverage_target else "DEGRADED"
             )
 
         results.append(
@@ -55,6 +64,9 @@ def score_tracks(
                 ),
                 "decision": decision,
                 "dimensionPass": dims,
+                # R13-P2-02：数据就绪状态（READY/DEGRADED/INSUFFICIENT；
+                # 动态候选冷启动由模块层覆盖为 WARMING_UP）
+                "dataReadiness": readiness,
             }
         )
 

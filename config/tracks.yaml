@@ -15,7 +15,7 @@
 # 使用的精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该
 # 赛道归档 UNAVAILABLE（fail-closed，不伪造）。
 
-configVersion: "3.0"
+configVersion: "3.1"
 effectiveFrom: "2026-08-20"
 effectiveTo: "2026-12-31"
 
@@ -27,6 +27,24 @@ selection:
   amountWindowDays: 5
   # 候选必须当日主力净流入为正（范本资金维度硬阈值）
   requirePositiveInflow: true
+  # R13-P2-01 入/出池迟滞（防单日资金翻正/翻负或排名 8/9 抖动反复进出池）：
+  # - 准入：近 entryWindowDays 个 universe 归档日内至少 entryMinDays 日满足
+  #   "成交额排名<=poolSize 且当日净流入>0"才入池（归档历史不足时按实际
+  #   天数收敛，冷启动退化为单日规则）；
+  # - 退出：连续 exitConfirmDays 日触及出池条件（排名>exitRankMax 或净流
+  #   入非正或当日缺行）才出池——双阈值分离（入 8 / 出 12）；
+  entryWindowDays: 3
+  entryMinDays: 2
+  exitRankMax: 12
+  exitConfirmDays: 2
+  # R13-P2-01 预热池：成交额排名前 prewarmRankMax 的板块由 archive-raw
+  # 持续回补 close 历史（不要求当日净流入为正），消除"首次入选次日才开始
+  # 累积历史"的冷启动；预热数据不直接提升评分。
+  prewarmRankMax: 16
+  # 历史就绪门禁：动态候选 close 历史 < minHistoryDays 个交易日记为
+  # dataReadiness=WARMING_UP（与 FETCH_FAILED 语义分离，前端不显示为
+  # "获取失败"）；MA20/20 日窗口类指标的最低就绪线。
+  minHistoryDays: 20
 
 boardMetadata:
   银行:

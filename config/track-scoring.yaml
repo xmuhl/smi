@@ -94,4 +94,13 @@ decision:
   pass_min: 75
   watch_min: 55
   coverage_warn_pct: 80
+  # R13-P2-02：coverage 三态分级（替代单一硬门槛 fail-fast）
+  # - coverage_target_pct：完整度目标线（>= → READY / TRACKS_SUFFICIENT），
+  #   是质量目标，不再是模块死亡线；
+  # - coverage_hard_floor_pct：硬下限（< → UNAVAILABLE / TRACKS_INSUFFICIENT）；
+  #   [floor, target) → DEGRADED（PARTIAL + decision=TRACKS_DEGRADED，
+  #   保留可用评分，仅降置信）。临时值 65，待 20~30 个真实交易日 coverage
+  #   分布回放后再标定最终值。
+  coverage_target_pct: 80
+  coverage_hard_floor_pct: 65
   secondary_missing_dimensions_allowed: 1

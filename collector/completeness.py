@@ -20,8 +20,22 @@ from typing import Any
 
 from collector.status import ModuleStatus
 
-# D0 CLOSE_COMPLETE 需要 tracks 达到 FINAL 或 TRACKS_SUFFICIENT（coverage >= 80）
+# D0 CLOSE_COMPLETE 需要 tracks 达到 FINAL 或 TRACKS_SUFFICIENT
+# （coverage >= coverage_target_pct，缺省 80；R13-P2-02 起以
+# config/track-scoring.yaml 为单一真源。TRACKS_DEGRADED 不点亮 D0）
 TRACKS_SUFFICIENT_MIN_COVERAGE = 80.0
+
+
+def _tracks_sufficient_min_coverage() -> float:
+    try:
+        from collector.config import load_yaml
+
+        dcfg = load_yaml("track-scoring.yaml").get("decision", {}) or {}
+        return float(
+            dcfg.get("coverage_target_pct", TRACKS_SUFFICIENT_MIN_COVERAGE)
+        )
+    except Exception:  # noqa: BLE001 配置不可读时退化常量（fail-closed 等价）
+        return TRACKS_SUFFICIENT_MIN_COVERAGE
 
 NON_MARGIN_MODULES = (
     "marketIndex",
@@ -82,7 +96,7 @@ def _tracks_ok(tracks: dict[str, Any] | None) -> bool:
 
     return (
         isfinite(value)
-        and TRACKS_SUFFICIENT_MIN_COVERAGE <= value <= 100.0
+        and _tracks_sufficient_min_coverage() <= value <= 100.0
     )
 
 

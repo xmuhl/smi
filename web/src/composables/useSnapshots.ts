@@ -23,16 +23,35 @@ export function useDailySnapshot() {
   const loading = ref(false);
   const error = ref<string>("");
 
+  // R13-P3-05：请求序列保护——只有最后一次 load() 允许提交状态，
+  // 防止快速切换日期时较慢的旧请求覆盖新请求结果。
+  let requestSequence = 0;
+
   async function load(date: string) {
+    const requestId = ++requestSequence;
+
     loading.value = true;
     error.value = "";
+
     try {
-      snapshot.value = await loadDaily(date);
+      const nextSnapshot = await loadDaily(date);
+
+      if (requestId !== requestSequence) {
+        return;
+      }
+
+      snapshot.value = nextSnapshot;
     } catch (e) {
+      if (requestId !== requestSequence) {
+        return;
+      }
+
       error.value = e instanceof Error ? e.message : String(e);
       snapshot.value = null;
     } finally {
-      loading.value = false;
+      if (requestId === requestSequence) {
+        loading.value = false;
+      }
     }
   }
 
