@@ -2,10 +2,10 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-20",
   "generatedAt": "2026-08-20T17:00:18+08:00",
-  "updatedAt": "2026-08-20T19:08:13+08:00",
-  "revision": 4,
-  "overallStatus": "PARTIAL_PENDING",
-  "generationReason": "TURNOVER_CHAIN_RECONCILE",
+  "updatedAt": "2026-08-21T11:17:34+08:00",
+  "revision": 5,
+  "overallStatus": "PARTIAL_ERROR",
+  "generationReason": "T1_RECONCILE",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -35194,7 +35194,7 @@
       "errors": []
     },
     "margin": {
-      "status": "PENDING",
+      "status": "ERROR",
       "dataDate": null,
       "source": [
         "SSE",
@@ -35202,14 +35202,14 @@
       ],
       "unit": "亿元",
       "errors": [
-        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
       ],
       "warnings": [],
       "latestPublishedReference": {
-        "dataDate": "2026-08-14",
-        "financingBalance": 26395.28,
-        "securitiesLendingBalance": 259.72,
-        "marginBalance": 26655.01
+        "dataDate": "2026-08-18",
+        "financingBalance": 26625.16,
+        "securitiesLendingBalance": 270.44,
+        "marginBalance": 26895.59
       }
     },
     "tracks": {
@@ -35431,11 +35431,11 @@
       "indexAndTurnover": "上证指数收涨 +0.24%；创业板表现强于沪深300。",
       "sentiment": "上涨 4096 家、下跌 1346 家，非ST涨停 79 家，上涨家数占优。",
       "fundFlow": "行业主力净流入居前：医疗服务、贵金属、银行；行业主力净流出居前：半导体、电池、小金属。",
-      "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-08-14）总余额 26655.01 亿元。",
+      "margin": "两融模块暂未取得完整有效数据，本项不作判断。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
       "marketEnvironment": "沪深两市成交额 20788 亿元，前一交易日 25126 亿元，较前一交易日减少 4338 亿元（-17.26%），缩量。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",
-      "riskWarning": "待披露：margin。 当前不可用：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
+      "riskWarning": "获取失败：margin。 当前不可用：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
   },
   "validation": {
