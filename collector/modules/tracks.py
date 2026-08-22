@@ -805,8 +805,10 @@ def select_scoring_pool(
 
     # 输出当日有 universe 行的池成员（缺行成员保留池籍但当日不可评分）。
     # R23-P2-01 两层资格：当日范本资格（rank <= entryRankMax）与迟滞观察
-    # 保留（曾入选、现 rank ∈ (entryRankMax, exitRankMax]、未满出池确认）
-    # 是两个独立资格层，输出显式分层标记，调用方/前端不得等价呈现。
+    # 保留（曾入选、rank > entryRankMax 且未满出池确认——含
+    # (entryRankMax, exitRankMax] 观察区与 > exitRankMax 出池宽限两种
+    # 形态，见 C1 决议）是两个独立资格层，输出显式分层标记，
+    # 调用方/前端不得等价呈现。
     items = [
         {
             **rank_by_date[trade_date][name],
