@@ -46,12 +46,14 @@ selection:
   #（score=null、decision=数据不足）、不计入模块 coverage 分母与 D0；
   # MA20/20 日窗口类指标的最低就绪线。
   minHistoryDays: 20
-  # universe 最低完整性门禁（R14 §5.4）：当日 universe 板块行数
-  # >= max(minUniverseBoards, 全历史单日峰值 * minUniverseBoardRatio) 才
-  # 视为完整证据日；不完整日不驱动出池 streak、不提供入池命中——
-  # 防止上游部分响应被误解释为市场资格失败（缺行=exit hit 的前置）。
+  # universe 最低完整性门禁（R14 §5.4，R15 评审因果化修订）：证据日
+  # 判定只依赖严格早于当日的可信前向峰值（只有完整日抬高基线；未来
+  # 更高峰值不回溯改写历史证据资格）；绝对下限来自已验证完整快照——
+  # 2026-08-20 实测 THS universe 90 板块，取其半。不完整日不驱动出池
+  # streak、不提供入池命中（缺行=exit hit 的前置是当日 universe 已
+  # 通过完整性校验）。
   minUniverseBoardRatio: 0.5
-  minUniverseBoards: 0
+  minUniverseBoards: 45
 
 boardMetadata:
   银行:

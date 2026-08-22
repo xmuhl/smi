@@ -1084,6 +1084,18 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
     if cfg_version is None:
         details.append(_detail_gap("模块级 configVersion 缺失"))
 
+    # R16 版本分支（R15 评审阻断点 G）：configVersion>=3.2 走严格 v4
+    # 字段契约；3.0/3.1/2.0 等存量只做状态⇄decision 配对（显式兼容分支，
+    # 不靠 optionality 偶然放行）。"legacy" 等非数值合法标记按非 strict。
+    strict_v42 = False
+    if isinstance(cfg_version, str):
+        try:
+            strict_v42 = (
+                tuple(int(x) for x in cfg_version.split(".")[:2]) >= (3, 2)
+            )
+        except ValueError:
+            strict_v42 = False
+
     # 生效区间覆盖 tradeDate（除 legacy+参考日豁免）——防止今天配置倒灌历史日期。
     # P0-006-A：effectiveFrom/effectiveTo 用 _parse_iso_date_strict 严格解析，任一不可解析即 FAIL（fail-closed，不再跳过比较）。
     if not exempt_eff:
@@ -1113,54 +1125,76 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
         target = float(contract.get("coverageTargetPct", 80.0))
         floor = float(contract.get("coverageHardFloorPct", 65.0))
         module_decisions = set(contract.get("moduleDecisions") or [])
-        if status in ("FINAL", "PARTIAL"):
-            if decision is None:
-                details.append(_detail_gap(
-                    f"status={status} 必须携带模块级 decision"))
-            elif module_decisions and decision not in module_decisions:
-                details.append(_detail_gap(
-                    f"模块级 decision={decision!r} 不在契约枚举"))
-        if (
-            status == "FINAL"
-            and decision is not None
-            and decision != "TRACKS_SUFFICIENT"
-        ):
-            details.append(_detail_gap(
-                f"FINAL 仅允许 TRACKS_SUFFICIENT，实际 {decision!r}"))
-        if (
-            status == "PARTIAL"
-            and isinstance(decision, str)
-            and decision.startswith("TRACKS_")
-        ):
-            if not _is_finite_number(cov):
-                details.append(_detail_gap(
-                    f"PARTIAL/{decision} 必须携带有限 coveragePct，实际 {cov!r}"))
-            else:
-                covf = float(cov)
-                if decision == "TRACKS_SUFFICIENT" and covf < target:
-                    details.append(_detail_gap(
-                        f"TRACKS_SUFFICIENT 要求 coverage>={target}，实际 {covf}"))
-                if decision == "TRACKS_DEGRADED" and not (floor <= covf < target):
-                    details.append(_detail_gap(
-                        f"TRACKS_DEGRADED 要求 coverage∈[{floor},{target})，实际 {covf}"))
-        if (
-            status == "UNAVAILABLE"
-            and isinstance(decision, str)
-            and decision.startswith("TRACKS_")
-            and decision != "TRACKS_INSUFFICIENT"
-        ):
-            details.append(_detail_gap(
-                f"UNAVAILABLE 仅允许 TRACKS_INSUFFICIENT，实际 {decision!r}"))
         readiness_map = contract.get("readinessMap") or {}
-        if (
-            readiness is not None
-            and isinstance(decision, str)
-            and decision in readiness_map
-            and readiness != readiness_map[decision]
-        ):
+
+        # 1) decision 必须存在且属于契约枚举（所有状态，无一例外）
+        if decision is None:
             details.append(_detail_gap(
-                f"dataReadiness={readiness!r} 与 decision={decision!r} 不一致"
-                f"（期望 {readiness_map[decision]!r}）"))
+                f"status={status} 必须携带模块级 decision"))
+        elif module_decisions and decision not in module_decisions:
+            details.append(_detail_gap(
+                f"模块级 decision={decision!r} 不在契约枚举"))
+
+        # 2) 穷举状态机：status ⇄ decision ⇄ coverage 区间（R15 阻断点
+        #    A/B/C：PARTIAL+INSUFFICIENT、UNAVAILABLE 缺 decision/旧值、
+        #    FINAL 不验 coverage 均须 FAIL）
+        if decision is not None and decision in module_decisions:
+            if status == "FINAL":
+                if decision != "TRACKS_SUFFICIENT":
+                    details.append(_detail_gap(
+                        f"FINAL 仅允许 TRACKS_SUFFICIENT，实际 {decision!r}"))
+                if not _is_finite_number(cov) or float(cov) < target:
+                    details.append(_detail_gap(
+                        f"FINAL/TRACKS_SUFFICIENT 要求 coverage>={target}，"
+                        f"实际 {cov!r}"))
+            elif status == "PARTIAL":
+                if decision == "TRACKS_INSUFFICIENT":
+                    details.append(_detail_gap(
+                        "PARTIAL 不允许 TRACKS_INSUFFICIENT（该 decision 仅属于 "
+                        "UNAVAILABLE；PARTIAL⇄SUFFICIENT|DEGRADED）"))
+                elif decision == "TRACKS_SUFFICIENT":
+                    if not _is_finite_number(cov) or float(cov) < target:
+                        details.append(_detail_gap(
+                            f"TRACKS_SUFFICIENT 要求 coverage>={target}，实际 {cov!r}"))
+                elif decision == "TRACKS_DEGRADED":
+                    if not _is_finite_number(cov) or not (floor <= float(cov) < target):
+                        details.append(_detail_gap(
+                            f"TRACKS_DEGRADED 要求 coverage∈[{floor},{target})，实际 {cov!r}"))
+            elif status == "UNAVAILABLE":
+                if decision != "TRACKS_INSUFFICIENT":
+                    details.append(_detail_gap(
+                        f"UNAVAILABLE 仅允许 TRACKS_INSUFFICIENT，实际 {decision!r}"))
+
+        # 3) readinessMap（R15 阻断点 D）：strict 必填且精确一致；
+        #    非 strict 存在时仍须一致（软校验），缺失不追加要求
+        if decision is not None and decision in readiness_map:
+            expected_r = readiness_map[decision]
+            if readiness is None:
+                if strict_v42:
+                    details.append(_detail_gap(
+                        "configVersion>=3.2 必须携带模块级 dataReadiness"
+                        f"（decision={decision!r} 期望 {expected_r!r}）"))
+            elif readiness != expected_r:
+                details.append(_detail_gap(
+                    f"dataReadiness={readiness!r} 与 decision={decision!r} 不一致"
+                    f"（期望 {expected_r!r}）"))
+
+        if strict_v42:
+            # R15 阻断点 D：阈值透传字段必填且与 decisionContract 单一真源一致
+            for fkey, want in (
+                ("coverageTargetPct", target),
+                ("coverageHardFloorPct", floor),
+            ):
+                val = mod.get(fkey)
+                if not _is_finite_number(val):
+                    details.append(_detail_gap(
+                        f"configVersion>=3.2 必须携带有限 {fkey}，实际 {val!r}"))
+                elif float(val) != want:
+                    details.append(_detail_gap(
+                        f"{fkey}={val!r} 与 decisionContract({want}) 不一致"))
+            if not isinstance(mod.get("warmingUpBoards"), list):
+                details.append(_detail_gap(
+                    "configVersion>=3.2 必须携带模块级 warmingUpBoards 数组"))
 
     # items >= 4 且逐列 typed 校验
     items = mod.get("items")
@@ -1171,13 +1205,25 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
         # v4：UNAVAILABLE 的 items 可为空/信息性，契约由模块级矩阵约束
         skip_item_checks = is_v4 and status == "UNAVAILABLE"
         if not skip_item_checks and is_v4:
-            # 正式/预热分离（R14 §5.3）：WARMING_UP 不计 minFormalItems、
-            # 不得输出成熟 score/decision；非动态候选定性列强制非空。
-            formal_items = [
-                it for it in items
-                if not (isinstance(it, dict)
-                        and it.get("dataReadiness") == "WARMING_UP")
-            ]
+            # 正式/预热分离（R14 §5.3；R15 阻断点 E/F 修订）：
+            # - formal 仅计 dataReadiness∈{READY,DEGRADED}（strict）——
+            #   INSUFFICIENT/FETCH_FAILED 是诚实数据缺口，不是"正式评分项"，
+            #   不得充数 minFormalItems；非 strict（3.0/3.1 存量）沿用
+            #   "非 WARMING_UP 即 formal" 的旧口径（旧数据无 readiness 字段）。
+            # - WARMING_UP 四字段（score/coveragePct/dimensionPass/decision）
+            #   全部按生产契约校验，不得只查两项。
+            if strict_v42:
+                formal_items = [
+                    it for it in items
+                    if isinstance(it, dict)
+                    and it.get("dataReadiness") in ("READY", "DEGRADED")
+                ]
+            else:
+                formal_items = [
+                    it for it in items
+                    if not (isinstance(it, dict)
+                            and it.get("dataReadiness") == "WARMING_UP")
+                ]
             warming_items = [
                 it for it in items
                 if isinstance(it, dict)
@@ -1186,7 +1232,7 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
             min_formal = int(contract.get("minFormalItems", 4))
             if len(formal_items) < min_formal:
                 details.append(_detail_gap(
-                    f"正式评分项（非 WARMING_UP）数量 "
+                    f"正式评分项（dataReadiness∈READY/DEGRADED）数量 "
                     f"{len(formal_items)} < {min_formal}"))
             for w in warming_items:
                 if w.get("score") is not None:
@@ -1196,6 +1242,12 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                     details.append(_detail_gap(
                         f"WARMING_UP 项 {w.get('trackId')!r} "
                         f"decision 必须为「数据不足」，实际 {w.get('decision')!r}"))
+                if w.get("coveragePct") is not None:
+                    details.append(_detail_gap(
+                        f"WARMING_UP 项 {w.get('trackId')!r} coveragePct 必须为 null"))
+                if w.get("dimensionPass") is not None:
+                    details.append(_detail_gap(
+                        f"WARMING_UP 项 {w.get('trackId')!r} dimensionPass 必须为 null"))
             for it in formal_items:
                 if not isinstance(it, dict):
                     continue

@@ -1,0 +1,180 @@
+{
+  "reportCommitSemantics": "two-commit：先提交输入树后运行验收，报告单独提交。evaluatedCommit=被验收输入树(HEAD)所在提交；dirty=true 表示未提交改动存在，输入树未完全固化。",
+  "provenance": {
+    "repoCommit": "ebac337f6b6dc8d375caed57611286b65441a955",
+    "evaluatedCommit": "ebac337f6b6dc8d375caed57611286b65441a955",
+    "dirty": true,
+    "standardSha256": "66845743d25ba3010094a0a19abc46c0a0059f9d446845fbb579e714cbf43e9a",
+    "acceptorSha256": "79d6f4c3c32de33e10f97b38983493b70f8dd42f38ea09fcca3949826790e69d",
+    "manifestSha256": "b1a57c1006c38cb1d5574face345d4eab33c9afa59da247e3dd3c3f849bb3211",
+    "schemaVersion": "1.2",
+    "perDateSnapshotSha256": {
+      "2026-07-17": "313be8ebee230490841abd9160b0a2294b28d8404c6bbe0ebeed938e063719a6"
+    },
+    "pythonVersion": "3.13.5",
+    "generatedAt": "2026-08-22T13:54:19.988880+08:00"
+  },
+  "standard": "docs\\acceptance\\template-standard.json",
+  "dates": {
+    "2026-07-17": {
+      "gap": null,
+      "overall": "PASS",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_LEGACY_IMPORTED 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "前一日 FINAL margin 缺失/非 FINAL：环比恒等记录为 gap（不判 fail）"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "tracks_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "tracks_V2: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "summary": {
+    "passDates": [
+      "2026-07-17"
+    ],
+    "failDates": [],
+    "moduleFailCounts": [
+      {
+        "module": "marketIndex",
+        "failDates": 0
+      },
+      {
+        "module": "turnover",
+        "failDates": 0
+      },
+      {
+        "module": "sentiment",
+        "failDates": 0
+      },
+      {
+        "module": "sectorPerformance",
+        "failDates": 0
+      },
+      {
+        "module": "fundFlow",
+        "failDates": 0
+      },
+      {
+        "module": "northbound",
+        "failDates": 0
+      },
+      {
+        "module": "margin",
+        "failDates": 0
+      },
+      {
+        "module": "tracks",
+        "failDates": 0
+      },
+      {
+        "module": "summary",
+        "failDates": 0
+      }
+    ]
+  }
+}

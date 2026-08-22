@@ -474,3 +474,107 @@ def test_tracks_v4_seed_catalyst_required(standard):
     ok, text = _run_tracks_v4(mod, standard)
     assert not ok and "必填非空" in text
     # 动态项留白在正例中已覆盖（_v4_warming_item catalyst/earnings 为空）
+
+# ------------------------------------------------- R15 评审阻断点 A~F 负向回归
+def test_tracks_v4_partial_insufficient_rejected(standard):
+    """阻断点 A：PARTIAL + TRACKS_INSUFFICIENT 必须FAIL（该 decision 仅属 UNAVAILABLE）。"""
+    mod = _v4_module(decision="TRACKS_INSUFFICIENT", dataReadiness="FAILED",
+                     coveragePct=40.0)
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "PARTIAL 不允许 TRACKS_INSUFFICIENT" in text
+
+
+def test_tracks_v4_unavailable_missing_decision_rejected(standard):
+    """阻断点 B：UNAVAILABLE + decision=null 必须 FAIL。"""
+    mod = _v4_module(status="UNAVAILABLE", decision=None, items=[])
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "必须携带模块级 decision" in text
+
+
+def test_tracks_v4_unavailable_legacy_decision_rejected(standard):
+    """阻断点 B：UNAVAILABLE + 旧枚举 'INSUFFICIENT'（非 TRACKS_ 前缀）必须 FAIL。"""
+    mod = _v4_module(status="UNAVAILABLE", decision="INSUFFICIENT", items=[])
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "不在契约枚举" in text
+
+
+def test_tracks_v4_final_below_target_rejected(standard):
+    """阻断点 C：FINAL + TRACKS_SUFFICIENT 但 coverage<target 必须 FAIL。"""
+    mod = _v4_module(status="FINAL", coveragePct=79.9)
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "FINAL/TRACKS_SUFFICIENT 要求 coverage" in text
+
+
+def test_tracks_v4_final_coverage_missing_rejected(standard):
+    """阻断点 C：FINAL + coverage 缺失必须 FAIL。"""
+    mod = _v4_module(status="FINAL", coveragePct=None)
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "FINAL/TRACKS_SUFFICIENT 要求 coverage" in text
+
+
+def test_tracks_v4_insufficient_items_not_formal(standard):
+    """阻断点 E：INSUFFICIENT readiness 项不得充当正式评分项（minFormalItems）。"""
+    def insuff(tid):
+        it = _v4_formal_item(tid)
+        it["dataReadiness"] = "INSUFFICIENT"
+        it["score"] = None
+        it["decision"] = "数据不足"
+        it["decisionCode"] = "INSUFFICIENT"
+        return it
+    mod = _v4_module(items=[insuff(t) for t in ("power", "dividend", "healthcare", "semiconductor")])
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "正式评分项" in text and "0 < 4" in text
+
+
+def test_tracks_v4_warming_coverage_pct_rejected(standard):
+    """阻断点 F：WARMING_UP 项 coveragePct 非 null 必须 FAIL。"""
+    mod = _v4_module()
+    mod["items"][-1]["coveragePct"] = 50.0
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "coveragePct 必须为 null" in text
+
+
+def test_tracks_v4_warming_dimension_pass_rejected(standard):
+    """阻断点 F：WARMING_UP 项 dimensionPass 非 null 必须 FAIL。"""
+    mod = _v4_module()
+    mod["items"][-1]["dimensionPass"] = {"capital": None}
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "dimensionPass 必须为 null" in text
+
+
+def test_tracks_v4_strict_missing_readiness_rejected(standard):
+    """阻断点 D：configVersion>=3.2 必须携带模块级 dataReadiness。"""
+    mod = _v4_module()
+    del mod["dataReadiness"]
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "必须携带模块级 dataReadiness" in text
+
+
+def test_tracks_v4_strict_threshold_field_mismatch_rejected(standard):
+    """阻断点 D：coverageTargetPct 缺失/与 decisionContract 不一致必须 FAIL。"""
+    mod = _v4_module()
+    del mod["coverageTargetPct"]
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "必须携带有限 coverageTargetPct" in text
+
+    mod2 = _v4_module(coverageTargetPct=90.0)
+    ok2, text2 = _run_tracks_v4(mod2, standard)
+    assert not ok2 and "与 decisionContract(80.0) 不一致" in text2
+
+
+def test_tracks_v4_legacy_30_shape_still_passes(standard):
+    """阻断点 G 正例：3.0 存量形态（无 dataReadiness/阈值透传字段）经显式
+    版本分支合法通过——真实 2026-08-20 生产快照形态。"""
+    mod = {
+        "status": "UNAVAILABLE",
+        "dataDate": TRACKS_V4_DATE,
+        "configVersion": "3.0",
+        "effectiveFrom": "2026-08-20",
+        "effectiveTo": "2026-12-31",
+        "sourceSystem": "THS_UNIVERSE",
+        "decision": "TRACKS_INSUFFICIENT",
+        "coveragePct": 71.4,
+        "items": [],
+    }
+    ok, text = _run_tracks_v4(mod, standard)
+    assert ok, f"3.0 存量形态应 PASS：{text}"

@@ -36,6 +36,9 @@ jobs:
       - name: Run Python tests
         run: pytest -q collector/tests
 
+      - name: Acceptance contract tests (R15-P3-01)
+        run: pytest -q tools/acceptance/test_accept.py
+
       - name: Archive site-check selftest (R13-P3-04)
         run: bash tools/deploy/test_verify_archive_sync.sh
 

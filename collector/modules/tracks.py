@@ -657,7 +657,14 @@ def select_scoring_pool(
             for item in _universe_ranking(per_board, d, window_days)
         }
 
-    # 逐日 universe 完整性：板块行数 >= max(绝对下限, 历史峰值*比例)
+    # 逐日 universe 完整性（R15 评审因果化修订）：证据日判定只依赖
+    # **严格早于当日**的可信历史（前向峰值），未来的更高峰值不得回溯
+    # 改写历史日的证据资格（R15 复现：D1/D2=2 板块入池后，D3 恢复 6 板块
+    # 会使全局峰值抬到 6 → D1/D2 被回溯判为不完整 → 池无解释清空）。
+    # - 绝对下限 minUniverseBoards 来自已验证完整快照（2026-08-20 实测
+    #   90 板块，取其半），防冷启动期部分响应被"相对自身峰值"漏放；
+    # - 前向峰值只由**已通过门禁的完整日**抬高（可信基线），未过门禁的
+    #   部分响应日不污染基线。
     board_count_by_date: dict[str, int] = {d: 0 for d in known_dates}
     for rows in per_board.values():
         dates_present = {r["date"] for r in rows}
@@ -666,12 +673,13 @@ def select_scoring_pool(
                 board_count_by_date[d] += 1
     min_ratio = float(selection.get("minUniverseBoardRatio", 0.5))
     min_abs = int(selection.get("minUniverseBoards", 0))
-    peak_count = max(board_count_by_date.values(), default=0)
-    complete_threshold = max(min_abs, peak_count * min_ratio)
-    complete_dates = {
-        d for d in known_dates
-        if board_count_by_date[d] >= complete_threshold
-    }
+    complete_dates: set[str] = set()
+    trusted_peak = 0
+    for d in known_dates:  # 升序遍历 → 严格因果
+        threshold = max(min_abs, trusted_peak * min_ratio)
+        if board_count_by_date[d] >= threshold:
+            complete_dates.add(d)
+            trusted_peak = max(trusted_peak, board_count_by_date[d])
 
     pool: list[str] = []
     exit_streak: dict[str, int] = {}

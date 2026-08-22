@@ -72,11 +72,33 @@ def _fake_universe() -> list[dict]:
     return records
 
 
-def _patch_archive(monkeypatch, fake):
+def _patch_archive(monkeypatch, fake, min_universe_boards=1):
+    """打归档假数据。
+
+    min_universe_boards：同步覆写 universe 完整性门禁的绝对下限。生产
+    minUniverseBoards=45（已验证 90 板块快照之半），玩具宇宙只有 1~6
+    板块，必须按玩具尺度放宽才能聚焦迟滞/预热语义；门禁专项测试传
+    None（用真实配置）或自定义值（如 2）。
+    """
     def fake_read(kind, **kwargs):
         return fake.get(kind, [])
 
     monkeypatch.setattr(_archive, "read_records", fake_read)
+    if min_universe_boards is None:
+        return
+    real_load_yaml = tracks_mod.load_yaml
+
+    def fake_load_yaml(name):
+        cfg = real_load_yaml(name)
+        if name == "tracks.yaml":
+            sel = {
+                **cfg.get("selection", {}),
+                "minUniverseBoards": min_universe_boards,
+            }
+            cfg = {**cfg, "selection": sel}
+        return cfg
+
+    monkeypatch.setattr(tracks_mod, "load_yaml", fake_load_yaml)
 
 
 # ---------------------------------------------------------------------------
@@ -714,11 +736,62 @@ def test_r13_p2_01_incomplete_universe_day_not_exit_evidence(monkeypatch):
         TRADE_DATE: [("银行", 900.0, -1.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
                      ("医药生物", 700.0, 3.0, "BK1216"), ("房地产", 650.0, 2.0, "BK0451")],
     })
-    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+    # 绝对下限=2：D1 仅 1 板块 < 2 → 不完整（下限 1 会把 1 板块首日
+    # 也放行，无法验证门禁本身）
+    _patch_archive(
+        monkeypatch,
+        {"industry-universe-snapshot": records},
+        min_universe_boards=2,
+    )
 
     names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
     assert "银行" in names  # D1 不作证据日；T 单日失败 streak=1 → 保留
     assert "煤炭" in names
+
+
+def test_r15_universe_cold_start_tiny_not_evidence_day(monkeypatch):
+    """R15 评审问题 1 回归：冷启动部分响应不得成为证据日（真实配置）。
+
+    生产 minUniverseBoards=45（已验证 90 板块快照之半）。归档首日只
+    返回 2 个板块时，"相对自身峰值"的旧基线（peak=2×0.5=1）会把它当
+    完整证据日；绝对下限必须先拒绝，直到出现 >=45 板块的可信完整日。
+    """
+    records = _uni_records({
+        TRADE_DATE: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437")],
+    })
+    _patch_archive(
+        monkeypatch,
+        {"industry-universe-snapshot": records},
+        min_universe_boards=None,  # 真实生产配置（45）
+    )
+
+    assert tracks_mod.select_scoring_pool(TRADE_DATE) == []
+
+
+def test_r15_universe_gate_causal_no_retro_clear(monkeypatch):
+    """R15 评审问题 2 回归：未来峰值不得回溯撤销历史证据（因果门禁）。
+
+    D2/D1 各 2 板块（均过 min=2 门禁）建立池籍；T 日上游恢复返回 6
+    板块。旧"全局峰值"实现会把 threshold 抬到 3，回放时 D2/D1 被判
+    不完整 → 池无解释清空（R15 复现 08-19→08-20 跳变）。因果前向
+    峰值下 D2/D1 的证据资格不随 T 日变化，池籍保留。
+    """
+    records = _uni_records({
+        D2: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437")],
+        D1: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437")],
+        TRADE_DATE: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
+                     ("医药生物", 700.0, 3.0, "BK1216"), ("房地产", 650.0, 2.0, "BK0451"),
+                     ("证券", 600.0, 3.0, "BK0473"), ("电力", 500.0, 2.0, "BK0428")],
+    })
+    _patch_archive(
+        monkeypatch,
+        {"industry-universe-snapshot": records},
+        min_universe_boards=2,
+    )
+
+    names = {c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)}
+    # D2/D1 建立的池籍在 T 日（更高峰值出现后）仍然保留
+    assert {"银行", "煤炭"} <= names
 
 
 def test_r13_p2_01_warming_up_not_formally_scored(monkeypatch):
