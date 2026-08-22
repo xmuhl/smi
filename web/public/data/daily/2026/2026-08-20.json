@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-20",
   "generatedAt": "2026-08-20T17:00:18+08:00",
-  "updatedAt": "2026-08-23T02:12:42+08:00",
-  "revision": 9,
+  "updatedAt": "2026-08-23T02:54:29+08:00",
+  "revision": 10,
   "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -35152,7 +35152,8 @@
       "coverageTargetPct": 80.0,
       "coverageHardFloorPct": 65.0,
       "errors": [
-        "HS300_SEED_UNAVAILABLE"
+        "HS300_SEED_UNAVAILABLE",
+        "seed_unmapped_in_industry_universe:dividend_cnsoe(高股息中特估)"
       ],
       "items": [
         {
