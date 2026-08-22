@@ -1107,3 +1107,21 @@ def test_r22_collect_partial_universe_day_empty_output(monkeypatch):
     )
 
     assert tracks_mod.select_scoring_pool(TRADE_DATE, grandfather=["电力"]) == []
+
+
+def test_r22_unmapped_seed_disclosed_in_errors(monkeypatch):
+    """未映射行业 universe 的种子以 module errors 明示，不得静默消失。
+
+    实证锚点：高股息中特估为概念板块，不在 industry-universe-snapshot
+    （行业口径）内——旧实现以种子互排的回退假排名掩盖该缺口。
+    """
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": _fake_universe()})
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+
+    errs = " ".join(result["errors"])
+    assert "seed_unmapped_in_industry_universe:dividend_cnsoe(高股息中特估)" in errs
+    assert "seed_unmapped_in_industry_universe:semiconductor_ai" in errs
+    assert "seed_unmapped_in_industry_universe:power" not in errs
+
+    ids = [it["trackId"] for it in result["items"]]
+    assert "dividend_cnsoe" not in ids

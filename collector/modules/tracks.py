@@ -994,6 +994,17 @@ def collect_tracks(
     )
     pool_names_today = {str(c["boardName"]) for c in candidates}
 
+    # 未映射种子披露（R22-DEF-01）：配置种子在行业 universe 中不存在
+    # 对应板块（如"高股息中特估"为概念板块，不在行业快照口径）时，
+    # 不得静默消失——记入 module errors 供前端/验收明示。此为信息性
+    # 披露，不影响选池语义（无市场排名即无从入选，fail-closed）。
+    unmapped_seeds = [
+        f"seed_unmapped_in_industry_universe:{tc['id']}"
+        f"({tc.get('name', tc['id'])})"
+        for tc in seeds
+        if tc["id"] not in seed_uni_name
+    ]
+
     out_tracks: list[dict[str, Any]] = []
     for tc in seeds:
         mapped = seed_uni_name.get(tc["id"])
@@ -1072,6 +1083,7 @@ def collect_tracks(
     module_errors: list[str] = [ERR_HS300_SEED_UNAVAILABLE]
     if not universe_today:
         module_errors.append(ERR_RED_RATIO_SOURCE_UNAVAILABLE)
+    module_errors.extend(unmapped_seeds)
 
     for ot in out_tracks:
         track_id = ot["trackId"]
