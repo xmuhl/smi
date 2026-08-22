@@ -644,7 +644,7 @@ def test_tracks_v4_version_schedule_future_nonnumeric_rejected(standard):
         "items": [],
     }
     ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-24")
-    assert not ok and "非严格 x.y 数值版本" in text, text
+    assert not ok and "非规范 x.y 数值版本" in text, text
 
 
 def test_tracks_v4_version_schedule_future_malformed_rejected(standard):
@@ -661,4 +661,34 @@ def test_tracks_v4_version_schedule_future_malformed_rejected(standard):
         "items": [],
     }
     ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-24")
-    assert not ok and "非严格 x.y 数值版本" in text, text
+    assert not ok and "非规范 x.y 数值版本" in text, text
+
+
+def test_tracks_v4_version_schedule_malformed_versions_rejected(standard):
+    """R18：cutoff 后多段/尾点/单段/尾空白/空串版本一律 FAIL（严格解析器）。"""
+    for bad in ("3.2.1", "3.2.", "4", "3.2 ", " 3.2", "03.02", ""):
+        mod = {
+            "status": "UNAVAILABLE",
+            "dataDate": "2026-08-24",
+            "configVersion": bad,
+            "effectiveFrom": "2026-08-20",
+            "effectiveTo": "2026-12-31",
+            "sourceSystem": "THS_UNIVERSE",
+            "decision": "TRACKS_INSUFFICIENT",
+            "coveragePct": 71.4,
+            "items": [],
+        }
+        ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-24")
+        assert not ok, f"configVersion={bad!r} 应 FAIL：{text}"
+        if bad == "":
+            # 空串同时命中 configVersion 缺失类 gap；其余形态必有版本 gap
+            continue
+        assert "非规范 x.y 数值版本" in text or "权威下限" in text, \
+            f"configVersion={bad!r} 缺版本 gap：{text}"
+
+
+def test_tracks_v4_version_schedule_future_40_passes(standard):
+    """R18：cutoff 后合法新版本（4.0，规范 x.y 且 >=3.2）+ 完整 strict 字段 → PASS。"""
+    mod = _v4_module(configVersion="4.0")
+    ok, text = _run_tracks_v4(mod, standard)
+    assert ok, f"4.0 应 PASS：{text}"

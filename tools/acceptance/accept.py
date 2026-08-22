@@ -1046,6 +1046,20 @@ def _prev_trading_day_margin_balance(trade_date, daily_dir):
     return None
 
 
+_STRICT_VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+
+
+def _parse_strict_version(value):
+    """R18：唯一严格 configVersion 解析器——仅接受规范 x.y（无前导零/
+    空白/多段/尾点），保证字符串与版本元组一一映射。不可解析返回 None。"""
+    if not isinstance(value, str):
+        return None
+    m = _STRICT_VERSION_RE.match(value)
+    if not m:
+        return None
+    return (int(m.group(1)), int(m.group(2)))
+
+
 def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_dir=None, ctx=None):
     standard = standard if standard is not None else _load_standard()
     mod = _module(snapshot, "tracks")
@@ -1087,14 +1101,8 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
     # R16 版本分支（R15 评审阻断点 G）：configVersion>=3.2 走严格 v4
     # 字段契约；3.0/3.1/2.0 等存量只做状态⇄decision 配对（显式兼容分支，
     # 不靠 optionality 偶然放行）。"legacy" 等非数值合法标记按非 strict。
-    strict_v42 = False
-    if isinstance(cfg_version, str):
-        try:
-            strict_v42 = (
-                tuple(int(x) for x in cfg_version.split(".")[:2]) >= (3, 2)
-            )
-        except ValueError:
-            strict_v42 = False
+    _v42 = _parse_strict_version(cfg_version)
+    strict_v42 = _v42 is not None and _v42 >= (3, 2)
 
     # 生效区间覆盖 tradeDate（除 legacy+参考日豁免）——防止今天配置倒灌历史日期。
     # P0-006-A：effectiveFrom/effectiveTo 用 _parse_iso_date_strict 严格解析，任一不可解析即 FAIL（fail-closed，不再跳过比较）。
@@ -1164,25 +1172,19 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                         f"configVersion={cfg_version!r} 不在 {trade_date} 的权威版本表 "
                         f"allowedConfigVersions={allowed_versions}"))
                 min_ver = rule.get("minConfigVersion")
-                if isinstance(min_ver, str) and isinstance(cfg_version, str):
-                    try:
-                        cfg_t = tuple(int(x) for x in cfg_version.split(".")[:2])
-                    except ValueError:
-                        cfg_t = None
-                    try:
-                        min_t = tuple(int(x) for x in min_ver.split(".")[:2])
-                    except ValueError:
-                        min_t = None
-                    # R17-P2-01：cutoff 规则 fail-closed——非数值版本
-                    # （legacy/3.x/损坏值）无法证明 >= 数值下限，一律 FAIL。
-                    # 解析失败不再静默 pass（旧行为依赖不存在的白名单兜底，
-                    # 构成 fail-open 版本降级旁路）。
+                if isinstance(min_ver, str):
+                    # R18：唯一严格解析器（^x.y$，无前导零/空白/多段/尾点）。
+                    # cutoff 规则 fail-closed：任何不可规范解析的版本
+                    # （legacy/3.x/3.2.1/3.2./4/空串/空白污染）一律 FAIL。
+                    cfg_t = _parse_strict_version(cfg_version)
+                    min_t = _parse_strict_version(min_ver)
                     if cfg_t is None:
                         if rule.get("numericOnly") or min_t is not None:
                             details.append(_detail_gap(
-                                f"configVersion={cfg_version!r} 非严格 x.y 数值版本，"
-                                f"无法满足 {trade_date} 起的权威数值下限 "
-                                f"{min_ver!r}（版本降级旁路）"))
+                                f"configVersion={cfg_version!r} 非规范 x.y 数值版本"
+                                f"（规范 x.y，无前导零/空白/多段/尾点），无法满足 "
+                                f"{trade_date} 起的权威数值下限 {min_ver!r}"
+                                f"（版本降级旁路）"))
                     elif min_t is not None and cfg_t < min_t:
                         details.append(_detail_gap(
                             f"configVersion={cfg_version!r} 低于 {trade_date} 起的"
