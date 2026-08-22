@@ -16,24 +16,25 @@
 # 使用的精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该
 # 赛道归档 UNAVAILABLE（fail-closed，不伪造）。
 
-configVersion: "3.3"
+configVersion: "3.4"
 effectiveFrom: "2026-07-20"
 effectiveTo: "2026-12-31"
 
 selection:
-  # 候选池大小：范本硬阈值"近5日成交额全市场前5"用于核心判定，
-  # 池取 8 以覆盖边缘分级并保持连续观察
-  poolSize: 8
+  # R23-P2-01/P2-02（范本严格口径修订）：
+  # - 准入：近5日成交额全市场排名 <= entryRankMax（=5，范本硬阈值），
+  #   仅排名条件——净流入不作准入硬门（排名决定监测资格，资金流决定
+  #   评分/评级；R22-P2-02 裁定净流出硬门系统性漏选负流入高活跃板块）；
+  # - 两层资格：QUALIFIED_TODAY（rank<=5 当日范本资格）与
+  #   RETAINED_OBSERVATION（曾入选、rank∈(5,exitRankMax]、未满出池确认
+  #   的迟滞观察保留）为独立资格层，输出/前端显式分层，不得等价呈现；
+  # - 退出：连续 exitConfirmDays 日排名 > exitRankMax（或当日缺行）。
+  entryRankMax: 5
   # 近 N 日成交额窗口（范本口径 5 日）
   amountWindowDays: 5
-  # 候选必须当日主力净流入为正（范本资金维度硬阈值）
-  requirePositiveInflow: true
-  # R13-P2-01 入/出池迟滞（防单日资金翻正/翻负或排名 8/9 抖动反复进出池）：
-  # - 准入：近 entryWindowDays 个 universe 归档日内至少 entryMinDays 日满足
-  #   "成交额排名<=poolSize 且当日净流入>0"才入池（归档历史不足时按实际
-  #   天数收敛，冷启动退化为单日规则）；
-  # - 退出：连续 exitConfirmDays 日触及出池条件（排名>exitRankMax 或净流
-  #   入非正或当日缺行）才出池——双阈值分离（入 8 / 出 12）；
+  # R13-P2-01 入/出池迟滞确认窗口（防单日排名抖动反复进出池）：
+  # 准入需近 entryWindowDays 个证据日中 >= entryMinDays 日达标
+  #（归档历史不足时按实际天数收敛，冷启动退化为单日规则）。
   entryWindowDays: 3
   entryMinDays: 2
   exitRankMax: 12
@@ -102,8 +103,15 @@ tracks:
   - id: dividend_cnsoe
     name: 高股息中特估
     enabled: true
+    # R23-P2-03 跨 taxonomy 可比资格：概念腿以 THS 概念指数逐日成交额
+    #（元，注入时换算为亿）插入行业 universe 联合排名；净流入/涨跌家数
+    # 为概念口径诚实缺口（不参与资格判定，仅评分层缺口计）
+    qualification:
+      taxonomy: concept
     board_type: concept
-    board_code: BK1139
+    # R23-P2-03：THS 概念代码（原 BK1139 旧源序列去重键随之失效，
+    # archive_raw 按同花顺中特估100 重补同源同单位序列用于联合排名）
+    board_code: "309062"
     expected_name: 中特估
     index_name_ths: 同花顺中特估100
     positioning: 高股息/央国企价值

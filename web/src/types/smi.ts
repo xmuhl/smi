@@ -208,6 +208,8 @@ export interface TrackItem {
   dataReadiness?: "READY" | "DEGRADED" | "WARMING_UP" | "INSUFFICIENT" | "FETCH_FAILED" | string;
   /** R15：close 历史已累积交易日数（WARMING_UP 判定的依据） */
   historyDays?: number | null;
+  /** R23-P2-01 两层资格：当日范本资格 / 迟滞观察保留 */
+  poolQualification?: "QUALIFIED_TODAY" | "RETAINED_OBSERVATION" | null;
 }
 
 export interface TracksModule extends ModuleBase {

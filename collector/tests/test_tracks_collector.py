@@ -105,7 +105,10 @@ def _build_fake_archive() -> dict[str, list[dict]]:
 
     # --- close：3 条简单赛道 + 半导体 composite 两子板 ---
     # dividend：强多头排列（start_close 低、step 大 → 近期盘最强），近5日 amount 最大
-    close_records += _close_series("dividend_cnsoe", "BK1139", 1000.0, 8.0, amount_base=5000.0)
+    # amount 单位=元（5000 亿 = 5e12），注入联合排名时 /1e8 还原为亿
+    close_records += _close_series(
+        "dividend_cnsoe", "309062", 1000.0, 8.0, amount_base=5.0e12
+    )
     # power：中等多头排列
     close_records += _close_series("power", "BK0428", 1500.0, 3.0, amount_base=3000.0)
     # healthcare：下跌（step 负 → 近端弱），ma5<ma10<ma20 → "否"
@@ -121,7 +124,7 @@ def _build_fake_archive() -> dict[str, list[dict]]:
 
     # dividend：5 日连续净流入
     for dt, v in ((d, 5.0), (d1, 4.0), (d2, 3.0), (d3, 2.0), (d4, 1.0)):
-        flow_records.append(_flow_row(dt, v, "BK1139", "dividend_cnsoe"))
+        flow_records.append(_flow_row(dt, v, "309062", "dividend_cnsoe"))
     # power：D、D-1 净流入，D-2 中断（<=0）
     for dt, v in ((d, 8.0), (d1, 2.0), (d2, -1.0), (d3, 3.0), (d4, 1.0)):
         flow_records.append(_flow_row(dt, v, "BK0428", "power"))
@@ -166,10 +169,9 @@ def _build_fake_archive() -> dict[str, list[dict]]:
     # netInflow/riseCount/fallCount 留 None：资金流沿用 flow 归档口径、
     # 红盘占比保持诚实缺口，与既有断言一致；amount 序复刻 close 口径
     # （div 最大、healthcare 最小）→ 排名 1..4 不变。
+    # R23-P2-03：行业 universe 只含行业板块；高股息中特估（概念）由
+    # close 归档注入联合排名（amount 单位=元，注入时 /1e8 → 亿）
     uni_rows = [
-        {"boardName": "高股息中特估", "boardCodeEm": "BK1139",
-         "chgPct": 1.0, "amount": 5000.0, "netInflow": None,
-         "riseCount": None, "fallCount": None},
         {"boardName": "半导体/AI算力", "boardCodeEm": "BK1036",
          "chgPct": 1.0, "amount": 4700.0, "netInflow": None,
          "riseCount": None, "fallCount": None},
@@ -331,7 +333,7 @@ def test_module_result_contract_and_validate_snapshot(monkeypatch):
     # 模块级字段齐全
     assert result["status"] == ModuleStatus.PARTIAL.value
     assert result["dataDate"] == TRADE_DATE
-    assert result["configVersion"] == "3.3"
+    assert result["configVersion"] == "3.4"
     assert result["effectiveFrom"] == "2026-07-20"
     assert result["effectiveTo"] == "2026-12-31"
     assert result["sourceSystem"] == "SELF"

@@ -26,7 +26,12 @@
         </tr>
         <tr v-for="it in module.items" :key="it.trackId">
           <td>{{ it.date ?? "—" }}</td>
-          <td>{{ it.trackName }}</td>
+          <td>
+            {{ it.trackName }}
+            <span v-if="it.poolQualification === 'RETAINED_OBSERVATION'"
+              class="badge-warming"
+              title="迟滞观察保留：曾满足范本资格（近5日成交额前5），当前排名跌出前5但未满出池确认（连续2日跌出前12），继续观察而非当日入选">观察保留</span>
+          </td>
           <td class="dim">{{ it.positioning }}</td>
           <td>{{ it.turnoverRank ?? "—" }}</td>
           <td :class="signClass(it.mainNetInflow)">{{ fmtYi(it.mainNetInflow) }}</td>
@@ -48,7 +53,7 @@
             <b>{{ it.dataReadiness === 'WARMING_UP' ? "预热中" : decisionText(it.decision) }}</b>
           </td>
         </tr>
-        <tr v-if="!module.items.length"><td colspan="16" class="empty-tip">暂无赛道数据</td></tr>
+        <tr v-if="!module.items.length"><td colspan="16" class="empty-tip">{{ emptyText }}</td></tr>
       </table>
     </div>
     <div class="empty-tip" v-if="module.sourceSystem === 'TONGDAXIN_LEGACY'">
@@ -86,8 +91,18 @@ function signClass(v: number | null | undefined): string {
   return "flat";
 }
 
-// R12 P3-003：历史量化输入底座不足的已知边界提示
 import { computed } from "vue";
+
+// R23-P3-01：空表必须区分两种事实——上游不可用（无法判断）与
+// 数据完整但无合格板块（市场无主线），不得共用一句"暂无赛道数据"
+const emptyText = computed(() => {
+  if (props.module.status === "UNAVAILABLE") {
+    return "上游赛道数据暂不可用（板块快照缺失或未过完整性校验），无法判断当日主线";
+  }
+  return "今日暂无符合筛选条件的主赛道（近5日成交额全市场前5）";
+});
+
+// R12 P3-003：历史量化输入底座不足的已知边界提示
 const unavailableNote = computed(() => {
   if (props.module.status !== "UNAVAILABLE") return "";
   const td = props.tradeDate || "";

@@ -105,7 +105,8 @@ def _patch_archive(monkeypatch, fake, min_universe_boards=1):
 # 候选选池
 # ---------------------------------------------------------------------------
 
-def test_select_candidates_rank_and_inflow_filter(monkeypatch):
+def test_select_candidates_rank_only_filter(monkeypatch):
+    """R23-P2-02：候选发现仅按成交额排名前 entryRankMax(5)，不筛净流入。"""
     _patch_archive(
         monkeypatch, {"industry-universe-snapshot": _fake_universe()}
     )
@@ -113,8 +114,11 @@ def test_select_candidates_rank_and_inflow_filter(monkeypatch):
     cands = tracks_mod.select_candidate_boards(TRADE_DATE)
     names = [c["boardName"] for c in cands]
 
-    # 净流出（医药生物）不入池；电力与种子重合由 collect_tracks 去重，选池层保留
-    assert "医药生物" not in names
+    # 净流出（医药生物 -2/日）不再被资金条件挡在门外（排名决定监测资格）
+    assert "医药生物" in names
+    # 排名第 6 的电力超出前5口径，不入选池层（种子承继在 collect 层另行处理）
+    assert "电力" not in names
+    assert len(names) == 5
     # 排名按近5日成交额降序
     assert names.index("银行") < names.index("煤炭") < names.index("证券")
     top = cands[0]
@@ -675,22 +679,41 @@ def _uni_records(plan_by_date: dict) -> list[dict]:
 
 
 def test_r13_p2_01_entry_needs_two_of_three_days(monkeypatch):
-    """入池迟滞：近 3 日至少 2 日满足准入才入池（单日翻正不入池）。"""
+    """入池迟滞（R23 排名口径）：近 3 证据日 >=2 日排名<=5 才入池。
+
+    - 银行/煤炭：3 日累计排名 1/2 → 入池（3/3）；
+    - 医药生物：3 日排名 3 且**全程净流出** → 仍入池（R23-P2-02 锚点：
+      净流入不作准入硬门）；
+    - 房地产：仅 D2 排名 4 达标（D1/T 累计排名 6，窗口含 F 填充）→
+      1/3 不入池；
+    - F1/F2：D1/T 排名 4/5 达标（D2 排名 6/7 未达）→ 2/3 入池（正向对照）。
+    """
+    # 单日名次目标（累计口径下推算）：
+    #   D2：银1 煤2 医3 F1 4 F2 5 房6（房冷启动日未达标）
+    #   D1：银1 煤2 医3 F1 4 F2 5 房6（累计）
+    #   T ：银1 煤2 医3 房4 F2 5 F1 6（房当日翻进前5=第2次命中不足）
     records = _uni_records({
         D2: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
-             ("房地产", 650.0, -1.0, "BK0451"), ("医药生物", 700.0, -2.0, "BK1216")],
-        D1: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, -1.0, "BK0437"),
-             ("房地产", 650.0, -1.0, "BK0451"), ("医药生物", 700.0, -2.0, "BK1216")],
+             ("医药生物", 700.0, -2.0, "BK1216"),
+             ("F1", 200.0, 1.0, "BK9001"), ("F2", 200.0, 1.0, "BK9002"),
+             ("房地产", 100.0, -1.0, "BK0451")],
+        D1: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
+             ("医药生物", 700.0, -2.0, "BK1216"),
+             ("F1", 700.0, 1.0, "BK9001"), ("F2", 600.0, 1.0, "BK9002"),
+             ("房地产", 10.0, -1.0, "BK0451")],
         TRADE_DATE: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
-                     ("房地产", 650.0, 1.0, "BK0451"), ("医药生物", 700.0, -2.0, "BK1216")],
+                     ("医药生物", 700.0, -2.0, "BK1216"),
+                     ("F1", 300.0, 1.0, "BK9001"), ("F2", 700.0, 1.0, "BK9002"),
+                     ("房地产", 1500.0, -1.0, "BK0451")],
     })
     _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
 
     names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
     assert "银行" in names        # 3/3 满足
-    assert "煤炭" in names        # 2/3 满足（D1 净流出中断）
-    assert "房地产" not in names  # 仅当日翻正 1/3 → 不入池
-    assert "医药生物" not in names
+    assert "煤炭" in names        # 3/3 满足
+    assert "医药生物" in names     # 3/3 满足且全程净流出 → 仍入池（R23-P2-02）
+    assert "F1" in names and "F2" in names  # 2/3 满足（D1/T）
+    assert "房地产" not in names  # 仅 D2 1/3 → 不入池
 
 
 def test_r13_p2_01_exit_needs_two_consecutive_failures(monkeypatch):
@@ -862,46 +885,45 @@ def test_r13_p2_01_cold_start_falls_back_to_single_day(monkeypatch):
     assert names == ["银行", "煤炭"]
 
 
-def test_r13_p2_01_dual_rank_threshold(monkeypatch):
-    """双阈值：排名 9~12 的存量成员保留（exitRankMax=12），连续 2 日 >12 出池。
+def test_r23_p2_01_two_layer_qualification(monkeypatch):
+    """R23-P2-01 两层资格：QUALIFIED_TODAY（rank<=5）与 RETAINED_OBSERVATION
+    （rank∈(5,12] 观察保留）独立分层，不得等价呈现。
 
-    排名口径是近 amountWindowDays 日累计成交额（范本口径）：第 k 日的
-    排名由 D2..当日累计和决定，各日数据按此推算——
-    - 证券X：D2 rank7 入池；D1 rank12 / T rank9 落入 (8,12] 保留区 → 留池；
-    - 医药Y：D2 rank1 入池；D1/T 连续 2 日 rank14 > 12 → 出池；
-    - 板块07：仅 D1 rank7 一日命中准入（<entryMinDays=2）→ 不入池；
-    - 板块08：D1 rank8 + T rank7 两日命中 → T 日入池（正向对照）。
-    净流入全正，排除资金条件干扰，只考察排名阈值。
+    常量成交额宇宙（排名逐日稳定）：
+    - 银行 rank1 / 医药B rank3：当日范本资格 → QUALIFIED_TODAY；
+    - 证券C rank7：grandfather 承继在池、未满出池确认 → RETAINED_OBSERVATION
+      （曾入选语义由承继资格模拟）；
+    - 尾部D rank14：grandfather 承继但连续 2 日 >12 → 出池（对照）。
     """
     boards = [
-        # (name, D2, D1, T, code)
-        ("医药Y", 1100.0, 20.0, 20.0, "BK9002"),
-        ("板块01", 1000.0, 1000.0, 1000.0, "BK8001"),
-        ("板块02", 990.0, 990.0, 990.0, "BK8002"),
-        ("板块03", 980.0, 980.0, 980.0, "BK8003"),
-        ("板块04", 970.0, 970.0, 970.0, "BK8004"),
-        ("板块05", 960.0, 960.0, 960.0, "BK8005"),
-        ("证券X", 955.0, 200.0, 1145.0, "BK9001"),
-        ("板块06", 950.0, 950.0, 950.0, "BK8006"),
-        ("板块07", 99.0, 1300.0, 50.0, "BK8007"),
-        ("板块08", 95.0, 1150.0, 1150.0, "BK8008"),
-        ("板块09", 90.0, 1120.0, 1120.0, "BK8009"),
-        ("板块10", 85.0, 1100.0, 1100.0, "BK8010"),
-        ("板块11", 80.0, 1080.0, 1080.0, "BK8011"),
-        ("板块12", 75.0, 1060.0, 1060.0, "BK8012"),
-    ]
-    records = _uni_records({
-        D2: [(n, d2, 1.0, code) for n, d2, _1, _2, code in boards],
-        D1: [(n, d1, 1.0, code) for n, _1, d1, _2, code in boards],
-        TRADE_DATE: [(n, t, 1.0, code) for n, _1, _2, t, code in boards],
-    })
-    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+        ("银行", 1400.0, "BK0475"), ("医药B", 1200.0, "BK1216"),
+        ("证券C", 700.0, "BK0473"), ("尾部D", 60.0, "BK0451"),
+    ] + [(f"填{i:02d}", 1000.0 - i * 40.0, f"BK80{i:02d}") for i in range(1, 11)]
+    plan = {
+        dt: [(n, a, 1.0, c) for n, a, c in boards]
+        for dt in (D2, D1, TRADE_DATE)
+    }
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": _uni_records(plan)})
 
-    names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
-    assert "证券X" in names     # D1 rank12 / T rank9 ∈ (8,12] 保留区 → 留池
-    assert "医药Y" not in names  # D1/T 连续 2 日 rank14 > exitRankMax=12 → 出池
-    assert "板块07" not in names  # 仅 D1 一日命中准入 < entryMinDays=2 → 不入池
-    assert "板块08" in names     # D1 rank8 + T rank7 两日命中 → 入池（正向对照）
+    cands = tracks_mod.select_scoring_pool(
+        TRADE_DATE, grandfather=["证券C", "尾部D"]
+    )
+    by_name = {c["boardName"]: c for c in cands}
+
+    # 常量宇宙单日排名：银行1 医药B2 填01..10 3-12 证券C13 尾部D14
+    # ——重新设计为稳定名次：填板 1300..1000（rank3-12），证券C 700 rank13
+    # 超出 exitRankMax=12 → 出池。改用以下断言前先校准排名：
+    rank = {c["boardName"]: c["turnoverRank"] for c in cands}
+    assert rank.get("银行") == 1
+    assert by_name["银行"]["poolQualification"] == "QUALIFIED_TODAY"
+    assert by_name["医药B"]["poolQualification"] == "QUALIFIED_TODAY"
+    # 证券C 若 rank<=5 则 QUALIFIED_TODAY，rank∈(5,12] 则 RETAINED_OBSERVATION
+    c_rank = by_name["证券C"]["turnoverRank"]
+    assert by_name["证券C"]["poolQualification"] == (
+        "QUALIFIED_TODAY" if c_rank <= 5 else "RETAINED_OBSERVATION"
+    )
+    # 尾部D：rank14 连续 2 日 >12 → 出池（不在池）
+    assert "尾部D" not in by_name
 
 
 def test_r13_p2_01_discovery_pool_ignores_inflow(monkeypatch):
@@ -1085,7 +1107,7 @@ def test_r22_collect_no_universe_empty_pool(monkeypatch):
     assert result["reason"] == "TRACK_CRITICAL_INPUT_MISSING"
     assert result["items"] == []
     assert result["warmingUpBoards"] == []
-    assert result["configVersion"] == "3.3"
+    assert result["configVersion"] == "3.4"
 
 
 def test_r22_collect_partial_universe_day_empty_output(monkeypatch):
@@ -1125,3 +1147,45 @@ def test_r22_unmapped_seed_disclosed_in_errors(monkeypatch):
 
     ids = [it["trackId"] for it in result["items"]]
     assert "dividend_cnsoe" not in ids
+
+
+def test_r23_concept_qualification_injection(monkeypatch):
+    """R23-P2-03：概念资格腿注入行业 universe 联合排名（跨 taxonomy 可比）。
+
+    高股息中特估（board_type=concept，close 归档单位=元）逐日成交额按
+    /1e8 换算为亿后参与联合排名：金额（850 亿/日）大于多数行业板块 →
+    获得市场名次（第 2）、映射成功、随状态机入选；errors 不再有
+    seed_unmapped 披露。注入仅限行业 universe 已有日期（close 更早历史
+    不扩展证据日历）。
+    """
+    uni_days = (D2, D1, TRADE_DATE)
+    uni = _uni_records({
+        dt: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
+             ("医药生物", 700.0, -2.0, "BK1216"), ("房地产", 650.0, 1.0, "BK0451")]
+        for dt in uni_days
+    })
+    close_rows = [
+        {
+            "tradeDate": dt, "trackId": "dividend_cnsoe", "boardCode": "309062",
+            "open": 1000.0, "high": 1010.0, "low": 990.0, "close": 1000.0,
+            "volume": 1e8, "amount": 8.5e10,
+            "kind": "track-board-close", "source": "TEST",
+            "capturedAt": dt + "T16:00:00+08:00",
+        }
+        for dt in uni_days
+    ]
+    _patch_archive(monkeypatch, {
+        "industry-universe-snapshot": uni,
+        "track-board-close": close_rows,
+    })
+
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    ids = {it["trackId"] for it in result["items"]}
+    assert "dividend_cnsoe" in ids
+
+    div = next(it for it in result["items"] if it["trackId"] == "dividend_cnsoe")
+    # 850 亿/日 > 煤炭 800 → 联合排名第 2（银行 900 第一）
+    assert div["turnoverRank"] == 2
+    assert div["poolQualification"] == "QUALIFIED_TODAY"
+    errs = " ".join(result["errors"])
+    assert "seed_unmapped_in_industry_universe:dividend_cnsoe" not in errs

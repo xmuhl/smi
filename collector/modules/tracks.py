@@ -20,7 +20,7 @@ from collector import archive as _archive
 from collector.config import load_yaml
 from collector.status import ModuleStatus
 
-CONFIG_VERSION = "3.3"
+CONFIG_VERSION = "3.4"
 EFFECTIVE_FROM = "2026-07-20"
 EFFECTIVE_TO = "2026-12-31"
 SOURCE_SYSTEM = "SELF"
@@ -459,6 +459,72 @@ def _universe_board_rows() -> dict[str, list[dict[str, Any]]]:
     return per_board
 
 
+def _concept_qualification_injection(
+    per_board: dict[str, list[dict[str, Any]]],
+    tracks_cfg: list[dict[str, Any]],
+    close_records: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """R23-P2-03：概念资格腿注入 universe 联合排名口径（跨 taxonomy 可比资格）。
+
+    board_type=concept 的赛道以 THS 概念指数（与行业汇总同源同单位）的
+    逐日成交额插入行业 universe，参与近5日成交额联合排名——概念板块
+    由此获得与行业口径可比的市场排名，不再因 taxonomy 差异被永久剔除。
+    注入行不带 netInflow/riseCount/fallCount（THS 概念指数无此口径，
+    评分层诚实缺口；资金流本就不参与资格判定）。
+    单位换算：close 归档为元，universe 行为亿 → /1e8。
+    日期域收缩：概念腿 close 历史远长于 universe 归档——若把 close 全历史
+    并入日历，close-only 历史日会成为（低完整性行的）"证据日"，行业成员
+    在这些日子"缺行"会累计出池 streak（玩具门限下复现：行业种子被误逐）。
+    故注入行只保留**行业 universe 已有日期**（证据日上参与排名）。
+    仅支持单板概念腿；复合赛道资格须走行业主腿（qualifyLeg，配置文档化）。
+    """
+    industry_dates = {
+        r["date"]
+        for rows in per_board.values()
+        for r in rows
+        if r.get("date")
+    }
+    injected: dict[str, list[dict[str, Any]]] = {}
+    for tc in tracks_cfg:
+        if str(tc.get("board_type") or "") != "concept":
+            continue
+        if not tc.get("enabled", True):
+            continue
+        descs = _track_board_descs(tc)
+        if len(descs) != 1:
+            continue
+        code = descs[0]["boardCode"]
+        series: dict[str, float] = {}
+        for rec in close_records:
+            if str(rec.get("trackId") or "") != str(tc["id"]):
+                continue
+            if code and str(rec.get("boardCode") or "") != code:
+                continue
+            dt = str(rec.get("tradeDate") or "")
+            amt = _to_float(rec.get("amount"))
+            if dt and amt is not None:
+                series[dt] = amt / 1e8
+        rows = [
+            {
+                "date": dt,
+                "boardCodeEm": code,
+                "chgPct": None,
+                "amount": amt,
+                "netInflow": None,
+                "riseCount": None,
+                "fallCount": None,
+            }
+            for dt, amt in sorted(series.items())
+            if dt in industry_dates
+        ]
+        if rows:
+            # 注入键用 expected_name（如"中特估"）：与 _find_universe_row /
+            # 承继映射共用的名称域一致（track name 不在指标匹配名集合内）
+            key = str(descs[0]["expectedName"] or tc.get("name") or tc["id"])
+            injected[key] = rows
+    return injected
+
+
 def _universe_known_dates(
     per_board: dict[str, list[dict[str, Any]]],
 ) -> list[str]:
@@ -560,15 +626,14 @@ def select_candidate_boards(
 ) -> list[dict[str, Any]]:
     """从 universe 归档选出当日动态候选（tracks 模块与 archive_raw 回补共用）。
 
-    口径（范本第 8 表资金维度）：近 N 日成交额全市场排名前 poolSize
-    且当日主力净流入为正的行业板块；按排名升序返回。
+    口径（范本第 8 表资金维度，R23-P2-02 修订）：近 N 日成交额全市场
+    排名前 entryRankMax 的行业板块（仅排名，不筛净流入）；按排名升序返回。
     无当日 universe 记录 → []（fail-closed，调用方退化为纯种子）。
     """
     cfg = load_yaml("tracks.yaml")
     selection = cfg.get("selection", {}) or {}
-    pool_size = int(selection.get("poolSize", 8))
+    pool_size = int(selection.get("entryRankMax", 5))
     window_days = int(selection.get("amountWindowDays", 5))
-    require_inflow = bool(selection.get("requirePositiveInflow", True))
 
     if per_board is None:
         per_board = _universe_board_rows()
@@ -580,26 +645,22 @@ def select_candidate_boards(
         return []
 
     ranked = _universe_ranking(per_board, trade_date, window_days)
-    return [
-        item
-        for item in ranked
-        if item["turnoverRank"] <= pool_size
-        and (
-            not require_inflow
-            or (item["netInflow"] is not None and item["netInflow"] > 0)
-        )
-    ][:pool_size]
+    return [item for item in ranked if item["turnoverRank"] <= pool_size][
+        :pool_size
+    ]
 
 
-def _entry_ok(item: dict[str, Any], pool_size: int, require_inflow: bool) -> bool:
-    """单日准入条件：成交额排名 <= poolSize 且（可选）当日净流入为正。"""
+def _entry_ok(item: dict[str, Any], entry_rank_max: int) -> bool:
+    """单日准入条件（R23-P2-02）：仅成交额排名 <= entryRankMax。
+
+    净流入不再作为准入硬门——与出池同口径：排名决定监测资格，资金流
+    决定评分/评级（R22 范本证据：07-17 医药 -386.52 亿/半导体 -730.77 亿
+    均在监测表；R22-P2-02 裁定入池净流出硬门会系统性漏选负流入高活跃
+    新赛道，与本原则冲突）。
+    """
     rank = item.get("turnoverRank")
-    if rank is None or rank > pool_size:
+    if rank is None or rank > entry_rank_max:
         return False
-    if require_inflow:
-        inflow = item.get("netInflow")
-        if inflow is None or inflow <= 0:
-            return False
     return True
 
 
@@ -629,8 +690,12 @@ def select_scoring_pool(
     与 select_candidate_boards（单日发现口径）的差异：
     - 入池需连续确认：近 entryWindowDays 个归档日内 >= entryMinDays 日满足
       准入条件（归档历史不足时按实际天数收敛，冷启动退化为单日规则）；
-    - 出池需连续确认：连续 exitConfirmDays 日触及出池条件才退出，且出池
-      排名阈值 exitRankMax 与入池 poolSize 分离（双阈值防 8/9 抖动）；
+      R23-P2-02：准入仅按成交额排名（<= entryRankMax=5，范本严格口径），
+      净流入不再作为准入硬门（排名决定监测资格，资金流决定评级）；
+    - 出池需连续确认：连续 exitConfirmDays 日触及出池条件才退出（排名
+      连续 exitConfirmDays 日 > exitRankMax）；
+    - R23-P2-01 两层资格：QUALIFIED_TODAY（rank<=5 当日范本资格）/
+      RETAINED_OBSERVATION（迟滞观察保留）独立分层输出；
     - 池成员资格从 universe 归档全历史逐日递推，无需额外状态文件。
     无当日 universe 记录 → []（fail-closed；R22 起调用方亦不再回退种子，
     无数据日诚实输出空池）。
@@ -640,9 +705,10 @@ def select_scoring_pool(
     """
     cfg = load_yaml("tracks.yaml")
     selection = cfg.get("selection", {}) or {}
-    pool_size = int(selection.get("poolSize", 8))
+    # R23-P2-01：入池阈值改为范本严格口径"前5"（原 poolSize=8 防抖口径
+    # 取消——防抖由 RETAINED_OBSERVATION 观察层承担，不再放宽入池资格）
+    entry_rank_max = int(selection.get("entryRankMax", 5))
     window_days = int(selection.get("amountWindowDays", 5))
-    require_inflow = bool(selection.get("requirePositiveInflow", True))
     entry_window = int(selection.get("entryWindowDays", 3))
     entry_min = int(selection.get("entryMinDays", 2))
     exit_rank_max = int(selection.get("exitRankMax", 12))
@@ -729,7 +795,7 @@ def select_scoring_pool(
                 if wd not in complete_dates:
                     continue
                 wi = rank_by_date.get(wd, {}).get(name)
-                if wi is not None and _entry_ok(wi, pool_size, require_inflow):
+                if wi is not None and _entry_ok(wi, entry_rank_max):
                     hits += 1
             if hits >= eff_min:
                 kept.append(name)
@@ -743,9 +809,19 @@ def select_scoring_pool(
     if trade_date not in complete_dates:
         return []
 
-    # 输出当日有 universe 行的池成员（缺行成员保留池籍但当日不可评分）
+    # 输出当日有 universe 行的池成员（缺行成员保留池籍但当日不可评分）。
+    # R23-P2-01 两层资格：当日范本资格（rank <= entryRankMax）与迟滞观察
+    # 保留（曾入选、现 rank ∈ (entryRankMax, exitRankMax]、未满出池确认）
+    # 是两个独立资格层，输出显式分层标记，调用方/前端不得等价呈现。
     items = [
-        rank_by_date[trade_date][name]
+        {
+            **rank_by_date[trade_date][name],
+            "poolQualification": (
+                "QUALIFIED_TODAY"
+                if rank_by_date[trade_date][name]["turnoverRank"] <= entry_rank_max
+                else "RETAINED_OBSERVATION"
+            ),
+        }
         for name in pool
         if name in rank_by_date[trade_date]
     ]
@@ -930,6 +1006,7 @@ def _make_track_item(
         "decision": _decision_chinese(decision_code),
         "decisionCode": decision_code,
         "dimensionPass": dimension_pass,
+        "poolQualification": raw.get("pool_qualification"),
         "dataReadiness": readiness,
         "historyDays": history_days,
     }
@@ -960,6 +1037,10 @@ def collect_tracks(
     pool_records = _archive.read_records("limit-up-pool")
 
     per_board = _universe_board_rows()
+    # R23-P2-03：概念资格腿（THS 概念指数口径）注入行业 universe 联合排名
+    per_board.update(
+        _concept_qualification_injection(per_board, tracks_cfg, close_records)
+    )
     universe_today = any(
         any(r["date"] == trade_date for r in rows)
         for rows in per_board.values()
@@ -993,6 +1074,10 @@ def collect_tracks(
         else []
     )
     pool_names_today = {str(c["boardName"]) for c in candidates}
+    pool_qual_by_name = {
+        str(c["boardName"]): c.get("poolQualification")
+        for c in candidates
+    }
 
     # 未映射种子披露（R22-DEF-01）：配置种子在行业 universe 中不存在
     # 对应板块（如"高股息中特估"为概念板块，不在行业快照口径）时，
@@ -1182,6 +1267,12 @@ def collect_tracks(
             "core_catalyst": ot["coreCatalyst"],
             "earnings_realization": ot["earningsRealization"],
             "selection_reason": ot["selectionReason"],
+            # R23-P2-01 两层资格：当日范本资格 / 迟滞观察保留
+            "pool_qualification": (
+                (ot.get("universe") or {}).get("poolQualification")
+                if ot.get("universe") is not None
+                else pool_qual_by_name.get(seed_uni_name.get(track_id, ""))
+            ),
             # R13-P2-01：close 历史深度（交易日数），供 WARMING_UP 判定
             "history_days": len(comb),
             "track_kind": ot["kind"],
