@@ -1046,18 +1046,26 @@ def _prev_trading_day_margin_balance(trade_date, daily_dir):
     return None
 
 
-_STRICT_VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+_STRICT_VERSION_RE = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
+_MAX_VERSION_SEGMENT_DIGITS = 9
 
 
 def _parse_strict_version(value):
-    """R18：唯一严格 configVersion 解析器——仅接受规范 x.y（无前导零/
-    空白/多段/尾点），保证字符串与版本元组一一映射。不可解析返回 None。"""
+    """R19：唯一严格 configVersion 解析器——ASCII 全串匹配。
+
+    必须同时满足：fullmatch（不依赖行尾锚点——Python 正则的行尾锚会
+    放过尾部换行）；[0-9]（不用 Unicode 十进制数字类——它会放过全角/
+    阿拉伯-印度数字）；段长 <=9（超长数字串拒绝，int 永不抛异常）。保证：
+    ASCII 规范版本字符串 <=> 唯一版本元组。不可解析返回 None。"""
     if not isinstance(value, str):
         return None
-    m = _STRICT_VERSION_RE.match(value)
+    m = _STRICT_VERSION_RE.fullmatch(value)
     if not m:
         return None
-    return (int(m.group(1)), int(m.group(2)))
+    a, b = m.group(1), m.group(2)
+    if len(a) > _MAX_VERSION_SEGMENT_DIGITS or len(b) > _MAX_VERSION_SEGMENT_DIGITS:
+        return None
+    return (int(a), int(b))
 
 
 def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_dir=None, ctx=None):

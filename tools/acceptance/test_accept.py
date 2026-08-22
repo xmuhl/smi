@@ -692,3 +692,45 @@ def test_tracks_v4_version_schedule_future_40_passes(standard):
     mod = _v4_module(configVersion="4.0")
     ok, text = _run_tracks_v4(mod, standard)
     assert ok, f"4.0 应 PASS：{text}"
+
+
+def test_strict_version_parser_matrix():
+    """R19：唯一解析器的完整形态矩阵（ASCII 规范串 <=> 唯一版本元组）。
+
+    fullmatch（非行尾锚，"3.2\n" 拒绝）+ [0-9]（非 Unicode 数字类，
+    全角/阿拉伯-印度数字拒绝）+ 段长<=9（超长拒绝）。R19 §9/§10 全表。
+    """
+    from tools.acceptance.accept import _parse_strict_version as pv
+
+    for s, want in {
+        "0.0": (0, 0), "3.2": (3, 2), "4.0": (4, 0),
+        "32.2": (32, 2), "1.0": (1, 0), "2.0": (2, 0),
+    }.items():
+        assert pv(s) == want, s
+    for s in (
+        "03.02", "3.02", "3", "3.", "3.2.1", "3.2.", "3.2x",
+        "3.2 ", " 3.2", "3.2\n", "3２.2", "3٢.2",   # 全角２/阿拉伯-印度٢
+        "legacy", "", "1234567890.0", None, 3.2,
+    ):
+        assert pv(s) is None, s
+
+
+def test_tracks_v4_version_schedule_unicode_and_newline_rejected(standard):
+    """R19 集成回归：cutoff 后 "3.2\n"（尾部换行）与 "3２.2"（全角数字）
+    必须 FAIL（旧 ^$ 锚 + Unicode \d 曾放过这两种形态）。"""
+    for bad in ("3.2\n", "3２.2", "3٢.2", "1234567890.0"):
+        mod = {
+            "status": "UNAVAILABLE",
+            "dataDate": "2026-08-24",
+            "configVersion": bad,
+            "effectiveFrom": "2026-08-20",
+            "effectiveTo": "2026-12-31",
+            "sourceSystem": "THS_UNIVERSE",
+            "decision": "TRACKS_INSUFFICIENT",
+            "coveragePct": 71.4,
+            "items": [],
+        }
+        ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-24")
+        assert not ok, f"configVersion={bad!r} 应 FAIL：{text}"
+        assert "非规范 x.y 数值版本" in text or "权威下限" in text, \
+            f"configVersion={bad!r} 缺版本 gap：{text}"
