@@ -2,10 +2,10 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-14",
   "generatedAt": "2026-08-14T18:04:47+08:00",
-  "updatedAt": "2026-08-17T18:10:13+08:00",
-  "revision": 9,
+  "updatedAt": "2026-08-23T00:03:39+08:00",
+  "revision": 10,
   "overallStatus": "PARTIAL",
-  "generationReason": "T1_RECONCILE",
+  "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -20,6 +20,7 @@
       "dataDate": "2026-08-14",
       "source": [
         "EASTMONEY",
+        "EASTMONEY_DELAY",
         "TENCENT",
         "SINA",
         "CNINDEX"
@@ -31,7 +32,7 @@
           "close": 3927.18,
           "previousClose": 3926.96,
           "changePct": 0.01,
-          "source": "TENCENT"
+          "source": "EASTMONEY"
         },
         {
           "code": "399001",
@@ -39,7 +40,7 @@
           "close": 14354.31,
           "previousClose": 14289.44,
           "changePct": 0.45,
-          "source": "TENCENT"
+          "source": "EASTMONEY"
         },
         {
           "code": "399006",
@@ -47,7 +48,7 @@
           "close": 3626.3,
           "previousClose": 3586.04,
           "changePct": 1.12,
-          "source": "TENCENT"
+          "source": "EASTMONEY"
         },
         {
           "code": "000688",
@@ -55,7 +56,7 @@
           "close": 1717.68,
           "previousClose": 1717.75,
           "changePct": -0.0,
-          "source": "TENCENT"
+          "source": "EASTMONEY"
         },
         {
           "code": "000300",
@@ -63,7 +64,7 @@
           "close": 4665.88,
           "previousClose": 4663.95,
           "changePct": 0.04,
-          "source": "TENCENT"
+          "source": "EASTMONEY"
         },
         {
           "code": "899050",
@@ -71,23 +72,23 @@
           "close": 1087.52,
           "previousClose": 1097.8,
           "changePct": -0.94,
-          "source": "TENCENT"
+          "source": "EASTMONEY"
         },
         {
           "code": "399311",
           "name": "国证1000",
-          "close": 5065.96,
-          "previousClose": 5057.05,
+          "close": 5065.9638,
+          "previousClose": 5057.0468,
           "changePct": 0.18,
-          "source": "TENCENT"
+          "source": "CNI"
         },
         {
           "code": "399303",
           "name": "国证2000",
-          "close": 10115.47,
-          "previousClose": 10036.35,
+          "close": 10115.4749,
+          "previousClose": 10036.3513,
           "changePct": 0.79,
-          "source": "TENCENT"
+          "source": "CNI"
         }
       ]
     },
@@ -129,196 +130,124 @@
     "sectorPerformance": {
       "status": "FINAL",
       "dataDate": "2026-08-14",
-      "method": "THS",
+      "source": [
+        "THS"
+      ],
+      "method": "THS_HISTORICAL_INDEX",
+      "reason": null,
       "industryTop5": [
         {
-          "code": "",
           "name": "电子化学品",
-          "changePct": 4.07,
-          "turnoverRate": null,
-          "riseCount": 41,
-          "fallCount": 2,
-          "leader": "中石科技"
+          "code": "",
+          "changePct": 4.07
         },
         {
-          "code": "",
           "name": "非金属材料",
-          "changePct": 3.84,
-          "turnoverRate": null,
-          "riseCount": 12,
-          "fallCount": 3,
-          "leader": "金戈新材"
+          "code": "",
+          "changePct": 3.84
         },
         {
-          "code": "",
           "name": "元件",
-          "changePct": 2.52,
-          "turnoverRate": null,
-          "riseCount": 51,
-          "fallCount": 12,
-          "leader": "中富电路"
+          "code": "",
+          "changePct": 2.52
         },
         {
-          "code": "",
           "name": "通信设备",
-          "changePct": 2.33,
-          "turnoverRate": null,
-          "riseCount": 67,
-          "fallCount": 23,
-          "leader": "阿莱德"
+          "code": "",
+          "changePct": 2.33
         },
         {
-          "code": "",
           "name": "金属新材料",
-          "changePct": 2.05,
-          "turnoverRate": null,
-          "riseCount": 27,
-          "fallCount": 6,
-          "leader": "龙磁科技"
+          "code": "",
+          "changePct": 2.05
         }
       ],
       "industryBottom5": [
         {
-          "code": "",
           "name": "电力",
-          "changePct": -2.65,
-          "turnoverRate": null,
-          "riseCount": 9,
-          "fallCount": 98,
-          "leader": "华光环能"
+          "code": "",
+          "changePct": -2.65
         },
         {
-          "code": "",
           "name": "影视院线",
-          "changePct": -2.56,
-          "turnoverRate": null,
-          "riseCount": 1,
-          "fallCount": 19,
-          "leader": "中视传媒"
+          "code": "",
+          "changePct": -2.56
         },
         {
-          "code": "",
           "name": "白酒",
-          "changePct": -1.94,
-          "turnoverRate": null,
-          "riseCount": 0,
-          "fallCount": 19,
-          "leader": "伊力特"
+          "code": "",
+          "changePct": -1.94
         },
         {
-          "code": "",
           "name": "保险",
-          "changePct": -1.79,
-          "turnoverRate": null,
-          "riseCount": 0,
-          "fallCount": 5,
-          "leader": "新华保险"
+          "code": "",
+          "changePct": -1.79
         },
         {
-          "code": "",
           "name": "饮料制造",
-          "changePct": -1.68,
-          "turnoverRate": null,
-          "riseCount": 7,
-          "fallCount": 39,
-          "leader": "会稽山"
+          "code": "",
+          "changePct": -1.68
         }
       ],
       "conceptTop5": [
         {
-          "code": "",
           "name": "共封装光学(CPO)",
-          "changePct": 2.94,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "金戈新材"
+          "code": "",
+          "changePct": 2.95
         },
         {
-          "code": "",
           "name": "F5G概念",
-          "changePct": 2.91,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "共进股份"
+          "code": "",
+          "changePct": 2.91
         },
         {
-          "code": "",
           "name": "太赫兹",
-          "changePct": 2.71,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "亨通光电"
+          "code": "",
+          "changePct": 2.71
         },
         {
-          "code": "",
           "name": "光纤概念",
-          "changePct": 2.46,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "九州一轨"
+          "code": "",
+          "changePct": 2.45
         },
         {
-          "code": "",
           "name": "光刻机",
-          "changePct": 2.42,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "中瓷电子"
+          "code": "",
+          "changePct": 2.42
         }
       ],
       "conceptBottom5": [
         {
-          "code": "",
           "name": "乳业",
-          "changePct": -2.29,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "南侨食品"
+          "code": "",
+          "changePct": -2.29
         },
         {
-          "code": "",
           "name": "青蒿素",
-          "changePct": -2.26,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "海正药业"
+          "code": "",
+          "changePct": -2.26
         },
         {
-          "code": "",
           "name": "免税店",
-          "changePct": -1.61,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "ST华扬"
+          "code": "",
+          "changePct": -1.61
         },
         {
-          "code": "",
           "name": "信托概念",
-          "changePct": -1.47,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "华光环能"
+          "code": "",
+          "changePct": -1.47
         },
         {
-          "code": "",
           "name": "猪肉",
-          "changePct": -1.4,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "ST龙大"
+          "code": "",
+          "changePct": -1.4
         }
       ],
-      "errors": []
+      "errors": [],
+      "sourceWarnings": [
+        "industry:skipped=0",
+        "concept:skipped=0"
+      ]
     },
     "fundFlow": {
       "status": "FINAL",
@@ -643,6 +572,7 @@
       "status": "FINAL",
       "dataDate": "2026-08-14",
       "mode": "POST_20240819_OFFICIAL_REPLACEMENT",
+      "sourceSystem": "HKEX",
       "source": [
         "HKEX"
       ],
@@ -35136,8 +35066,7 @@
           }
         ]
       },
-      "errors": [],
-      "sourceSystem": "HKEX"
+      "errors": []
     },
     "margin": {
       "status": "FINAL",
@@ -35175,126 +35104,22 @@
     "tracks": {
       "status": "UNAVAILABLE",
       "dataDate": "2026-08-14",
-      "configVersion": "1.0",
-      "reason": "TRACK_METRICS_COLLECTOR_NOT_IMPLEMENTED",
-      "items": [
-        {
-          "trackId": "dividend_cnsoe",
-          "trackName": "高股息中特估",
-          "positioning": "高股息/央国企价值",
-          "turnoverRank": null,
-          "turnoverUniverseSize": null,
-          "turnoverPercentile": null,
-          "mainNetInflow": null,
-          "mainNetInflowPercentile": null,
-          "continuousInflowDays": null,
-          "maAlignment": null,
-          "rps60": null,
-          "excessReturn20d": null,
-          "limitUpCount": null,
-          "limitUpRate": null,
-          "ladderCompleteness": null,
-          "redStockRatio": null,
-          "coreCatalyst": {
-            "state": "UNKNOWN",
-            "text": ""
-          },
-          "earningsRealization": {
-            "state": "UNKNOWN",
-            "text": ""
-          },
-          "score": null,
-          "coveragePct": 0.0,
-          "decision": "INSUFFICIENT"
-        },
-        {
-          "trackId": "power",
-          "trackName": "电力",
-          "positioning": "公用事业/高股息",
-          "turnoverRank": null,
-          "turnoverUniverseSize": null,
-          "turnoverPercentile": null,
-          "mainNetInflow": null,
-          "mainNetInflowPercentile": null,
-          "continuousInflowDays": null,
-          "maAlignment": null,
-          "rps60": null,
-          "excessReturn20d": null,
-          "limitUpCount": null,
-          "limitUpRate": null,
-          "ladderCompleteness": null,
-          "redStockRatio": null,
-          "coreCatalyst": {
-            "state": "UNKNOWN",
-            "text": ""
-          },
-          "earningsRealization": {
-            "state": "UNKNOWN",
-            "text": ""
-          },
-          "score": null,
-          "coveragePct": 0.0,
-          "decision": "INSUFFICIENT"
-        },
-        {
-          "trackId": "healthcare",
-          "trackName": "医药生物",
-          "positioning": "防御+成长",
-          "turnoverRank": null,
-          "turnoverUniverseSize": null,
-          "turnoverPercentile": null,
-          "mainNetInflow": null,
-          "mainNetInflowPercentile": null,
-          "continuousInflowDays": null,
-          "maAlignment": null,
-          "rps60": null,
-          "excessReturn20d": null,
-          "limitUpCount": null,
-          "limitUpRate": null,
-          "ladderCompleteness": null,
-          "redStockRatio": null,
-          "coreCatalyst": {
-            "state": "UNKNOWN",
-            "text": ""
-          },
-          "earningsRealization": {
-            "state": "UNKNOWN",
-            "text": ""
-          },
-          "score": null,
-          "coveragePct": 0.0,
-          "decision": "INSUFFICIENT"
-        },
-        {
-          "trackId": "semiconductor_ai",
-          "trackName": "半导体/AI算力",
-          "positioning": "科技成长",
-          "turnoverRank": null,
-          "turnoverUniverseSize": null,
-          "turnoverPercentile": null,
-          "mainNetInflow": null,
-          "mainNetInflowPercentile": null,
-          "continuousInflowDays": null,
-          "maAlignment": null,
-          "rps60": null,
-          "excessReturn20d": null,
-          "limitUpCount": null,
-          "limitUpRate": null,
-          "ladderCompleteness": null,
-          "redStockRatio": null,
-          "coreCatalyst": {
-            "state": "UNKNOWN",
-            "text": ""
-          },
-          "earningsRealization": {
-            "state": "UNKNOWN",
-            "text": ""
-          },
-          "score": null,
-          "coveragePct": 0.0,
-          "decision": "INSUFFICIENT"
-        }
-      ]
+      "configVersion": "3.3",
+      "effectiveFrom": "2026-07-20",
+      "effectiveTo": "2026-12-31",
+      "sourceSystem": "SELF",
+      "coveragePct": 0.0,
+      "coverageTargetPct": 80.0,
+      "coverageHardFloorPct": 65.0,
+      "errors": [
+        "HS300_SEED_UNAVAILABLE",
+        "RED_RATIO_SOURCE_UNAVAILABLE"
+      ],
+      "items": [],
+      "warmingUpBoards": [],
+      "decision": "TRACKS_INSUFFICIENT",
+      "dataReadiness": "FAILED",
+      "reason": "TRACK_CRITICAL_INPUT_MISSING"
     },
     "summary": {
       "status": "FINAL",
@@ -35311,10 +35136,10 @@
     }
   },
   "validation": {
-    "calendarExpectedTradingDay": true,
-    "marketDateVerified": true,
-    "requiredIndicesPresent": true,
-    "stockUniverseCheckPassed": true,
+    "calendarExpectedTradingDay": false,
+    "marketDateVerified": false,
+    "requiredIndicesPresent": false,
+    "stockUniverseCheckPassed": false,
     "criticalErrors": [],
     "warnings": []
   }
