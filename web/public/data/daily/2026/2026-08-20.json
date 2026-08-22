@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-20",
   "generatedAt": "2026-08-20T17:00:18+08:00",
-  "updatedAt": "2026-08-23T04:41:51+08:00",
-  "revision": 12,
+  "updatedAt": "2026-08-23T05:43:15+08:00",
+  "revision": 13,
   "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -35144,7 +35144,7 @@
     "tracks": {
       "status": "PARTIAL",
       "dataDate": "2026-08-20",
-      "configVersion": "3.4",
+      "configVersion": "3.5",
       "effectiveFrom": "2026-07-20",
       "effectiveTo": "2026-12-31",
       "sourceSystem": "SELF",
@@ -35183,6 +35183,7 @@
             "logic": true
           },
           "poolQualification": "QUALIFIED_TODAY",
+          "rankScope": "CONCEPT_INJECTED",
           "dataReadiness": "INSUFFICIENT",
           "historyDays": 154
         },
@@ -35214,6 +35215,7 @@
             "logic": true
           },
           "poolQualification": "RETAINED_OBSERVATION",
+          "rankScope": "INDUSTRY_UNIVERSE",
           "dataReadiness": "READY",
           "historyDays": 149
         },
@@ -35245,6 +35247,7 @@
             "logic": true
           },
           "poolQualification": "RETAINED_OBSERVATION",
+          "rankScope": "INDUSTRY_UNIVERSE",
           "dataReadiness": "READY",
           "historyDays": 149
         },
@@ -35276,6 +35279,7 @@
             "logic": true
           },
           "poolQualification": "QUALIFIED_TODAY",
+          "rankScope": "INDUSTRY_LEG",
           "dataReadiness": "READY",
           "historyDays": 149
         },
@@ -35307,6 +35311,7 @@
             "logic": null
           },
           "poolQualification": "QUALIFIED_TODAY",
+          "rankScope": "INDUSTRY_UNIVERSE",
           "dataReadiness": "READY",
           "historyDays": 153
         },
@@ -35338,6 +35343,7 @@
             "logic": null
           },
           "poolQualification": "QUALIFIED_TODAY",
+          "rankScope": "INDUSTRY_UNIVERSE",
           "dataReadiness": "READY",
           "historyDays": 153
         },
@@ -35369,6 +35375,7 @@
             "logic": null
           },
           "poolQualification": "QUALIFIED_TODAY",
+          "rankScope": "INDUSTRY_UNIVERSE",
           "dataReadiness": "READY",
           "historyDays": 153
         }
