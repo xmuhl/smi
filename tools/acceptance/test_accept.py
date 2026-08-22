@@ -734,3 +734,21 @@ def test_tracks_v4_version_schedule_unicode_and_newline_rejected(standard):
         assert not ok, f"configVersion={bad!r} 应 FAIL：{text}"
         assert "非规范 x.y 数值版本" in text or "权威下限" in text, \
             f"configVersion={bad!r} 缺版本 gap：{text}"
+
+
+def test_tracks_v4_warming_boards_string_array_passes(standard):
+    """warmingUpBoards 是板块名字符串数组（生产 3.2 实际输出形态）：
+    非空清单必须 PASS；旧数组校验无条件要求 dict 元素会误判 FAIL。"""
+    mod = _v4_module(warmingUpBoards=["银行", "煤炭"])
+    ok, text = _run_tracks_v4(mod, standard)
+    assert ok, f"warmingUpBoards 字符串数组应 PASS：{text}"
+
+
+def test_tracks_v4_warming_boards_bad_element_rejected(standard):
+    """warmingUpBoards 元素必须是非空字符串：空串/非字符串元素 FAIL。"""
+    mod = _v4_module(warmingUpBoards=["银行", ""])
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "非非空字符串" in text, text
+    mod2 = _v4_module(warmingUpBoards=["银行", 42])
+    ok2, text2 = _run_tracks_v4(mod2, standard)
+    assert not ok2 and "非非空字符串" in text2, text2

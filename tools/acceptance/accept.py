@@ -314,12 +314,22 @@ def _validate_nested_value(val, spec, path, msgs):
             min_items = spec.get("minItems")
             if min_items is not None and len(val) < min_items:
                 msgs.append(_detail_gap(f"{path} 长度 {len(val)} < minItems {min_items}"))
-            for i, item in enumerate(val):
-                if not isinstance(item, dict):
-                    msgs.append(_detail_gap(f"{path}[{i}] 非对象"))
-                    continue
-                for fsc in spec.get("itemFields", []):
-                    _validate_sub_field(item, fsc, f"{path}[{i}].{fsc.get('name')}", msgs)
+            item_fields = spec.get("itemFields")
+            if item_fields:
+                # 对象数组（如 limit-up items）：元素必须是 dict 并逐字段校验
+                for i, item in enumerate(val):
+                    if not isinstance(item, dict):
+                        msgs.append(_detail_gap(f"{path}[{i}] 非对象"))
+                        continue
+                    for fsc in item_fields:
+                        _validate_sub_field(item, fsc, f"{path}[{i}].{fsc.get('name')}", msgs)
+            else:
+                # 字符串数组（如 tracks.warmingUpBoards 板块名清单）：
+                # 元素必须是非空字符串——旧实现无条件要求 dict，导致
+                # 生产 3.2 输出（字符串清单）被误判 FAIL
+                for i, item in enumerate(val):
+                    if not isinstance(item, str) or not item.strip():
+                        msgs.append(_detail_gap(f"{path}[{i}] 非非空字符串"))
     else:
         msgs.append(_detail_gap(f"未知 kind {kind!r} 字段 {path}"))
     # 范围 / 长度 / 中文约束（字符串通用）
