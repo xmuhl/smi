@@ -1,23 +1,23 @@
 {
-  "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-08-21T17:52:20+08:00",
+  "lastWorkflow": "manual-backfill",
+  "lastRunAt": "2026-08-22T16:04:38+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-21",
-  "latestCloseCompleteDate": "2026-07-17",
+  "latestCloseCompleteDate": "2026-08-21",
   "latestFinalDate": "2026-07-17",
   "latestDate": "2026-08-21",
   "health": "DEGRADED",
   "errors": [
     {
       "module": "margin",
-      "status": "ERROR",
+      "status": "PENDING",
       "errors": [
-        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+        "Expecting value: line 1 column 1 (char 0)"
       ]
     },
     {
       "module": "tracks",
-      "status": "UNAVAILABLE",
+      "status": "PARTIAL",
       "errors": [
         "HS300_SEED_UNAVAILABLE"
       ]
