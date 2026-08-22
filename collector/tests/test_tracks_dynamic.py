@@ -678,15 +678,15 @@ def _uni_records(plan_by_date: dict) -> list[dict]:
     return records
 
 
-def test_r13_p2_01_entry_needs_two_of_three_days(monkeypatch):
-    """入池迟滞（R23 排名口径）：近 3 证据日 >=2 日排名<=5 才入池。
+def test_r24_entry_direct_top5_no_confirmation(monkeypatch):
+    """R24（R22-P2-01 收口）：当日前5直接入池——每日范本真理源。
 
-    - 银行/煤炭：3 日累计排名 1/2 → 入池（3/3）；
-    - 医药生物：3 日排名 3 且**全程净流出** → 仍入池（R23-P2-02 锚点：
-      净流入不作准入硬门）；
-    - 房地产：仅 D2 排名 4 达标（D1/T 累计排名 6，窗口含 F 填充）→
-      1/3 不入池；
-    - F1/F2：D1/T 排名 4/5 达标（D2 排名 6/7 未达）→ 2/3 入池（正向对照）。
+    2/3 日入池确认已退役（防抖由出池确认承担）：
+    - 房地产：D2/D1 累计排名 6（历史未达），T 当日翻至第 4 →
+      **立即入池**（单日达标即入选，无确认窗）；
+    - F1：T 累计排名 6 >5 → 不入池；
+    - F2：T 排名 5 → 入池；
+    - 医药生物：全程净流出且排名 3 → 入池（R23-P2-02 锚点保持）。
     """
     # 单日名次目标（累计口径下推算）：
     #   D2：银1 煤2 医3 F1 4 F2 5 房6（房冷启动日未达标）
@@ -708,12 +708,13 @@ def test_r13_p2_01_entry_needs_two_of_three_days(monkeypatch):
     })
     _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
 
-    names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
-    assert "银行" in names        # 3/3 满足
-    assert "煤炭" in names        # 3/3 满足
-    assert "医药生物" in names     # 3/3 满足且全程净流出 → 仍入池（R23-P2-02）
-    assert "F1" in names and "F2" in names  # 2/3 满足（D1/T）
-    assert "房地产" not in names  # 仅 D2 1/3 → 不入池
+    cands = tracks_mod.select_scoring_pool(TRADE_DATE)
+    by = {c["boardName"]: c for c in cands}
+    assert "医药生物" in by        # 全程净流出仍入池（R23-P2-02 锚点）
+    assert "房地产" in by         # T 当日第4 → 直接入池（R24 无确认窗）
+    assert by["房地产"]["poolQualification"] == "QUALIFIED_TODAY"
+    assert "F1" in by             # D2 rank4 直入后 T 跌至第6 → 观察保留
+    assert by["F1"]["poolQualification"] == "RETAINED_OBSERVATION"
 
 
 def test_r13_p2_01_exit_needs_two_consecutive_failures(monkeypatch):
@@ -1107,7 +1108,7 @@ def test_r22_collect_no_universe_empty_pool(monkeypatch):
     assert result["reason"] == "TRACK_CRITICAL_INPUT_MISSING"
     assert result["items"] == []
     assert result["warmingUpBoards"] == []
-    assert result["configVersion"] == "3.4"
+    assert result["configVersion"] == "3.5"
 
 
 def test_r22_collect_partial_universe_day_empty_output(monkeypatch):

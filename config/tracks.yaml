@@ -16,7 +16,7 @@
 # 使用的精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该
 # 赛道归档 UNAVAILABLE（fail-closed，不伪造）。
 
-configVersion: "3.4"
+configVersion: "3.5"
 effectiveFrom: "2026-07-20"
 effectiveTo: "2026-12-31"
 
@@ -32,9 +32,9 @@ selection:
   entryRankMax: 5
   # 近 N 日成交额窗口（范本口径 5 日）
   amountWindowDays: 5
-  # R13-P2-01 入/出池迟滞确认窗口（防单日排名抖动反复进出池）：
-  # 准入需近 entryWindowDays 个证据日中 >= entryMinDays 日达标
-  #（归档历史不足时按实际天数收敛，冷启动退化为单日规则）。
+  # R24（R22-P2-01 收口）：当日前5直接入池（每日范本真理源），无多日
+  # 确认门槛；防抖完全由出池确认承担。entryWindowDays/entryMinDays
+  # 的 2/3 入池确认语义已退役（保留键仅为配置兼容诊断）。
   entryWindowDays: 3
   entryMinDays: 2
   exitRankMax: 12
@@ -120,6 +120,8 @@ tracks:
 
   - id: power
     name: 电力
+    qualification:
+      taxonomy: industry
     enabled: true
     board_type: industry
     board_code: BK0428
@@ -131,6 +133,8 @@ tracks:
 
   - id: healthcare
     name: 医药生物
+    qualification:
+      taxonomy: industry
     enabled: true
     board_type: industry
     board_code: BK1216
@@ -142,6 +146,13 @@ tracks:
 
   - id: semiconductor_ai
     name: 半导体/AI算力
+    # R24/B2：复合赛道显式资格腿——资格按行业主腿（半导体）参与
+    # 行业 universe 排名，评分按复合结构；turnoverRank 语义=主腿行业
+    # 排名（item.rankScope=INDUSTRY_LEG 明示），非复合合成排名
+    qualification:
+      taxonomy: industry
+      boardCode: "BK1036"
+      legName: 半导体
     enabled: true
     board_type: composite
     composite:

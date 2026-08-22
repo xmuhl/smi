@@ -1348,6 +1348,26 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                     details.append(_detail_gap(
                         f"正式项 {tid!r}.mainNetInflow 必填"
                         f"（概念腿数据不足项方可诚实缺列），实际 {pn!r}"))
+                # R23-P3-01：两层资格展示回归防线——3.5 起正式项
+                # poolQualification 必填且枚举合法；rankScope（3.5+）同步
+                _ver34 = _parse_strict_version(cfg_version)
+                pq = it.get("poolQualification")
+                if (
+                    _ver34 is not None
+                    and _ver34 >= (3, 4)
+                    and pq not in ("QUALIFIED_TODAY", "RETAINED_OBSERVATION")
+                ):
+                    details.append(_detail_gap(
+                        f"正式项 {tid!r}.poolQualification 必填"
+                        f"（QUALIFIED_TODAY/RETAINED_OBSERVATION），实际 {pq!r}"))
+                _ver35 = _parse_strict_version(cfg_version)
+                if _ver35 is not None and _ver35 >= (3, 5):
+                    rs = it.get("rankScope")
+                    if rs not in ("INDUSTRY_UNIVERSE", "CONCEPT_INJECTED",
+                                  "INDUSTRY_LEG"):
+                        details.append(_detail_gap(
+                            f"正式项 {tid!r}.rankScope 必填"
+                            f"（排名口径元数据），实际 {rs!r}"))
             if status == "FINAL":
                 # FINAL=全就绪契约：正式项必须携带成熟 score（v4 标准里
                 # score 因 WARMING_UP/INSUFFICIENT 项降级为可选，FINAL 态

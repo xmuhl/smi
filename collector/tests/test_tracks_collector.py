@@ -172,7 +172,7 @@ def _build_fake_archive() -> dict[str, list[dict]]:
     # R23-P2-03：行业 universe 只含行业板块；高股息中特估（概念）由
     # close 归档注入联合排名（amount 单位=元，注入时 /1e8 → 亿）
     uni_rows = [
-        {"boardName": "半导体/AI算力", "boardCodeEm": "BK1036",
+        {"boardName": "半导体", "boardCodeEm": "BK1036",
          "chgPct": 1.0, "amount": 4700.0, "netInflow": None,
          "riseCount": None, "fallCount": None},
         {"boardName": "电力", "boardCodeEm": "BK0428",
@@ -333,7 +333,7 @@ def test_module_result_contract_and_validate_snapshot(monkeypatch):
     # 模块级字段齐全
     assert result["status"] == ModuleStatus.PARTIAL.value
     assert result["dataDate"] == TRADE_DATE
-    assert result["configVersion"] == "3.4"
+    assert result["configVersion"] == "3.5"
     assert result["effectiveFrom"] == "2026-07-20"
     assert result["effectiveTo"] == "2026-12-31"
     assert result["sourceSystem"] == "SELF"
@@ -424,3 +424,23 @@ def test_r13_p2_02_module_degraded_band(monkeypatch):
     snapshot["modules"]["tracks"] = result
     finalize_snapshot(snapshot)
     validate_snapshot(snapshot)
+
+
+def test_r24_rank_scope_metadata(monkeypatch):
+    """R24/B2：排名口径元数据——概念注入/复合显式主腿/行业 universe 三分。
+
+    turnoverRank 语义域显式化，UI/验收不得把主腿排名误称复合合成排名、
+    不得把监测口径联合排名误称全市场排名。
+    """
+    fake = _build_fake_archive()
+    _patch_archive(monkeypatch, fake)
+
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    by_id = {it["trackId"]: it for it in result["items"]}
+    # 概念资格腿（注入联合排名）
+    assert by_id["dividend_cnsoe"]["rankScope"] == "CONCEPT_INJECTED"
+    # 复合赛道显式资格腿（qualification.boardCode=BK1036 → 半导体主腿）
+    assert by_id["semiconductor_ai"]["rankScope"] == "INDUSTRY_LEG"
+    # 单板行业赛道
+    assert by_id["power"]["rankScope"] == "INDUSTRY_UNIVERSE"
+    assert by_id["healthcare"]["rankScope"] == "INDUSTRY_UNIVERSE"

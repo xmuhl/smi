@@ -20,7 +20,7 @@ from collector import archive as _archive
 from collector.config import load_yaml
 from collector.status import ModuleStatus
 
-CONFIG_VERSION = "3.4"
+CONFIG_VERSION = "3.5"
 EFFECTIVE_FROM = "2026-07-20"
 EFFECTIVE_TO = "2026-12-31"
 SOURCE_SYSTEM = "SELF"
@@ -709,8 +709,8 @@ def select_scoring_pool(
     # 取消——防抖由 RETAINED_OBSERVATION 观察层承担，不再放宽入池资格）
     entry_rank_max = int(selection.get("entryRankMax", 5))
     window_days = int(selection.get("amountWindowDays", 5))
-    entry_window = int(selection.get("entryWindowDays", 3))
-    entry_min = int(selection.get("entryMinDays", 2))
+    # R24：entryWindowDays/entryMinDays 已退役（当日前5直接入池）；
+    # 保留读取仅为配置兼容性诊断
     exit_rank_max = int(selection.get("exitRankMax", 12))
     exit_confirm = int(selection.get("exitConfirmDays", 2))
 
@@ -758,11 +758,6 @@ def select_scoring_pool(
     exit_streak: dict[str, int] = {}
     for d in known_dates:
         today_rows = rank_by_date[d]
-        window = known_dates[
-            max(0, known_dates.index(d) - entry_window + 1) : known_dates.index(d) + 1
-        ]
-        # 冷启动收敛：归档历史不足 entryMinDays 时按实际窗口天数要求
-        eff_min = min(entry_min, len(window))
 
         # universe 最低完整性门禁（R14 §5.4）：当日板块行数显著低于
         # 历史峰值（部分响应）时，该日不作为出池/入池证据日——否则上游
@@ -786,18 +781,15 @@ def select_scoring_pool(
             exit_streak[name] = streak
             kept.append(name)
 
-        # 2) 新成员入池确认（只在完整性达标的证据日上累计命中）
+        # 2) 新成员入池（R24/R22-P2-01 修订）：当日 rank<=entryRankMax
+        #    直接入池——QUALIFIED_TODAY 是"今日前5"的每日范本真理源，
+        #    不得被多日确认窗口挡掉（评审 R23 §4.5 最简语义）；防抖完全
+        #    由出池确认（连续 exitConfirmDays 日 >exitRankMax）承担。
+        #    entryWindowDays/entryMinDays 的 2/3 确认语义就此退役。
         for name, item in today_rows.items():
             if name in kept:
                 continue
-            hits = 0
-            for wd in window:
-                if wd not in complete_dates:
-                    continue
-                wi = rank_by_date.get(wd, {}).get(name)
-                if wi is not None and _entry_ok(wi, entry_rank_max):
-                    hits += 1
-            if hits >= eff_min:
+            if _entry_ok(item, entry_rank_max):
                 kept.append(name)
                 exit_streak[name] = 0
 
@@ -1007,6 +999,7 @@ def _make_track_item(
         "decisionCode": decision_code,
         "dimensionPass": dimension_pass,
         "poolQualification": raw.get("pool_qualification"),
+        "rankScope": raw.get("rank_scope"),
         "dataReadiness": readiness,
         "historyDays": history_days,
     }
@@ -1057,11 +1050,46 @@ def collect_tracks(
     # 无 universe 数据日不回退种子（fail-closed 空池）。
     seed_names = _seed_match_names(seeds)
     seed_uni_name: dict[str, str] = {}
+    # R24/B2：排名口径元数据——显式声明每项 turnoverRank 的语义域，
+    # UI/验收不得把主腿/概念注入排名误称为复合赛道或全市场排名
+    seed_rank_scope: dict[str, str] = {}
     for tc in seeds:
+        qual = tc.get("qualification") or {}
+        taxonomy = str(qual.get("taxonomy") or "industry")
+        if taxonomy == "concept":
+            # 概念资格腿：注入键 = expected_name（与
+            # _concept_qualification_injection 一致）；无注入行=诚实剔除
+            descs = _track_board_descs(tc)
+            if len(descs) == 1 and str(descs[0]["expectedName"]) in per_board:
+                seed_uni_name[tc["id"]] = str(descs[0]["expectedName"])
+                seed_rank_scope[tc["id"]] = "CONCEPT_INJECTED"
+            continue
+        leg_code = str(qual.get("boardCode") or "").strip()
+        if leg_code:
+            # 显式资格腿（复合赛道）：只认配置声明的 leg（B2 修订），
+            # 不再依赖名称模糊命中；leg 不在 descs → fail-closed 剔除
+            leg = next(
+                (d for d in _track_board_descs(tc) if d["boardCode"] == leg_code),
+                None,
+            )
+            if leg is not None:
+                leg_names = {
+                    str(leg["indexNameThs"] or ""),
+                    str(leg["expectedName"] or ""),
+                    str(qual.get("legName") or ""),
+                } - {""}
+                for board_key in per_board:
+                    if _names_overlap(str(board_key), leg_names):
+                        seed_uni_name[tc["id"]] = str(board_key)
+                        seed_rank_scope[tc["id"]] = "INDUSTRY_LEG"
+                        break
+            continue
+        # 默认行业口径：名称域命中（单板行业赛道）
         match_names = set(_track_match_names(tc)) | {str(tc.get("name") or "")}
         for board_key in per_board:
             if _names_overlap(str(board_key), match_names):
                 seed_uni_name[tc["id"]] = str(board_key)
+                seed_rank_scope[tc["id"]] = "INDUSTRY_UNIVERSE"
                 break
 
     candidates = (
@@ -1272,6 +1300,11 @@ def collect_tracks(
                 (ot.get("universe") or {}).get("poolQualification")
                 if ot.get("universe") is not None
                 else pool_qual_by_name.get(seed_uni_name.get(track_id, ""))
+            ),
+            "rank_scope": (
+                "INDUSTRY_UNIVERSE"
+                if ot.get("kind") == "dynamic"
+                else seed_rank_scope.get(track_id)
             ),
             # R13-P2-01：close 历史深度（交易日数），供 WARMING_UP 判定
             "history_days": len(comb),

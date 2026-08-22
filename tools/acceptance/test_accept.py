@@ -331,6 +331,8 @@ def _v4_formal_item(track_id="power", catalyst="迎峰度夏催化", earnings="�
         "trackName": f"测试板块{track_id}",
         "positioning": "测试定位",
         "turnoverRank": 3,
+        "poolQualification": "QUALIFIED_TODAY",
+        "rankScope": "INDUSTRY_UNIVERSE",
         "mainNetInflow": 5.2,
         "continuousInflowDays": 2,
         "maAlignment": "是",
@@ -376,7 +378,7 @@ def _v4_module(**overrides):
     mod = {
         "status": "PARTIAL",
         "dataDate": TRACKS_V4_DATE,
-        "configVersion": "3.4",
+        "configVersion": "3.5",
         "effectiveFrom": "2026-07-20",
         "effectiveTo": "2026-12-31",
         "sourceSystem": "THS_UNIVERSE",
