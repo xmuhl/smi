@@ -720,7 +720,7 @@ def test_strict_version_parser_matrix():
 
 def test_tracks_v4_version_schedule_unicode_and_newline_rejected(standard):
     """R19 集成回归：cutoff 后 "3.2\n"（尾部换行）与 "3２.2"（全角数字）
-    必须 FAIL（旧 ^$ 锚 + Unicode \d 曾放过这两种形态）。"""
+    必须 FAIL（旧行尾锚 + Unicode 数字类曾放过这两种形态）。"""
     for bad in ("3.2\n", "3２.2", "3٢.2", "1234567890.0"):
         mod = {
             "status": "UNAVAILABLE",
@@ -755,3 +755,33 @@ def test_tracks_v4_warming_boards_bad_element_rejected(standard):
     mod2 = _v4_module(warmingUpBoards=["银行", 42])
     ok2, text2 = _run_tracks_v4(mod2, standard)
     assert not ok2 and "非非空字符串" in text2, text2
+
+
+def test_tracks_v4_insufficient_item_missing_ratio_passes(standard):
+    """INSUFFICIENT（数据不足）项缺 redStockRatio 合法（诚实缺口）：
+    生产 2026-08-21 真实 3.2 输出暴露——旧标准把 redStockRatio 声明为
+    无条件必填，数据不足项被误判 FAIL。"""
+    def insuff(tid):
+        it = _v4_formal_item(tid)
+        it["dataReadiness"] = "INSUFFICIENT"
+        it["score"] = None
+        it["decision"] = "数据不足"
+        it["redStockRatio"] = None
+        return it
+    mod = _v4_module(items=[
+        _v4_formal_item("power"),
+        _v4_formal_item("dividend"),
+        _v4_formal_item("healthcare"),
+        _v4_formal_item("semiconductor"),
+        insuff("dyncand"),
+    ])
+    ok, text = _run_tracks_v4(mod, standard)
+    assert ok, f"INSUFFICIENT 项缺 redStockRatio 应 PASS：{text}"
+
+
+def test_tracks_v4_formal_item_missing_ratio_rejected(standard):
+    """正式项（READY）缺 redStockRatio 必须 FAIL（条件必填）。"""
+    mod = _v4_module()
+    mod["items"][0]["redStockRatio"] = None
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "redStockRatio 必填" in text, text

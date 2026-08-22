@@ -1333,6 +1333,13 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                         details.append(_detail_gap(
                             f"非动态项 {tid!r}.{tf} 必填非空（≥2 字），"
                             f"实际 {tv!r}"))
+                # 正式项 redStockRatio 条件必填（0~100 解析在通用层已做）：
+                # INSUFFICIENT/FETCH_FAILED/WARMING_UP 项按诚实缺口豁免
+                pr = it.get("redStockRatio")
+                if pr is None or str(pr).strip() == "":
+                    details.append(_detail_gap(
+                        f"正式项 {tid!r}.redStockRatio 必填"
+                        f"（数据不足/预热项方可诚实缺列），实际 {pr!r}"))
             if status == "FINAL":
                 # FINAL=全就绪契约：正式项必须携带成熟 score（v4 标准里
                 # score 因 WARMING_UP/INSUFFICIENT 项降级为可选，FINAL 态
@@ -1351,15 +1358,24 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
             eff_items_spec = items_spec
             eff_item_plan = _tracks_item_plan(cfg_version == "legacy")
             if is_v4:
-                # v4：minFormalItems（代码层）取代总量 minItems；定性双列
-                # 改由条件必填门禁（动态候选允许留白），绕过 declarative 检查
+                # v4：minFormalItems（代码层）取代总量 minItems；定性双列与
+                # redStockRatio 改由条件必填门禁（动态候选/数据不足项允许
+                # 诚实缺列），绕过 declarative 无条件必填检查
                 eff_items_spec = {
-                    k: v for k, v in items_spec.items() if k != "minItems"
+                    k: v for k, v in items_spec.items()
+                    if k != "minItems" and k != "fields"
                 }
+                eff_items_spec["fields"] = [
+                    f for f in items_spec.get("fields", [])
+                    if f.get("name") not in (
+                        "coreCatalyst", "earningsRealization", "redStockRatio",
+                    )
+                ]
                 eff_item_plan = {
                     **eff_item_plan,
                     "coreCatalyst": False,
                     "earningsRealization": False,
+                    "redStockRatio": False,
                 }
             details.extend(_validate_items(mod, eff_items_spec, enum_extras=enum_extras,
                                            item_plan=eff_item_plan))

@@ -1,0 +1,185 @@
+{
+  "reportCommitSemantics": "two-commit：先提交输入树后运行验收，报告单独提交。evaluatedCommit=被验收输入树(HEAD)所在提交；dirty=true 表示未提交改动存在，输入树未完全固化。",
+  "provenance": {
+    "repoCommit": "20000c885172a4790b77ecec3f66860df532baea",
+    "evaluatedCommit": "20000c885172a4790b77ecec3f66860df532baea",
+    "dirty": true,
+    "standardSha256": "373a9be8145efdb2798fbcb69ca9785ebccb22eda8db300a5eb45529bb8400c3",
+    "acceptorSha256": "df332b90e4a53cb7bef7955cc84e93ac9da7a87ce029c7d0fa4c71d661a15d2b",
+    "manifestSha256": "b8c55b89fbe27f536531a34c00b6fb5fb49132148ad504a24a098cbe60c8f3a1",
+    "schemaVersion": "1.2",
+    "perDateSnapshotSha256": {
+      "2026-08-21": "04005b470f7a141dd8ef4905236e454ca3879532352d935528c9ff1360d44c69"
+    },
+    "pythonVersion": "3.13.5",
+    "generatedAt": "2026-08-22T16:07:59.852775+08:00"
+  },
+  "standard": "docs\\acceptance\\template-standard.json",
+  "dates": {
+    "2026-08-21": {
+      "gap": null,
+      "overall": "PASS",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "PENDING",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "PENDING D0 分支通过"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "PARTIAL",
+          "pass": true,
+          "rule": {
+            "from": "2026-08-21",
+            "minConfigVersion": "3.2",
+            "note": "R16-P2-01：3.2 代码（ebac337，2026-08-22）之后的首个可产数据交易日为 cutoff；此后新快照 configVersion<3.2 一律 FAIL，阻断版本降级旁路（configVersion 是被验收事实，不得作为验收强度的可信依据）。；cutoff 后 configVersion 必须严格可解析为 x.y（R17-P2-01：legacy/3.x 等非数值形态一律 FAIL）",
+            "numericOnly": true
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'from': '2026-08-21', 'minConfigVersion': '3.2', 'note': 'R16-P2-01：3.2 代码（ebac337，2026-08-22）之后的首个可产数据交易日为 cutoff；此后新快照 configVersion<3.2 一律 FAIL，阻断版本降级旁路（configVersion 是被验收事实，不得作为验收强度的可信依据）。；cutoff 后 configVersion 必须严格可解析为 x.y（R17-P2-01：legacy/3.x 等非数值形态一律 FAIL）', 'numericOnly': True}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "summary": {
+    "passDates": [
+      "2026-08-21"
+    ],
+    "failDates": [],
+    "moduleFailCounts": [
+      {
+        "module": "marketIndex",
+        "failDates": 0
+      },
+      {
+        "module": "turnover",
+        "failDates": 0
+      },
+      {
+        "module": "sentiment",
+        "failDates": 0
+      },
+      {
+        "module": "sectorPerformance",
+        "failDates": 0
+      },
+      {
+        "module": "fundFlow",
+        "failDates": 0
+      },
+      {
+        "module": "northbound",
+        "failDates": 0
+      },
+      {
+        "module": "margin",
+        "failDates": 0
+      },
+      {
+        "module": "tracks",
+        "failDates": 0
+      },
+      {
+        "module": "summary",
+        "failDates": 0
+      }
+    ]
+  }
+}
