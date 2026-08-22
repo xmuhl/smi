@@ -231,8 +231,8 @@ def _validate_line(record: dict[str, Any]) -> list[str]:
                 )
 
     elif kind == "industry-universe-snapshot":
-        # R12-PLAN-3：全市场行业板块每日快照（THS 行业汇总 + 东财代码映射），
-        # 为动态主赛道选池提供全市场口径的成交额/资金/红盘底座。
+        # R12-PLAN-3：行业板块全景每日快照（THS 行业汇总 + 东财代码映射），
+        # 为动态主赛道选池提供监测口径（行业 universe）的成交额/资金/红盘底座。
         items = record.get("items")
         items_ok = isinstance(items, list)
 

@@ -179,7 +179,7 @@ def test_seed_universe_rank_preferred(monkeypatch):
     result = tracks_mod.collect_tracks(TRADE_DATE)
     power = next(it for it in result["items"] if it["trackId"] == "power")
 
-    # 种子"电力"与 universe 行重合 → 全市场口径排名（6 板中成交额最小 → 6）
+    # 种子"电力"与 universe 行重合 → 监测口径排名（6 板中成交额最小 → 6）
     assert power["turnoverRank"] == 6
 
 
@@ -659,7 +659,7 @@ def test_p1_3_ensure_universe_archived(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# R13-P2-01：迟滞选池（入池确认/出池确认/双阈值/冷启动）与预热池
+# R13-P2-01：迟滞选池（R24 起当日前5直入；出池确认/观察保留）与预热池
 # ---------------------------------------------------------------------------
 
 def _uni_records(plan_by_date: dict) -> list[dict]:
@@ -1087,7 +1087,7 @@ def test_r22_grandfather_seed_exits_after_two_rank_failures(monkeypatch):
         for c in tracks_mod.select_scoring_pool(TRADE_DATE, grandfather=["电力"])
     ]
     assert "电力" not in names_t
-    # 对照：无 grandfather，电力排名 9/9/13/13 从未满足准入（>poolSize=8）
+    # 对照：无 grandfather，电力排名 9/9/13/13 从未满足准入（>entryRankMax=5）
     names_plain = [
         c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)
     ]

@@ -209,7 +209,7 @@ def main() -> int:
                 collect_membership(target, track),
             )
 
-        # 阶段 5：全市场行业板块当日快照（动态选池底座，R12-PLAN-3）
+        # 阶段 5：行业板块全景当日快照（动态选池监测口径底座，R12-PLAN-3）
         # N-1（复核修订）：close-snapshot 侧已预写当日 universe（P1-3），
         # 这里重拉若数值微差会触发 append_record 的 payload conflict
         # RuntimeError → rc=2 当日全丢。已存在即跳过（保留先写版本）；
