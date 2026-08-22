@@ -602,7 +602,7 @@ def _universe_ranking(
     trade_date: str,
     window_days: int,
 ) -> list[dict[str, Any]]:
-    """全市场行业板块近 N 日成交额降序排名（不筛净流入——排名与资金
+    """监测口径（行业板块全景+注入概念腿）近 N 日成交额降序排名（不筛净流入——排名与资金
     维度的净流入判定是两个独立指标，范本口径）。"""
     known_dates = _universe_known_dates(per_board)
     scored: list[dict[str, Any]] = []
@@ -626,9 +626,10 @@ def select_candidate_boards(
 ) -> list[dict[str, Any]]:
     """从 universe 归档选出当日动态候选（tracks 模块与 archive_raw 回补共用）。
 
-    口径（范本第 8 表资金维度，R23-P2-02 修订）：近 N 日成交额全市场
-    排名前 entryRankMax 的行业板块（仅排名，不筛净流入）；按排名升序返回。
-    无当日 universe 记录 → []（fail-closed，调用方退化为纯种子）。
+    口径（范本第 8 表资金维度，R23-P2-02/R24-P3-02 修订）：近 N 日成交额
+    监测口径排名前 entryRankMax 的行业板块（仅排名，不筛净流入）；
+    按排名升序返回。无当日 universe 记录 → []（fail-closed，R22 起调用方
+    不再回退种子，无数据日诚实空池）。
     """
     cfg = load_yaml("tracks.yaml")
     selection = cfg.get("selection", {}) or {}
@@ -1011,7 +1012,7 @@ def collect_tracks(
 ) -> dict[str, Any]:
     """消费 daily raw archive 采集主赛道指标（状态机统一选池）。
 
-    R12-PLAN-1：动态候选从 industry-universe-snapshot 全市场口径选出；
+    R12-PLAN-1：动态候选从 industry-universe-snapshot 监测口径选出；
     资金/红盘指标优先 universe 口径，close 序列指标（MA/RPS）沿用
     track-board-close（候选首次入选时由 archive_raw 回补历史）。
     R22-DEF-01（人工验收）：配置种子（范本 2026-07-17 四板块）不再是
@@ -1218,7 +1219,7 @@ def collect_tracks(
         if uni is None:
             uni = _find_universe_row(ot["matchNames"], rank_by_name)
 
-        # 成交额排名：优先 universe 全市场口径，回退归档板块互排
+        # 成交额排名：优先 universe 监测口径，回退归档板块互排
         if uni is not None:
             turnover_rank = uni["turnoverRank"]
             turnover_universe = uni["universeSize"]
