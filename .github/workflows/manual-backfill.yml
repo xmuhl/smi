@@ -10,6 +10,10 @@ on:
       force:
         description: "重新执行可用数据源"
         required: false
+      replace_modules:
+        description: "放弃合并保护的模块（逗号分隔，如 tracks；语义修订用）"
+        required: false
+        type: string
         default: false
         type: boolean
       deploy:
@@ -56,11 +60,16 @@ jobs:
           SMI_WORKFLOW: manual-backfill
           TARGET_DATE: ${{ inputs.date }}
           FORCE_BACKFILL: ${{ inputs.force }}
+          REPLACE_MODULES: ${{ inputs.replace_modules }}
         run: |
           args=(--date "$TARGET_DATE")
 
           if [[ "$FORCE_BACKFILL" == "true" ]]; then
             args+=(--force)
+          fi
+
+          if [[ -n "$REPLACE_MODULES" ]]; then
+            args+=(--replace-modules "$REPLACE_MODULES")
           fi
 
           python -m collector.jobs.manual_backfill \

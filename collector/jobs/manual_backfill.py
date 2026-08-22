@@ -56,17 +56,24 @@ def _merge_partial_sentiment(
 def _merge_preserving_valid_history(
     existing: dict,
     rebuilt: dict,
+    replace_modules: frozenset[str] = frozenset(),
 ) -> dict:
     """历史回补合并：禁止已持久化的高质量事实被较低状态降级覆盖。
 
     R8-P1-01：保护集必须覆盖 PARTIAL——已有 FINAL 只能被新的 FINAL 修订；
     已有 PARTIAL 是已取得的历史事实，非 FINAL 的重建不得把非空字段抹掉。
+    R22-DEF-01：replace_modules 为显式豁免清单（如 tracks 语义修订）——
+    列名模块放弃保护，允许重建结果整体替换（含 PARTIAL→PARTIAL 降换）；
+    这是人工显式声明的"该模块旧内容即缺陷"路径，不改变默认保护。
     """
     existing_modules = existing.get("modules", {})
     rebuilt_modules = rebuilt.get("modules", {})
 
     for name, old_module in existing_modules.items():
         new_module = rebuilt_modules.get(name)
+
+        if name in replace_modules:
+            continue
 
         if not isinstance(new_module, dict):
             rebuilt_modules[name] = old_module
@@ -121,6 +128,12 @@ def main() -> int:
         "--replace-legacy",
         action="store_true",
         help="显式允许替换 Legacy 基线；默认禁止",
+    )
+    parser.add_argument(
+        "--replace-modules",
+        default="",
+        help="显式放弃合并保护的模块名（逗号分隔，如 tracks）；"
+        "用于语义修订时整体替换已持久化的缺陷内容（R22-DEF-01）",
     )
     args = parser.parse_args()
 
@@ -177,6 +190,11 @@ def main() -> int:
         rebuilt = _merge_preserving_valid_history(
             existing,
             rebuilt,
+            replace_modules=frozenset(
+                m.strip()
+                for m in args.replace_modules.split(",")
+                if m.strip()
+            ),
         )
 
         from collector.calculators.summary import generate_summary

@@ -682,6 +682,50 @@ def test_backfill_merge_keeps_final_against_partial():
         == 100
     )
 
+def test_backfill_merge_replace_modules_overrides_partial():
+    """R22-DEF-01：显式豁免清单内的模块放弃 PARTIAL 保护，整体替换。"""
+    from collector.jobs.manual_backfill import (
+        _merge_preserving_valid_history,
+    )
+
+    old = {
+        "modules": {
+            "tracks": {
+                "status": "PARTIAL",
+                "configVersion": "3.2",
+                "items": [{"trackId": "power"}],
+            }
+        }
+    }
+    new = {
+        "modules": {
+            "tracks": {
+                "status": "PARTIAL",
+                "configVersion": "3.3",
+                "items": [],
+            }
+        }
+    }
+
+    # 合并会原地改写 rebuilt（生产中每次快照只合并一次），测试两次
+    # 调用须各自用深拷贝隔离 fixture，避免第一次调用污染第二次输入
+    import copy
+
+    # 默认：旧 PARTIAL 保留（R8-P1-01 不变）
+    merged = _merge_preserving_valid_history(
+        copy.deepcopy(old), copy.deepcopy(new)
+    )
+    assert merged["modules"]["tracks"]["configVersion"] == "3.2"
+
+    # 豁免：重建结果整体替换
+    merged = _merge_preserving_valid_history(
+        copy.deepcopy(old), copy.deepcopy(new),
+        replace_modules=frozenset({"tracks"}),
+    )
+    assert merged["modules"]["tracks"]["configVersion"] == "3.3"
+    assert merged["modules"]["tracks"]["items"] == []
+
+
 def test_backfill_merge_keeps_partial_against_unavailable():
     from collector.jobs.manual_backfill import (
         _merge_preserving_valid_history,
