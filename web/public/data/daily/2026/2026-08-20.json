@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-20",
   "generatedAt": "2026-08-20T17:00:18+08:00",
-  "updatedAt": "2026-08-23T04:02:06+08:00",
-  "revision": 11,
+  "updatedAt": "2026-08-23T04:41:51+08:00",
+  "revision": 12,
   "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -32,7 +32,11 @@
           "close": 3903.72,
           "previousClose": 3894.42,
           "changePct": 0.24,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-20 != today"
+          ]
         },
         {
           "code": "399001",
@@ -40,7 +44,11 @@
           "close": 13972.78,
           "previousClose": 13890.15,
           "changePct": 0.59,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-20 != today"
+          ]
         },
         {
           "code": "399006",
@@ -48,7 +56,11 @@
           "close": 3495.59,
           "previousClose": 3473.49,
           "changePct": 0.64,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-20 != today"
+          ]
         },
         {
           "code": "000688",
@@ -56,7 +68,11 @@
           "close": 1652.97,
           "previousClose": 1667.52,
           "changePct": -0.87,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-20 != today"
+          ]
         },
         {
           "code": "000300",
@@ -64,7 +80,11 @@
           "close": 4592.75,
           "previousClose": 4588.7,
           "changePct": 0.09,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-20 != today"
+          ]
         },
         {
           "code": "899050",
@@ -72,7 +92,11 @@
           "close": 1081.58,
           "previousClose": 1082.19,
           "changePct": -0.06,
-          "source": "EASTMONEY"
+          "source": "TENCENT",
+          "sourceWarnings": [
+            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-20 != today"
+          ]
         },
         {
           "code": "399311",
@@ -35128,17 +35152,47 @@
       "coverageTargetPct": 80.0,
       "coverageHardFloorPct": 65.0,
       "errors": [
-        "HS300_SEED_UNAVAILABLE",
-        "seed_unmapped_in_industry_universe:dividend_cnsoe(高股息中特估)"
+        "HS300_SEED_UNAVAILABLE"
       ],
       "items": [
+        {
+          "date": "2026-08-20",
+          "trackId": "dividend_cnsoe",
+          "trackName": "高股息中特估",
+          "positioning": "高股息/央国企价值",
+          "selectionReason": "seed",
+          "turnoverRank": 3,
+          "mainNetInflow": null,
+          "continuousInflowDays": 0,
+          "maAlignment": "否",
+          "rps60": 71.4,
+          "excessReturn20d": null,
+          "limitUpCount": 0,
+          "ladderCompleteness": "无连板",
+          "redStockRatio": null,
+          "coreCatalyst": "高股息防御属性、资金抱团避险，央国企市值管理政策催化",
+          "earningsRealization": "业绩稳定、分红率高，盈利兑现确定性强",
+          "score": 39.9,
+          "coveragePct": 50.6,
+          "decision": "数据不足",
+          "decisionCode": "INSUFFICIENT",
+          "dimensionPass": {
+            "capital": false,
+            "trend": false,
+            "emotion": false,
+            "logic": true
+          },
+          "poolQualification": "QUALIFIED_TODAY",
+          "dataReadiness": "INSUFFICIENT",
+          "historyDays": 154
+        },
         {
           "date": "2026-08-20",
           "trackId": "power",
           "trackName": "电力",
           "positioning": "公用事业/高股息",
           "selectionReason": "seed",
-          "turnoverRank": 24,
+          "turnoverRank": 25,
           "mainNetInflow": -15.12,
           "continuousInflowDays": 0,
           "maAlignment": "否",
@@ -35169,24 +35223,24 @@
           "trackName": "医药生物",
           "positioning": "防御+成长",
           "selectionReason": "seed",
-          "turnoverRank": 19,
+          "turnoverRank": 20,
           "mainNetInflow": -14.55,
           "continuousInflowDays": 0,
           "maAlignment": "是",
-          "rps60": 71.4,
+          "rps60": 85.7,
           "excessReturn20d": null,
           "limitUpCount": 14,
           "ladderCompleteness": "1连板",
           "redStockRatio": "98%",
           "coreCatalyst": "创新药出海授权加速、CXO订单边际改善、集采利空出清",
           "earningsRealization": "业绩有望触底回升，出海与放量品种兑现确定性待验证",
-          "score": 69.8,
+          "score": 69.0,
           "coveragePct": 82.4,
           "decision": "短线支线",
           "decisionCode": "SHORT_LINE",
           "dimensionPass": {
             "capital": false,
-            "trend": false,
+            "trend": true,
             "emotion": false,
             "logic": true
           },
@@ -35230,7 +35284,7 @@
           "trackId": "dyn_THS-通信设备",
           "trackName": "通信设备",
           "positioning": "",
-          "selectionReason": "dynamic:rank=2/90,inflow=17.26",
+          "selectionReason": "dynamic:rank=2/91,inflow=17.26",
           "turnoverRank": 2,
           "mainNetInflow": 17.26,
           "continuousInflowDays": 1,
@@ -35261,8 +35315,8 @@
           "trackId": "dyn_THS-元件",
           "trackName": "元件",
           "positioning": "",
-          "selectionReason": "dynamic:rank=3/90,inflow=-14.11",
-          "turnoverRank": 3,
+          "selectionReason": "dynamic:rank=4/91,inflow=-14.11",
+          "turnoverRank": 4,
           "mainNetInflow": -14.11,
           "continuousInflowDays": 0,
           "maAlignment": "否",
@@ -35292,47 +35346,16 @@
           "trackId": "dyn_THS-化学制药",
           "trackName": "化学制药",
           "positioning": "",
-          "selectionReason": "dynamic:rank=4/90,inflow=2.22",
-          "turnoverRank": 4,
-          "mainNetInflow": 2.22,
-          "continuousInflowDays": 1,
-          "maAlignment": "是",
-          "rps60": 85.7,
-          "excessReturn20d": null,
-          "limitUpCount": 12,
-          "ladderCompleteness": "1连板",
-          "redStockRatio": "90%",
-          "coreCatalyst": "",
-          "earningsRealization": "",
-          "score": 81.1,
-          "coveragePct": 82.4,
-          "decision": "短线支线",
-          "decisionCode": "SHORT_LINE",
-          "dimensionPass": {
-            "capital": false,
-            "trend": true,
-            "emotion": false,
-            "logic": null
-          },
-          "poolQualification": "QUALIFIED_TODAY",
-          "dataReadiness": "READY",
-          "historyDays": 153
-        },
-        {
-          "date": "2026-08-20",
-          "trackId": "dyn_THS-医疗服务",
-          "trackName": "医疗服务",
-          "positioning": "",
-          "selectionReason": "dynamic:rank=5/90,inflow=26.5",
+          "selectionReason": "dynamic:rank=5/91,inflow=2.22",
           "turnoverRank": 5,
-          "mainNetInflow": 26.5,
+          "mainNetInflow": 2.22,
           "continuousInflowDays": 1,
           "maAlignment": "是",
           "rps60": 100.0,
           "excessReturn20d": null,
-          "limitUpCount": 4,
+          "limitUpCount": 12,
           "ladderCompleteness": "1连板",
-          "redStockRatio": "95%",
+          "redStockRatio": "90%",
           "coreCatalyst": "",
           "earningsRealization": "",
           "score": 83.1,
