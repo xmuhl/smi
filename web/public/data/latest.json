@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-21",
   "generatedAt": "2026-08-21T17:02:44+08:00",
-  "updatedAt": "2026-08-22T16:04:37+08:00",
-  "revision": 2,
+  "updatedAt": "2026-08-23T01:34:20+08:00",
+  "revision": 3,
   "overallStatus": "PARTIAL_PENDING",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -32,11 +32,7 @@
           "close": 3905.2,
           "previousClose": 3903.72,
           "changePct": 0.04,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-21 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "399001",
@@ -44,11 +40,7 @@
           "close": 14094.17,
           "previousClose": 13972.78,
           "changePct": 0.87,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-21 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "399006",
@@ -56,11 +48,7 @@
           "close": 3545.58,
           "previousClose": 3495.59,
           "changePct": 1.43,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-21 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "000688",
@@ -68,11 +56,7 @@
           "close": 1653.56,
           "previousClose": 1652.97,
           "changePct": 0.04,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-21 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "000300",
@@ -80,11 +64,7 @@
           "close": 4618.9,
           "previousClose": 4592.75,
           "changePct": 0.57,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-21 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "899050",
@@ -92,33 +72,23 @@
           "close": 1075.38,
           "previousClose": 1081.58,
           "changePct": -0.57,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-08-21 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "399311",
           "name": "国证1000",
-          "close": 5001.73,
-          "previousClose": 4980.4,
+          "close": 5001.7254,
+          "previousClose": 4980.4041,
           "changePct": 0.43,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "cni: Expecting value: line 1 column 1 (char 0)"
-          ]
+          "source": "CNI"
         },
         {
           "code": "399303",
           "name": "国证2000",
-          "close": 9887.59,
-          "previousClose": 9882.8,
+          "close": 9887.5858,
+          "previousClose": 9882.7968,
           "changePct": 0.05,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "cni: Expecting value: line 1 column 1 (char 0)"
-          ]
+          "source": "CNI"
         }
       ]
     },
@@ -35123,14 +35093,16 @@
       ],
       "unit": "亿元",
       "errors": [
-        "Expecting value: line 1 column 1 (char 0)"
+        "SZSE margin not published for 2026-08-21 (T+1 disclosure)"
       ],
-      "warnings": [],
+      "warnings": [
+        "ValueError"
+      ],
       "latestPublishedReference": {
-        "dataDate": "2026-08-18",
-        "financingBalance": 26625.16,
-        "securitiesLendingBalance": 270.44,
-        "marginBalance": 26895.59
+        "dataDate": "2026-08-20",
+        "financingBalance": 26311.59,
+        "securitiesLendingBalance": 268.34,
+        "marginBalance": 26579.93
       }
     },
     "tracks": {
@@ -35370,7 +35342,7 @@
       "indexAndTurnover": "上证指数收涨 +0.04%；创业板表现强于沪深300。",
       "sentiment": "上涨 2505 家、下跌 2861 家，非ST涨停 54 家，下跌家数占优。",
       "fundFlow": "行业主力净流入居前：通信设备、元件、贵金属；行业主力净流出居前：化学制药、医疗服务、中药。",
-      "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-08-18）总余额 26895.59 亿元。",
+      "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-08-20）总余额 26579.93 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
       "marketEnvironment": "沪深两市成交额 18788 亿元，前一交易日 20788 亿元，较前一交易日减少 1999 亿元（-9.62%），缩量。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",

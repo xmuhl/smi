@@ -1,6 +1,6 @@
 {
   "lastWorkflow": "manual-backfill",
-  "lastRunAt": "2026-08-23T01:18:29+08:00",
+  "lastRunAt": "2026-08-23T01:34:21+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-21",
   "latestCloseCompleteDate": "2026-08-21",
@@ -12,7 +12,7 @@
       "module": "margin",
       "status": "PENDING",
       "errors": [
-        "Expecting value: line 1 column 1 (char 0)"
+        "SZSE margin not published for 2026-08-21 (T+1 disclosure)"
       ]
     },
     {
