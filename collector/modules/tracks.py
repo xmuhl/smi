@@ -688,14 +688,15 @@ def select_scoring_pool(
     """正式评分池（R13-P2-01 迟滞版动态选池；R22 增设种子初始在池）。
 
     与 select_candidate_boards（单日发现口径）的差异：
-    - 入池需连续确认：近 entryWindowDays 个归档日内 >= entryMinDays 日满足
-      准入条件（归档历史不足时按实际天数收敛，冷启动退化为单日规则）；
-      R23-P2-02：准入仅按成交额排名（<= entryRankMax=5，范本严格口径），
-      净流入不再作为准入硬门（排名决定监测资格，资金流决定评级）；
-    - 出池需连续确认：连续 exitConfirmDays 日触及出池条件才退出（排名
-      连续 exitConfirmDays 日 > exitRankMax）；
+    - 入池（R24 直入语义）：当日成交额排名 <= entryRankMax(5) 直接入池
+      ——当日前5是每日范本真理源，无多日确认门槛（原 2/3 入池确认已退役，
+      entryWindowDays/entryMinDays 仅保留配置键作兼容诊断）；
+      R23-P2-02：准入仅按排名，净流入不作硬门（排名决定监测资格，
+      资金流决定评分/评级）；
+    - 出池需连续确认：连续 exitConfirmDays 日排名 > exitRankMax 才退出；
+      防抖完全由出池确认承担；
     - R23-P2-01 两层资格：QUALIFIED_TODAY（rank<=5 当日范本资格）/
-      RETAINED_OBSERVATION（迟滞观察保留）独立分层输出；
+      RETAINED_OBSERVATION（rank>5 历史池成员观察保留）独立分层输出；
     - 池成员资格从 universe 归档全历史逐日递推，无需额外状态文件。
     无当日 universe 记录 → []（fail-closed；R22 起调用方亦不再回退种子，
     无数据日诚实输出空池）。

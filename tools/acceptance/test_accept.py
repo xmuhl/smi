@@ -789,3 +789,25 @@ def test_tracks_v4_formal_item_missing_ratio_rejected(standard):
     mod["items"][0]["redStockRatio"] = None
     ok, text = _run_tracks_v4(mod, standard)
     assert not ok and "redStockRatio 必填" in text, text
+
+
+def test_r24_p3_01_qualification_rank_cross_validation(standard):
+    """R24-P3-01：资格层与排名事实矛盾必须 FAIL。
+
+    反例 A：rank6 + QUALIFIED_TODAY（应 RETAINED_OBSERVATION）；
+    反例 B：rank3 + RETAINED_OBSERVATION（应 QUALIFIED_TODAY）。
+    """
+    import copy
+
+    bad_a = copy.deepcopy(_v4_module())
+    bad_a["items"][0]["turnoverRank"] = 6
+    ok, text = _run_tracks_v4(bad_a, standard)
+    assert not ok, f"rank6+QUALIFIED 必须 FAIL：{text}"
+    assert "矛盾" in text
+
+    bad_b = copy.deepcopy(_v4_module())
+    bad_b["items"][0]["turnoverRank"] = 3
+    bad_b["items"][0]["poolQualification"] = "RETAINED_OBSERVATION"
+    ok, text = _run_tracks_v4(bad_b, standard)
+    assert not ok, f"rank3+RETAINED 必须 FAIL：{text}"
+    assert "矛盾" in text

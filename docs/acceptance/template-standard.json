@@ -816,6 +816,11 @@
           "TRACKS_SUFFICIENT": "READY",
           "TRACKS_DEGRADED": "DEGRADED",
           "TRACKS_INSUFFICIENT": "FAILED"
+        },
+        "entryRankMax": 5,
+        "qualificationMatrix": {
+          "QUALIFIED_TODAY": "turnoverRank <= entryRankMax（当日前5，无确认门槛）",
+          "RETAINED_OBSERVATION": "turnoverRank > entryRankMax 且未满出池确认（历史池成员观察保留）"
         }
       },
       "tracksVersionSchedule": [
@@ -1096,7 +1101,7 @@
       },
       "displayRules": [
         "必须渲染赛道表格，16 列最终目标：监测日期/板块名称/板块定位/近5日成交额排名/今日主力净流入/连续净流入天数/5-10-20日多头排列/60日RPS/近10日跑赢沪深300/板块涨停家数/连板梯队完整度/红盘个股占比/核心催化逻辑/业绩兑现情况/综合达标率/最终判定。",
-        "至少 4 条赛道；空列表时显示『暂无赛道数据』。",
+        "空列表两分支：UNAVAILABLE →『上游赛道数据暂不可用（板块快照缺失或未过完整性校验），无法判断当日主线』；数据完整而 items=[] →『今日暂无符合筛选条件的主赛道（监测口径前5：行业板块全景 + 已配置概念赛道联合排名）』。（R22-P3-01/R24-P3-02：不得共用一句占位文案）",
         "sourceSystem=TONGDAXIN_LEGACY 时页脚展示『数据口径：通达信 Legacy（历史导入）』；主力净流入按正负红绿配色。",
         "score（综合达标率）按 0~100 百分比渲染；decision（最终判定）用 decisionText 归一化文案。"
       ],

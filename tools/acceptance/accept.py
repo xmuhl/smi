@@ -1368,6 +1368,18 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                         details.append(_detail_gap(
                             f"正式项 {tid!r}.rankScope 必填"
                             f"（排名口径元数据），实际 {rs!r}"))
+                    # R24-P3-01：两层资格与排名事实交叉校验——标签写反
+                    # 不得 PASS（反例：rank6+QUALIFIED / rank3+RETAINED）
+                    _erm = contract.get("entryRankMax", 5)
+                    _rk = it.get("turnoverRank")
+                    if isinstance(_rk, (int, float)):
+                        _want = ("QUALIFIED_TODAY" if _rk <= _erm
+                                 else "RETAINED_OBSERVATION")
+                        if pq != _want:
+                            details.append(_detail_gap(
+                                f"正式项 {tid!r} 资格层与排名矛盾："
+                                f"turnoverRank={_rk} 应为 {_want}，"
+                                f"实际 {pq!r}"))
             if status == "FINAL":
                 # FINAL=全就绪契约：正式项必须携带成熟 score（v4 标准里
                 # score 因 WARMING_UP/INSUFFICIENT 项降级为可选，FINAL 态
