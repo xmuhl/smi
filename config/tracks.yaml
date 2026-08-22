@@ -15,7 +15,7 @@
 # 使用的精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该
 # 赛道归档 UNAVAILABLE（fail-closed，不伪造）。
 
-configVersion: "3.1"
+configVersion: "3.2"
 effectiveFrom: "2026-08-20"
 effectiveTo: "2026-12-31"
 
@@ -41,10 +41,17 @@ selection:
   # 持续回补 close 历史（不要求当日净流入为正），消除"首次入选次日才开始
   # 累积历史"的冷启动；预热数据不直接提升评分。
   prewarmRankMax: 16
-  # 历史就绪门禁：动态候选 close 历史 < minHistoryDays 个交易日记为
-  # dataReadiness=WARMING_UP（与 FETCH_FAILED 语义分离，前端不显示为
-  # "获取失败"）；MA20/20 日窗口类指标的最低就绪线。
+  # 历史就绪门禁（R15 起为真门禁）：动态候选 close 历史 < minHistoryDays
+  # 个交易日记为 dataReadiness=WARMING_UP——预热候选不参与正式评分
+  #（score=null、decision=数据不足）、不计入模块 coverage 分母与 D0；
+  # MA20/20 日窗口类指标的最低就绪线。
   minHistoryDays: 20
+  # universe 最低完整性门禁（R14 §5.4）：当日 universe 板块行数
+  # >= max(minUniverseBoards, 全历史单日峰值 * minUniverseBoardRatio) 才
+  # 视为完整证据日；不完整日不驱动出池 streak、不提供入池命中——
+  # 防止上游部分响应被误解释为市场资格失败（缺行=exit hit 的前置）。
+  minUniverseBoardRatio: 0.5
+  minUniverseBoards: 0
 
 boardMetadata:
   银行:

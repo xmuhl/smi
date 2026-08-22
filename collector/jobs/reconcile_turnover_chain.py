@@ -29,6 +29,7 @@ from collector.jobs.common import (
     write_if_changed,
 )
 from collector.modules.turnover import (
+    TURNOVER_METHOD,
     _infer_turnover_method,
     _turnover_comparison,
 )
@@ -139,6 +140,14 @@ def _reconcile_day(
         return False
 
     if module.get("status") != ModuleStatus.FINAL.value:
+        return False
+
+    # Legacy Excel 导入日（method=LEGACY_UNKNOWN）豁免：其跨日比较字段
+    # （turnoverPrevious/volumeState 等）与 summary 叙述是范本 Excel 记录
+    # 的事实，不是归档链派生值。链上首日无前日文件不构成"覆写 Excel
+    # 事实为 PREVIOUS_UNAVAILABLE"的理由（R15：修复 2026-07-17 范本日
+    # 被 TURNOVER_CHAIN_RECONCILE 覆写、referenceAssertions 金标失配）。
+    if _infer_turnover_method(module) != TURNOVER_METHOD:
         return False
 
     today_value = module.get("turnoverToday")

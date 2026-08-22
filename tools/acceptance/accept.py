@@ -67,7 +67,7 @@ _COMPLEX_HANDLERS = {
     "sentiment_V2": {"supportedVersions": [1], "handler": "check_sentiment"},
     "northbound_V2": {"supportedVersions": [2, 3], "handler": "check_northbound"},
     "margin_V2": {"supportedVersions": [1, 2, 3], "handler": "check_margin"},
-    "tracks_V2": {"supportedVersions": [2, 3], "handler": "check_tracks"},
+    "tracks_V2": {"supportedVersions": [2, 3, 4], "handler": "check_tracks"},
     "summary_V2": {"supportedVersions": [2, 3, 4], "handler": "check_summary"},
 }
 
@@ -1053,7 +1053,14 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
     details = []
     spec = _lookup_module(standard, "tracks")
     rule = spec.get("ruleId") or "tracks_V2"
-    if spec.get("requiredStatus") and status != spec.get("requiredStatus"):
+    contract = spec.get("decisionContract") or {}
+    is_v4 = bool(contract) and int(spec.get("ruleVersion", 3)) >= 4
+    allowed = spec.get("allowedStatuses")
+    if allowed:
+        if status not in allowed:
+            details.append(_detail_gap(
+                f"status={status!r} 不在 allowedStatuses {allowed}"))
+    elif spec.get("requiredStatus") and status != spec.get("requiredStatus"):
         details.append(_detail_gap(f"status={status!r} 期望 {spec.get('requiredStatus')}"))
 
     ref_date = standard.get("referenceDate")
@@ -1096,54 +1103,176 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                 details.append(_detail_gap(
                     f"配置生效区间 {eff_from}..{eff_to} 未覆盖 tradeDate {trade_date}"))
 
+    # v4 状态-判定矩阵（R14-P2-01 产品裁决；legacy 参考日豁免，
+    # 由 referenceAssertions 兜底）。旧契约快照（decision 非 TRACKS_* 或
+    # 缺失）不做矩阵回溯判定，交由历史覆盖 Profile 处理。
+    if is_v4 and not exempt_eff:
+        decision = mod.get("decision")
+        cov = mod.get("coveragePct")
+        readiness = mod.get("dataReadiness")
+        target = float(contract.get("coverageTargetPct", 80.0))
+        floor = float(contract.get("coverageHardFloorPct", 65.0))
+        module_decisions = set(contract.get("moduleDecisions") or [])
+        if status in ("FINAL", "PARTIAL"):
+            if decision is None:
+                details.append(_detail_gap(
+                    f"status={status} 必须携带模块级 decision"))
+            elif module_decisions and decision not in module_decisions:
+                details.append(_detail_gap(
+                    f"模块级 decision={decision!r} 不在契约枚举"))
+        if (
+            status == "FINAL"
+            and decision is not None
+            and decision != "TRACKS_SUFFICIENT"
+        ):
+            details.append(_detail_gap(
+                f"FINAL 仅允许 TRACKS_SUFFICIENT，实际 {decision!r}"))
+        if (
+            status == "PARTIAL"
+            and isinstance(decision, str)
+            and decision.startswith("TRACKS_")
+        ):
+            if not _is_finite_number(cov):
+                details.append(_detail_gap(
+                    f"PARTIAL/{decision} 必须携带有限 coveragePct，实际 {cov!r}"))
+            else:
+                covf = float(cov)
+                if decision == "TRACKS_SUFFICIENT" and covf < target:
+                    details.append(_detail_gap(
+                        f"TRACKS_SUFFICIENT 要求 coverage>={target}，实际 {covf}"))
+                if decision == "TRACKS_DEGRADED" and not (floor <= covf < target):
+                    details.append(_detail_gap(
+                        f"TRACKS_DEGRADED 要求 coverage∈[{floor},{target})，实际 {covf}"))
+        if (
+            status == "UNAVAILABLE"
+            and isinstance(decision, str)
+            and decision.startswith("TRACKS_")
+            and decision != "TRACKS_INSUFFICIENT"
+        ):
+            details.append(_detail_gap(
+                f"UNAVAILABLE 仅允许 TRACKS_INSUFFICIENT，实际 {decision!r}"))
+        readiness_map = contract.get("readinessMap") or {}
+        if (
+            readiness is not None
+            and isinstance(decision, str)
+            and decision in readiness_map
+            and readiness != readiness_map[decision]
+        ):
+            details.append(_detail_gap(
+                f"dataReadiness={readiness!r} 与 decision={decision!r} 不一致"
+                f"（期望 {readiness_map[decision]!r}）"))
+
     # items >= 4 且逐列 typed 校验
     items = mod.get("items")
     items_spec = spec.get("items") or {}
     if not isinstance(items, list):
         details.append(_detail_gap("items 不是 list"))
     else:
-        if len(items) < 4:
-            details.append(_detail_gap(f"items 长度 {len(items)} < 4"))
-        enum_extras = {}
-        ra = ctx.get("reference_assertions_for") if ctx else None
-        if trade_date == ref_date:
-            enum_extras = _tracks_reference_enum_extras(standard)
-        details.extend(_validate_items(mod, items_spec, enum_extras=enum_extras,
-                                       item_plan=_tracks_item_plan(cfg_version == "legacy")))
-        # trackId 集合与 referenceAssertions/模块定义一致
-        ref_track_ids = _reference_track_ids(standard)
-        ids = []
-        for it in items:
-            if isinstance(it, dict) and it.get("trackId") is not None:
-                ids.append(it["trackId"])
-        if ref_track_ids:
-            if set(ids) != set(ref_track_ids):
+        # v4：UNAVAILABLE 的 items 可为空/信息性，契约由模块级矩阵约束
+        skip_item_checks = is_v4 and status == "UNAVAILABLE"
+        if not skip_item_checks and is_v4:
+            # 正式/预热分离（R14 §5.3）：WARMING_UP 不计 minFormalItems、
+            # 不得输出成熟 score/decision；非动态候选定性列强制非空。
+            formal_items = [
+                it for it in items
+                if not (isinstance(it, dict)
+                        and it.get("dataReadiness") == "WARMING_UP")
+            ]
+            warming_items = [
+                it for it in items
+                if isinstance(it, dict)
+                and it.get("dataReadiness") == "WARMING_UP"
+            ]
+            min_formal = int(contract.get("minFormalItems", 4))
+            if len(formal_items) < min_formal:
                 details.append(_detail_gap(
-                    f"trackId 集合 {sorted(set(ids))} 与 referenceAssertions 集合 {sorted(ref_track_ids)} 不一致"))
-        # P0-006：item.date 必须存在且 == tradeDate；文本占位检查；redStockRatio 0~100；score/decision 重算。
-        rejected = set(standard.get("rejectedPlaceholders") or [])
-        for i, it in enumerate(items):
-            if not isinstance(it, dict):
-                continue
-            item_date = it.get("date")
-            if not item_date or item_date != trade_date:
-                details.append(_detail_gap(
-                    f"tracks.items[{i}] date 缺失或 != tradeDate {trade_date}，实际 {item_date!r}"))
-            for text_field in ("coreCatalyst", "earningsRealization", "ladderCompleteness"):
-                tv = it.get(text_field)
-                if isinstance(tv, str):
-                    for ph in rejected:
-                        if ph in tv:
-                            details.append(_detail_gap(
-                                f"tracks.items[{i}].{text_field} 含占位词 {ph!r}: {tv!r}"))
-                        break
-            pr = _parse_percent(it.get("redStockRatio"))
-            if pr is not None and not (0.0 <= pr <= 100.0):
-                details.append(_detail_gap(
-                    f"tracks.items[{i}].redStockRatio 解析值 {pr} 超出 0~100"))
-        # 非 legacy 且 status=FINAL：重算 score/decision（参考日 legacy 跳过，由 reference assertions 兜底）。
-        if (not is_legacy_snap) and status == "FINAL" and isinstance(items, list) and items:
-            _recalc_tracks(items, snapshot, details)
+                    f"正式评分项（非 WARMING_UP）数量 "
+                    f"{len(formal_items)} < {min_formal}"))
+            for w in warming_items:
+                if w.get("score") is not None:
+                    details.append(_detail_gap(
+                        f"WARMING_UP 项 {w.get('trackId')!r} 不得输出成熟 score"))
+                if w.get("decision") != "数据不足":
+                    details.append(_detail_gap(
+                        f"WARMING_UP 项 {w.get('trackId')!r} "
+                        f"decision 必须为「数据不足」，实际 {w.get('decision')!r}"))
+            for it in formal_items:
+                if not isinstance(it, dict):
+                    continue
+                tid = it.get("trackId")
+                if isinstance(tid, str) and tid.startswith("dyn_"):
+                    continue  # 动态候选定性列允许 fail-closed 留白
+                for tf in ("coreCatalyst", "earningsRealization"):
+                    tv = it.get(tf)
+                    if not (isinstance(tv, str) and len(tv.strip()) >= 2):
+                        details.append(_detail_gap(
+                            f"非动态项 {tid!r}.{tf} 必填非空（≥2 字），"
+                            f"实际 {tv!r}"))
+            if status == "FINAL":
+                # FINAL=全就绪契约：正式项必须携带成熟 score（v4 标准里
+                # score 因 WARMING_UP/INSUFFICIENT 项降级为可选，FINAL 态
+                # 在代码层恢复强制）。
+                for it in formal_items:
+                    if isinstance(it, dict) and not _is_finite_number(it.get("score")):
+                        details.append(_detail_gap(
+                            f"FINAL 态正式项 {it.get('trackId')!r} 缺成熟 score"))
+        if not skip_item_checks:
+            if not is_v4 and len(items) < 4:
+                details.append(_detail_gap(f"items 长度 {len(items)} < 4"))
+            enum_extras = {}
+            ra = ctx.get("reference_assertions_for") if ctx else None
+            if trade_date == ref_date:
+                enum_extras = _tracks_reference_enum_extras(standard)
+            eff_items_spec = items_spec
+            eff_item_plan = _tracks_item_plan(cfg_version == "legacy")
+            if is_v4:
+                # v4：minFormalItems（代码层）取代总量 minItems；定性双列
+                # 改由条件必填门禁（动态候选允许留白），绕过 declarative 检查
+                eff_items_spec = {
+                    k: v for k, v in items_spec.items() if k != "minItems"
+                }
+                eff_item_plan = {
+                    **eff_item_plan,
+                    "coreCatalyst": False,
+                    "earningsRealization": False,
+                }
+            details.extend(_validate_items(mod, eff_items_spec, enum_extras=enum_extras,
+                                           item_plan=eff_item_plan))
+            # trackId 集合与 referenceAssertions/模块定义一致
+            #（v4：仅约束 legacy 参考日；动态池逐日变化，不做集合固化）
+            ref_track_ids = _reference_track_ids(standard)
+            ids = []
+            for it in items:
+                if isinstance(it, dict) and it.get("trackId") is not None:
+                    ids.append(it["trackId"])
+            if ref_track_ids and (not is_v4 or trade_date == ref_date):
+                if set(ids) != set(ref_track_ids):
+                    details.append(_detail_gap(
+                        f"trackId 集合 {sorted(set(ids))} 与 referenceAssertions 集合 {sorted(ref_track_ids)} 不一致"))
+            # P0-006：item.date 必须存在且 == tradeDate；文本占位检查；redStockRatio 0~100；score/decision 重算。
+            rejected = set(standard.get("rejectedPlaceholders") or [])
+            for i, it in enumerate(items):
+                if not isinstance(it, dict):
+                    continue
+                item_date = it.get("date")
+                if not item_date or item_date != trade_date:
+                    details.append(_detail_gap(
+                        f"tracks.items[{i}] date 缺失或 != tradeDate {trade_date}，实际 {item_date!r}"))
+                for text_field in ("coreCatalyst", "earningsRealization", "ladderCompleteness"):
+                    tv = it.get(text_field)
+                    if isinstance(tv, str):
+                        for ph in rejected:
+                            if ph in tv:
+                                details.append(_detail_gap(
+                                    f"tracks.items[{i}].{text_field} 含占位词 {ph!r}: {tv!r}"))
+                            break
+                pr = _parse_percent(it.get("redStockRatio"))
+                if pr is not None and not (0.0 <= pr <= 100.0):
+                    details.append(_detail_gap(
+                        f"tracks.items[{i}].redStockRatio 解析值 {pr} 超出 0~100"))
+            # 非 legacy 且 status=FINAL：重算 score/decision（参考日 legacy 跳过，由 reference assertions 兜底）。
+            if (not is_legacy_snap) and status == "FINAL" and isinstance(items, list) and items:
+                _recalc_tracks(items, snapshot, details)
 
     details.extend(_run_reference_assertions(snapshot, standard, "tracks", trade_date, daily_dir, ctx))
     ok = not any(not d["passed"] for d in details)
@@ -2352,6 +2481,20 @@ def _validate_manifest_latest_identity(manifest, daily_dir=None):
         gaps.append(
             "manifest 三指针顺序必须满足 "
             "latestFinalDate <= latestCloseCompleteDate <= latestCapturedDate"
+        )
+
+    # R14-P3-02：指针存在性单调（阶段蕴含：FINAL ⇒ CLOSE_COMPLETE ⇒ CAPTURED）。
+    # 先过滤 None 再排序会丢失蕴含关系——例如 final!=null 且
+    # close_complete=null 的非法状态必须报 gap，不得放行。
+    if final is not None and close_complete is None:
+        gaps.append(
+            "manifest.latestFinalDate 非 null 但 latestCloseCompleteDate 为 null "
+            "（FINAL 隐含 CLOSE_COMPLETE，指针链断裂）"
+        )
+    if close_complete is not None and captured is None:
+        gaps.append(
+            "manifest.latestCloseCompleteDate 非 null 但 latestCapturedDate 为 null "
+            "（CLOSE_COMPLETE 隐含 CAPTURED，指针链断裂）"
         )
 
     if captured is None:

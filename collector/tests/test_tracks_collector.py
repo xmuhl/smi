@@ -288,7 +288,7 @@ def test_module_result_contract_and_validate_snapshot(monkeypatch):
     # 模块级字段齐全
     assert result["status"] == ModuleStatus.PARTIAL.value
     assert result["dataDate"] == TRADE_DATE
-    assert result["configVersion"] == "3.1"
+    assert result["configVersion"] == "3.2"
     assert result["effectiveFrom"] == "2026-08-20"
     assert result["effectiveTo"] == "2026-12-31"
     assert result["sourceSystem"] == "SELF"

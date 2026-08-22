@@ -202,14 +202,27 @@ export interface TrackItem {
   decisionCode?: string;
   /** R12-PLAN-4：四维度达标（capital/trend/emotion/logic；true/false/null=数据不足） */
   dimensionPass?: Record<string, boolean | null>;
+  /** R13-P2-01/R15：数据就绪态。READY=正式评分成员；DEGRADED=降置信；
+   *  WARMING_UP=冷启动预热（历史不足 minHistoryDays，不参与正式评分，
+   *  score/decision 非成熟输出）；INSUFFICIENT/FETCH_FAILED=数据不足/获取失败 */
+  dataReadiness?: "READY" | "DEGRADED" | "WARMING_UP" | "INSUFFICIENT" | "FETCH_FAILED" | string;
+  /** R15：close 历史已累积交易日数（WARMING_UP 判定的依据） */
+  historyDays?: number | null;
 }
 
 export interface TracksModule extends ModuleBase {
   configVersion: string;
   sourceSystem?: string;
-  /** 模块级 D0 覆盖契约；仅 PARTIAL sufficient 路径使用（R10-P1-02） */
-  decision?: "TRACKS_SUFFICIENT" | "INSUFFICIENT";
+  /** 模块级覆盖契约（R13-P2-02 三态；TRACKS_SUFFICIENT/INSUFFICIENT 为历史取值） */
+  decision?: "TRACKS_SUFFICIENT" | "TRACKS_DEGRADED" | "TRACKS_INSUFFICIENT" | "INSUFFICIENT";
+  /** R13-P2-02：模块级数据就绪态（READY/DEGRADED/FAILED） */
+  dataReadiness?: "READY" | "DEGRADED" | "FAILED" | string;
   coveragePct?: number | null;
+  /** R13-P2-02：coverage 目标线/硬地板（track-scoring.yaml 单一真源透传） */
+  coverageTargetPct?: number | null;
+  coverageHardFloorPct?: number | null;
+  /** R13-P2-01：冷启动预热中板块（信息性，不参与正式评分） */
+  warmingUpBoards?: string[];
   items: TrackItem[];
 }
 

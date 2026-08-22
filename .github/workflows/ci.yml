@@ -36,6 +36,9 @@ jobs:
       - name: Run Python tests
         run: pytest -q collector/tests
 
+      - name: Archive site-check selftest (R13-P3-04)
+        run: bash tools/deploy/test_verify_archive_sync.sh
+
   web:
     runs-on: ubuntu-latest
 

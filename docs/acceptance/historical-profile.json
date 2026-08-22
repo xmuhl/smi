@@ -64,6 +64,7 @@
       ],
       "missingReason": "历史量化输入底座不完整：board-flow/membership 仅当日无历史；excessReturn20d 缺 HS300 archive 源；redStockRatio 缺历史行情源",
       "statusMapping": "上述字段缺失时置 UNAVAILABLE",
+      "v4Note": "R14-P2-01（2026-08-21 裁决）：tracks_V2 升 ruleVersion 4 后，验收按 allowedStatuses+状态-判定矩阵执行（FINAL⟺SUFFICIENT / PARTIAL⟺SUFFICIENT|DEGRADED / UNAVAILABLE⟺INSUFFICIENT）；历史日 UNAVAILABLE+TRACKS_INSUFFICIENT 属矩阵合法形态，本 profile 继续按既有边界接受其字段级缺口。",
       "uiNotice": "历史日展示『赛道量化指标历史不可用（输入底座不足），仅展示可用归档数据』"
     }
   },

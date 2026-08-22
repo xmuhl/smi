@@ -792,8 +792,32 @@
     "tracks": {
       "displayLabel": "8-主赛道每日监测表",
       "ruleId": "tracks_V2",
-      "ruleVersion": 3,
-      "requiredStatus": "FINAL",
+      "ruleVersion": 4,
+      "allowedStatuses": [
+        "FINAL",
+        "PARTIAL",
+        "UNAVAILABLE"
+      ],
+      "decisionContract": {
+        "moduleDecisions": [
+          "TRACKS_SUFFICIENT",
+          "TRACKS_DEGRADED",
+          "TRACKS_INSUFFICIENT"
+        ],
+        "coverageTargetPct": 80.0,
+        "coverageHardFloorPct": 65.0,
+        "minFormalItems": 4,
+        "statusMatrix": {
+          "FINAL": "TRACKS_SUFFICIENT 且 coveragePct>=target（legacy/全就绪路径）",
+          "PARTIAL": "TRACKS_SUFFICIENT(coverage>=target，诚实缺口) 或 TRACKS_DEGRADED(floor<=coverage<target，降置信)",
+          "UNAVAILABLE": "TRACKS_INSUFFICIENT（critical 输入缺失或 coverage<floor）"
+        },
+        "readinessMap": {
+          "TRACKS_SUFFICIENT": "READY",
+          "TRACKS_DEGRADED": "DEGRADED",
+          "TRACKS_INSUFFICIENT": "FAILED"
+        }
+      },
       "xlsxColumns": [
         "监测日期",
         "板块名称",
@@ -834,6 +858,49 @@
           "name": "sourceSystem",
           "kind": "string",
           "required": true
+        },
+        {
+          "name": "decision",
+          "kind": "enum",
+          "required": false,
+          "enumValues": [
+            "TRACKS_SUFFICIENT",
+            "TRACKS_DEGRADED",
+            "TRACKS_INSUFFICIENT",
+            "INSUFFICIENT"
+          ]
+        },
+        {
+          "name": "dataReadiness",
+          "kind": "enum",
+          "required": false,
+          "enumValues": [
+            "READY",
+            "DEGRADED",
+            "FAILED"
+          ]
+        },
+        {
+          "name": "coveragePct",
+          "kind": "finite",
+          "required": false,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "coverageTargetPct",
+          "kind": "finite",
+          "required": false
+        },
+        {
+          "name": "coverageHardFloorPct",
+          "kind": "finite",
+          "required": false
+        },
+        {
+          "name": "warmingUpBoards",
+          "kind": "array",
+          "required": false
         }
       ],
       "items": {
@@ -895,11 +962,13 @@
           {
             "name": "excessReturn20d",
             "kind": "enum",
-            "required": true,
+            "required": false,
             "enumValues": [
               "是",
               "否"
-            ]
+            ],
+            "nullable": true,
+            "note": "无 HS300 归档源，诚实缺口（R14-P2-01 登记）；允许 null，不计 FAIL"
           },
           {
             "name": "limitUpCount",
@@ -923,40 +992,60 @@
           {
             "name": "coreCatalyst",
             "kind": "string",
-            "required": true,
+            "required": false,
             "minChars": 2,
             "cjkRequired": true,
-            "noPlaceholders": true
+            "noPlaceholders": true,
+            "conditionalRequired": "非动态候选（trackId 非 dyn_ 前缀）必填非空中文；动态候选无 boardMetadata 时允许 fail-closed 留白（不计 coverage 分母）"
           },
           {
             "name": "earningsRealization",
             "kind": "string",
-            "required": true,
+            "required": false,
             "minChars": 2,
             "cjkRequired": true,
-            "noPlaceholders": true
+            "noPlaceholders": true,
+            "conditionalRequired": "非动态候选（trackId 非 dyn_ 前缀）必填非空中文；动态候选无 boardMetadata 时允许 fail-closed 留白（不计 coverage 分母）"
           },
           {
             "name": "score",
             "kind": "finite",
-            "required": true,
+            "required": false,
             "min": 0,
-            "max": 100
+            "max": 100,
+            "nullable": true,
+            "note": "WARMING_UP（预热）与 INSUFFICIENT（数据不足）项 score 为 null"
           },
           {
             "name": "decision",
             "kind": "enum",
             "required": true,
             "enumValues": [
-              "核心防御主线",
-              "次主线",
-              "主跌浪",
-              "退潮主线",
-              "观察",
-              "达标",
-              "规避",
+              "核心主赛道",
+              "次主线/轮动主线",
+              "短线支线",
+              "一日游脉冲/回避",
               "数据不足"
+            ],
+            "note": "R12 四级判定中文标签；legacy 参考日旧枚举经 referenceAssertions enum extras 豁免"
+          },
+          {
+            "name": "dataReadiness",
+            "kind": "enum",
+            "required": false,
+            "enumValues": [
+              "READY",
+              "DEGRADED",
+              "WARMING_UP",
+              "INSUFFICIENT",
+              "FETCH_FAILED"
             ]
+          },
+          {
+            "name": "historyDays",
+            "kind": "nonNegativeInt",
+            "required": false,
+            "nullable": true
           }
         ]
       },
@@ -966,7 +1055,7 @@
         "sourceSystem=TONGDAXIN_LEGACY 时页脚展示『数据口径：通达信 Legacy（历史导入）』；主力净流入按正负红绿配色。",
         "score（综合达标率）按 0~100 百分比渲染；decision（最终判定）用 decisionText 归一化文案。"
       ],
-      "notes": "16 列硬目标不放松。items minItems=4。每列 typed 规则见 items.fields：date==tradeDate（equalsTradeDate）；turnoverRank finitePositive、mainNetInflow finite、continuousInflowDays nonNegativeInt、maAlignment 枚举[是,否]、rps60 0~100、excessReturn20d 枚举[是,否]、limitUpCount nonNegativeInt、ladderCompleteness 非空字符串（如『2连板』/『无连板』）、redStockRatio 为百分比数值（min 0/max 100，按百分比数值解析）、coreCatalyst/earningsRealization 非空中文且 noPlaceholders=true（不在 rejectedPlaceholders）、score 0~100 finite、decision 非空枚举（核心防御主线/次主线/主跌浪/退潮主线/观察/达标/规避/数据不足）。模块级 configVersion/effectiveFrom/effectiveTo/sourceSystem 必填，effectiveFrom<=tradeDate<=effectiveTo（coversTradeDate），避免配置倒灌历史日期。score/decision 由 score_tracks（规则版本化重算器）按输入指标+规则版本重算一致，非 legacy 直接透传；legacy 参考日以 referenceAssertions 为唯一金标，不做 score 重算。历史行情可派生（近5日排名/均线/RPS/超额/红盘占比）、资金流时间序列（净流入/连续天数）、涨停池/成分（涨停数/梯队）、配置定性列（定位/催化/业绩，versioned config）、派生输出（score/decision），均须记录来源与窗口成熟条件，未成熟不得给完整 PASS。"
+      "notes": "v4（R14-P2-01 产品裁决，2026-08-21）：状态门槛从 requiredStatus=FINAL 改为 allowedStatuses+状态-判定矩阵（decisionContract）；item decision 换 R12 四级新枚举；定性双列对无 boardMetadata 动态候选允许留白；excessReturn20d 登记诚实缺口；WARMING_UP 预热项不参与正式评分与 minFormalItems 计数。16 列硬目标约束 FINAL 态（PARTIAL 态允许缺列+边界提示）。items minItems=4。每列 typed 规则见 items.fields：date==tradeDate（equalsTradeDate）；turnoverRank finitePositive、mainNetInflow finite、continuousInflowDays nonNegativeInt、maAlignment 枚举[是,否]、rps60 0~100、excessReturn20d 枚举[是,否]、limitUpCount nonNegativeInt、ladderCompleteness 非空字符串（如『2连板』/『无连板』）、redStockRatio 为百分比数值（min 0/max 100，按百分比数值解析）、coreCatalyst/earningsRealization 非空中文且 noPlaceholders=true（不在 rejectedPlaceholders）、score 0~100 finite、decision 非空枚举（v4：核心主赛道/次主线·轮动主线/短线支线/一日游脉冲·回避/数据不足；legacy 参考日旧枚举经 referenceAssertions enum extras 豁免）。模块级 configVersion/effectiveFrom/effectiveTo/sourceSystem 必填，effectiveFrom<=tradeDate<=effectiveTo（coversTradeDate），避免配置倒灌历史日期。score/decision 由 score_tracks（规则版本化重算器）按输入指标+规则版本重算一致，非 legacy 直接透传；legacy 参考日以 referenceAssertions 为唯一金标，不做 score 重算。历史行情可派生（近5日排名/均线/RPS/超额/红盘占比）、资金流时间序列（净流入/连续天数）、涨停池/成分（涨停数/梯队）、配置定性列（定位/催化/业绩，versioned config）、派生输出（score/decision），均须记录来源与窗口成熟条件，未成熟不得给完整 PASS。"
     },
     "summary": {
       "displayLabel": "9-综合总结",

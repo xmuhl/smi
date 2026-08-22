@@ -1433,6 +1433,50 @@ def test_reconcile_previous_missing_is_unavailable():
     assert module["turnoverPrevious"] is None
     assert module["volumeState"] == "UNKNOWN"
 
+def test_reconcile_legacy_day_exempt_from_overwrite():
+    """R15：Legacy Excel 导入日不得被 reconcile 覆写。
+
+    2026-07-17 范本日的跨日比较字段是 Excel 记录的事实（链上首日无前日
+    文件不构成 null 化理由）；summary 叙述为 Excel 手写文案，同样不得被
+    模板重算覆写。610c854 曾将其覆写为 PREVIOUS_UNAVAILABLE 并破坏
+    referenceAssertions 金标。
+    """
+    from collector.jobs.reconcile_turnover_chain import (
+        _reconcile_day,
+    )
+
+    snapshot = {
+        "tradeDate": "2026-07-17",
+        "modules": {
+            "turnover": {
+                "status": "FINAL",
+                "dataDate": "2026-07-17",
+                "method": "LEGACY_UNKNOWN",
+                "source": ["TONGDAXIN_LEGACY"],
+                "turnoverToday": 26549.58,
+                "turnoverPrevious": 24035.65,
+                "turnoverDelta": 2513.93,
+                "turnoverChangePct": 10.46,
+                "volumeState": "EXPANSION",
+                "previousMethod": "LEGACY_UNKNOWN",
+                "comparisonStatus": "COMPARABLE",
+            },
+            "summary": {"marketEnvironment": "…较前日放量 2513.93 亿元…"},
+        },
+    }
+
+    rules = {"volume_state": {"expansion_threshold_pct": 5, "contraction_threshold_pct": -5}}
+
+    changed = _reconcile_day(snapshot, None, rules)
+
+    assert changed is False
+    module = snapshot["modules"]["turnover"]
+    assert module["comparisonStatus"] == "COMPARABLE"
+    assert module["turnoverPrevious"] == 24035.65
+    assert module["volumeState"] == "EXPANSION"
+    # summary 叙述未被模板重算覆写
+    assert snapshot["modules"]["summary"]["marketEnvironment"].startswith("…较前日放量")
+
 def test_exchange_rejects_before_lower_bound(
     monkeypatch,
 ):

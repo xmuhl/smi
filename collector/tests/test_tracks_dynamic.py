@@ -681,6 +681,90 @@ def test_r13_p2_01_exit_needs_two_consecutive_failures(monkeypatch):
     assert "煤炭" not in names    # 连续 2 日失败 → 出池
 
 
+def test_r13_p2_01_exit_streak_resets_on_healthy_day(monkeypatch):
+    """R14 §5.2 回归：FAIL → PASS → FAIL 不得出池（健康日清零 streak）。
+
+    银行 D3 入池（冷启动）；D2 净流出 streak=1；D1 恢复净流入（健康日，
+    streak 必须清零）；T 仅单日失败 → 保留池籍。旧实现把两次非连续失败
+    累计成 2 次错误出池。
+    """
+    records = _uni_records({
+        D3: [("银行", 900.0, 5.0, "BK0475")],
+        D2: [("银行", 900.0, -1.0, "BK0475")],
+        D1: [("银行", 900.0, 5.0, "BK0475")],
+        TRADE_DATE: [("银行", 900.0, -1.0, "BK0475")],
+    })
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+
+    names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
+    assert "银行" in names  # 两次失败不连续，streak=1 < exitConfirmDays=2
+
+
+def test_r13_p2_01_incomplete_universe_day_not_exit_evidence(monkeypatch):
+    """R14 §5.4 回归：部分响应日（板块行数 < 峰值*0.5）不作出池证据。
+
+    D1 仅 1/4 板块（上游部分响应）且缺银行行——若该日被当作证据日，
+    银行"缺行"会累计 exit streak；加完整性门禁后 D1 被跳过，T 日仅
+    单日失败，银行保留池籍。
+    """
+    records = _uni_records({
+        D2: [("银行", 900.0, 5.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
+             ("医药生物", 700.0, 3.0, "BK1216"), ("房地产", 650.0, 2.0, "BK0451")],
+        D1: [("煤炭", 800.0, 4.0, "BK0437")],  # 部分响应：1/4 板块且缺银行
+        TRADE_DATE: [("银行", 900.0, -1.0, "BK0475"), ("煤炭", 800.0, 4.0, "BK0437"),
+                     ("医药生物", 700.0, 3.0, "BK1216"), ("房地产", 650.0, 2.0, "BK0451")],
+    })
+    _patch_archive(monkeypatch, {"industry-universe-snapshot": records})
+
+    names = [c["boardName"] for c in tracks_mod.select_scoring_pool(TRADE_DATE)]
+    assert "银行" in names  # D1 不作证据日；T 单日失败 streak=1 → 保留
+    assert "煤炭" in names
+
+
+def test_r13_p2_01_warming_up_not_formally_scored(monkeypatch):
+    """R14 §5.3 回归：WARMING_UP 候选不输出成熟评分、不计入 coverage。
+
+    minHistoryDays 从输出标签升级为真实评分池门禁：预热候选 score=null、
+    decision=数据不足、coveragePct=null；模块 coverage 只统计正式成员。
+    """
+    _patch_archive(
+        monkeypatch, {"industry-universe-snapshot": _fake_universe()}
+    )
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    bank = next(it for it in result["items"] if it["trackId"] == "dyn_BK0475")
+    assert bank["dataReadiness"] == "WARMING_UP"
+    assert bank["score"] is None
+    assert bank["coveragePct"] is None
+    assert bank["decisionCode"] == "INSUFFICIENT"
+    assert bank["decision"] == "数据不足"
+    assert "银行" in result["warmingUpBoards"]
+
+
+def test_r13_p2_01_all_warming_fails_closed(monkeypatch):
+    """R14 §5.3：全部候选预热 → 无成熟评分 → UNAVAILABLE/TRACKS_ALL_WARMING_UP。
+
+    摘掉种子后池内只剩动态预热候选：WARMING_UP 不算正式评分成员，
+    模块不得伪装出成熟结论。
+    """
+    real_load_yaml = tracks_mod.load_yaml
+
+    def fake_load_yaml(name):
+        cfg = real_load_yaml(name)
+        if name == "tracks.yaml":
+            cfg = {**cfg, "tracks": []}
+        return cfg
+
+    monkeypatch.setattr(tracks_mod, "load_yaml", fake_load_yaml)
+    _patch_archive(
+        monkeypatch, {"industry-universe-snapshot": _fake_universe()}
+    )
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    assert result["status"] == "UNAVAILABLE"
+    assert result["decision"] == "TRACKS_INSUFFICIENT"
+    assert result["reason"] == "TRACKS_ALL_WARMING_UP"
+    assert all(it["score"] is None for it in result["items"])
+
+
 def test_r13_p2_01_cold_start_falls_back_to_single_day(monkeypatch):
     """冷启动：归档历史不足 entryMinDays 时按实际天数收敛（单日可入池）。"""
     records = _uni_records({

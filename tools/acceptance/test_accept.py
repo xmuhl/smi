@@ -313,3 +313,164 @@ def test_p04_recalc_trackid_mismatch(base_snapshot, standard, manifest, monkeypa
     text = "\n".join(d["detail"] for d in details)
     assert "trackId 集合" in text, text
 
+
+
+# ---------------------------------------------------------------- R14-P2-01 tracks_V2 v4
+TRACKS_V4_DATE = "2026-08-21"
+
+
+def _v4_formal_item(track_id="power", catalyst="迎峰度夏催化", earnings="业绩兑现稳"):
+    return {
+        "date": TRACKS_V4_DATE,
+        "trackId": track_id,
+        "trackName": f"测试板块{track_id}",
+        "positioning": "测试定位",
+        "turnoverRank": 3,
+        "mainNetInflow": 5.2,
+        "continuousInflowDays": 2,
+        "maAlignment": "是",
+        "rps60": 88.0,
+        "excessReturn20d": None,
+        "limitUpCount": 2,
+        "ladderCompleteness": "2连板",
+        "redStockRatio": "65%",
+        "coreCatalyst": catalyst,
+        "earningsRealization": earnings,
+        "score": 78.0,
+        "decision": "次主线/轮动主线",
+        "dataReadiness": "READY",
+        "historyDays": 60,
+    }
+
+
+def _v4_warming_item():
+    return {
+        "date": TRACKS_V4_DATE,
+        "trackId": "dyn_BK9999",
+        "trackName": "动态预热板块",
+        "positioning": "动态候选",
+        "turnoverRank": 5,
+        "mainNetInflow": 3.0,
+        "continuousInflowDays": 1,
+        "maAlignment": "否",
+        "rps60": 70.0,
+        "excessReturn20d": None,
+        "limitUpCount": 1,
+        "ladderCompleteness": "首板",
+        "redStockRatio": "55%",
+        "coreCatalyst": "",
+        "earningsRealization": "",
+        "score": None,
+        "decision": "数据不足",
+        "dataReadiness": "WARMING_UP",
+        "historyDays": 3,
+    }
+
+
+def _v4_module(**overrides):
+    mod = {
+        "status": "PARTIAL",
+        "dataDate": TRACKS_V4_DATE,
+        "configVersion": "3.2",
+        "effectiveFrom": "2026-08-20",
+        "effectiveTo": "2026-12-31",
+        "sourceSystem": "THS_UNIVERSE",
+        "decision": "TRACKS_SUFFICIENT",
+        "dataReadiness": "READY",
+        "coveragePct": 82.4,
+        "coverageTargetPct": 80.0,
+        "coverageHardFloorPct": 65.0,
+        "warmingUpBoards": [],
+        "items": [
+            _v4_formal_item("power"),
+            _v4_formal_item("dividend"),
+            _v4_formal_item("healthcare"),
+            _v4_formal_item("semiconductor"),
+            _v4_warming_item(),
+        ],
+    }
+    mod.update(overrides)
+    return mod
+
+
+def _run_tracks_v4(mod, standard):
+    snap = {"tradeDate": TRACKS_V4_DATE, "modules": {"tracks": mod}}
+    res = accept.check_tracks(snap, standard, trade_date=TRACKS_V4_DATE)
+    text = "\n".join(d["detail"] for d in res["details"])
+    return res["pass"], text
+
+
+def test_tracks_v4_partial_sufficient_positive(standard):
+    """v4 正例：PARTIAL + TRACKS_SUFFICIENT（coverage≥target）必须 PASS。"""
+    ok, text = _run_tracks_v4(_v4_module(), standard)
+    assert ok, f"应 PASS 但实际 FAIL：{text}"
+
+
+def test_tracks_v4_partial_degraded_positive(standard):
+    """v4 正例：PARTIAL + TRACKS_DEGRADED（coverage∈[floor,target)）必须 PASS。"""
+    mod = _v4_module(decision="TRACKS_DEGRADED", dataReadiness="DEGRADED",
+                     coveragePct=70.0)
+    ok, text = _run_tracks_v4(mod, standard)
+    assert ok, f"应 PASS 但实际 FAIL：{text}"
+
+
+def test_tracks_v4_sufficient_below_target_rejected(standard):
+    ok, text = _run_tracks_v4(_v4_module(coveragePct=70.0), standard)
+    assert not ok and "TRACKS_SUFFICIENT 要求 coverage" in text
+
+
+def test_tracks_v4_degraded_above_target_rejected(standard):
+    mod = _v4_module(decision="TRACKS_DEGRADED", dataReadiness="DEGRADED",
+                     coveragePct=85.0)
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "TRACKS_DEGRADED 要求 coverage" in text
+
+
+def test_tracks_v4_unavailable_requires_insufficient(standard):
+    mod = _v4_module(status="UNAVAILABLE", decision="TRACKS_SUFFICIENT")
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "UNAVAILABLE 仅允许 TRACKS_INSUFFICIENT" in text
+
+
+def test_tracks_v4_unavailable_insufficient_positive(standard):
+    """v4 正例：UNAVAILABLE + TRACKS_INSUFFICIENT（items 信息性）必须 PASS。"""
+    mod = _v4_module(status="UNAVAILABLE", decision="TRACKS_INSUFFICIENT",
+                     dataReadiness="FAILED", coveragePct=40.0, items=[])
+    ok, text = _run_tracks_v4(mod, standard)
+    assert ok, f"应 PASS 但实际 FAIL：{text}"
+
+
+def test_tracks_v4_readiness_mismatch_rejected(standard):
+    mod = _v4_module(dataReadiness="DEGRADED")  # decision 仍 SUFFICIENT
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "不一致" in text
+
+
+def test_tracks_v4_warming_mature_score_rejected(standard):
+    """WARMING_UP 项输出成熟 score → FAIL（R14 §5.3 契约）。"""
+    mod = _v4_module()
+    warming = mod["items"][-1]
+    warming["score"] = 66.6
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "不得输出成熟 score" in text
+
+
+def test_tracks_v4_formal_items_floor(standard):
+    """正式项 <4（预热不计数）→ FAIL。"""
+    mod = _v4_module(items=[
+        _v4_formal_item("power"),
+        _v4_formal_item("dividend"),
+        _v4_formal_item("healthcare"),
+        _v4_warming_item(),
+    ])
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "正式评分项" in text
+
+
+def test_tracks_v4_seed_catalyst_required(standard):
+    """非动态项定性列必填；动态项允许留白（dyn_ 前缀）。"""
+    mod = _v4_module()
+    mod["items"][0] = _v4_formal_item("power", catalyst="")
+    ok, text = _run_tracks_v4(mod, standard)
+    assert not ok and "必填非空" in text
+    # 动态项留白在正例中已覆盖（_v4_warming_item catalyst/earnings 为空）

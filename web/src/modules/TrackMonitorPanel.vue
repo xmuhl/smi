@@ -39,8 +39,14 @@
           <td>{{ it.redStockRatio ?? "—" }}</td>
           <td>{{ it.coreCatalyst ?? "—" }}</td>
           <td>{{ it.earningsRealization ?? "—" }}</td>
-          <td><b>{{ it.score ?? "—" }}</b></td>
-          <td :class="decisionClass(it.decision)"><b>{{ decisionText(it.decision) }}</b></td>
+          <td>
+            <b>{{ it.score ?? "—" }}</b>
+            <span v-if="it.dataReadiness === 'WARMING_UP'" class="badge-warming"
+              :title="`冷启动预热中：close 历史 ${it.historyDays ?? 0} 日，未达 minHistoryDays 就绪线，不参与正式评分`">预热</span>
+          </td>
+          <td :class="decisionClass(it.decision)">
+            <b>{{ it.dataReadiness === 'WARMING_UP' ? "预热中" : decisionText(it.decision) }}</b>
+          </td>
         </tr>
         <tr v-if="!module.items.length"><td colspan="16" class="empty-tip">暂无赛道数据</td></tr>
       </table>
@@ -50,6 +56,12 @@
     </div>
     <div class="boundary-tip" v-if="unavailableNote">
       {{ unavailableNote }}
+    </div>
+    <div class="boundary-tip" v-if="degradedNote">
+      {{ degradedNote }}
+    </div>
+    <div class="boundary-tip" v-if="warmingNote">
+      {{ warmingNote }}
     </div>
   </div>
 </template>
@@ -82,6 +94,22 @@ const unavailableNote = computed(() => {
   if (td && (td < "2026-07-20" || td > "2026-08-14")) return "";
   return "赛道量化指标历史不可用（输入底座不足），仅展示可用归档数据（历史覆盖 Profile 已知边界）";
 });
+
+// R14-P3-01：TRACKS_DEGRADED（coverage 降置信区间）与 WARMING_UP 展示映射
+const degradedNote = computed(() => {
+  if (props.module.decision !== "TRACKS_DEGRADED") return "";
+  const cov = props.module.coveragePct;
+  const floor = props.module.coverageHardFloorPct;
+  const target = props.module.coverageTargetPct;
+  return `赛道覆盖率 ${cov ?? "—"}% 处于降级区间 [${floor ?? "—"}, ${target ?? "—"})，` +
+    "评分保留但降置信（TRACKS_DEGRADED，不点亮 D0 完整性）";
+});
+
+const warmingNote = computed(() => {
+  const boards = props.module.warmingUpBoards;
+  if (!boards || !boards.length) return "";
+  return `冷启动预热中（历史未达就绪线，不参与正式评分）：${boards.join("、")}`;
+});
 </script>
 
 <style scoped>
@@ -91,6 +119,18 @@ const unavailableNote = computed(() => {
 .track-table th,
 .track-table td {
   white-space: nowrap;
+}
+.badge-warming {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 16px;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  vertical-align: middle;
 }
 .dim {
   color: var(--text-dim);

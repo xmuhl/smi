@@ -20,7 +20,7 @@ from collector import archive as _archive
 from collector.config import load_yaml
 from collector.status import ModuleStatus
 
-CONFIG_VERSION = "3.1"
+CONFIG_VERSION = "3.2"
 EFFECTIVE_FROM = "2026-08-20"
 EFFECTIVE_TO = "2026-12-31"
 SOURCE_SYSTEM = "SELF"
@@ -657,6 +657,22 @@ def select_scoring_pool(
             for item in _universe_ranking(per_board, d, window_days)
         }
 
+    # 逐日 universe 完整性：板块行数 >= max(绝对下限, 历史峰值*比例)
+    board_count_by_date: dict[str, int] = {d: 0 for d in known_dates}
+    for rows in per_board.values():
+        dates_present = {r["date"] for r in rows}
+        for d in known_dates:
+            if d in dates_present:
+                board_count_by_date[d] += 1
+    min_ratio = float(selection.get("minUniverseBoardRatio", 0.5))
+    min_abs = int(selection.get("minUniverseBoards", 0))
+    peak_count = max(board_count_by_date.values(), default=0)
+    complete_threshold = max(min_abs, peak_count * min_ratio)
+    complete_dates = {
+        d for d in known_dates
+        if board_count_by_date[d] >= complete_threshold
+    }
+
     pool: list[str] = []
     exit_streak: dict[str, int] = {}
     for d in known_dates:
@@ -667,25 +683,36 @@ def select_scoring_pool(
         # 冷启动收敛：归档历史不足 entryMinDays 时按实际窗口天数要求
         eff_min = min(entry_min, len(window))
 
-        # 1) 存量成员出池确认
+        # universe 最低完整性门禁（R14 §5.4）：当日板块行数显著低于
+        # 历史峰值（部分响应）时，该日不作为出池/入池证据日——否则上游
+        # 数据缺失会被误解释为市场资格失败（缺行=exit hit 的前置条件是
+        # 当日 universe 已通过完整性校验）。
+        if d not in complete_dates:
+            continue
+
+        # 1) 存量成员出池确认（R14 §5.2：健康日必须清零 streak，
+        #    "连续 N 日"不得退化为"累计 N 次"）
         kept: list[str] = []
         for name in pool:
             item = today_rows.get(name)
-            streak = exit_streak.get(name, 0) + (
-                1 if _exit_hit(item, exit_rank_max, require_inflow) else 0
-            )
+            if _exit_hit(item, exit_rank_max, require_inflow):
+                streak = exit_streak.get(name, 0) + 1
+            else:
+                streak = 0
             if streak >= exit_confirm:
                 exit_streak.pop(name, None)
                 continue
             exit_streak[name] = streak
             kept.append(name)
 
-        # 2) 新成员入池确认
+        # 2) 新成员入池确认（只在完整性达标的证据日上累计命中）
         for name, item in today_rows.items():
             if name in kept:
                 continue
             hits = 0
             for wd in window:
+                if wd not in complete_dates:
+                    continue
                 wi = rank_by_date.get(wd, {}).get(name)
                 if wi is not None and _entry_ok(wi, pool_size, require_inflow):
                     hits += 1
@@ -841,14 +868,23 @@ def _make_track_item(
     # 否则沿用评分器的 READY/DEGRADED/INSUFFICIENT。
     readiness = str(scorer_out.get("dataReadiness") or "INSUFFICIENT")
     history_days = raw.get("history_days")
-    # WARMING_UP 与 coverage 分层正交：动态候选 close 历史不足即标记
-    # （冷启动语义，独立于评分置信度），decision 仍按实际数据输出。
-    if (
+    # WARMING_UP（R14 §5.3）：动态候选 close 历史不足 = 冷启动预热态，
+    # 不是正式评分池成员——不输出成熟 score/decision（固定"数据不足"），
+    # 不参与模块 coverage 与 D0 完整度（collect_tracks 分开计数）。
+    warming = (
         raw.get("track_kind") == "dynamic"
         and isinstance(history_days, int)
         and history_days < min_history_days
-    ):
+    )
+    if warming:
         readiness = "WARMING_UP"
+    score = None if warming else scorer_out.get("score")
+    coverage_pct = None if warming else scorer_out.get("coveragePct")
+    decision_code = (
+        "INSUFFICIENT" if warming
+        else str(scorer_out.get("decision") or "INSUFFICIENT")
+    )
+    dimension_pass = None if warming else scorer_out.get("dimensionPass")
     return {
         "date": raw["date"],
         "trackId": track_id,
@@ -868,11 +904,11 @@ def _make_track_item(
         ),
         "coreCatalyst": raw.get("core_catalyst") or "",
         "earningsRealization": raw.get("earnings_realization") or "",
-        "score": scorer_out.get("score"),
-        "coveragePct": scorer_out.get("coveragePct"),
-        "decision": _decision_chinese(str(scorer_out.get("decision") or "INSUFFICIENT")),
-        "decisionCode": str(scorer_out.get("decision") or "INSUFFICIENT"),
-        "dimensionPass": scorer_out.get("dimensionPass"),
+        "score": score,
+        "coveragePct": coverage_pct,
+        "decision": _decision_chinese(decision_code),
+        "decisionCode": decision_code,
+        "dimensionPass": dimension_pass,
         "dataReadiness": readiness,
         "historyDays": history_days,
     }
@@ -1127,12 +1163,9 @@ def collect_tracks(
     # ---- 4) 输出项与 coverage ----
     items: list[dict[str, Any]] = []
     coverages: list[float] = []
-    all_scores_present = True
 
     for rt in raw_tracks:
         sc = scored_by_idx[rt["input"]["trackId"]]
-        if sc.get("score") is None:
-            all_scores_present = False
 
         item = _make_track_item(
             track_id=rt["input"]["trackId"],
@@ -1143,6 +1176,11 @@ def collect_tracks(
             min_history_days=int(selection_cfg.get("minHistoryDays", 20)),
         )
         items.append(item)
+
+        # WARMING_UP 预热候选与正式 READY 评分分开计数（R14 §5.3）：
+        # 不进 coverage 分母、不影响评分完整性判定与 D0。
+        if item.get("dataReadiness") == "WARMING_UP":
+            continue
 
         implemented = 0
         for field in _INDICATOR_FIELDS:
@@ -1178,7 +1216,8 @@ def collect_tracks(
     )
     any_score = any(
         scored_by_idx[rt["input"]["trackId"]].get("score") is not None
-        for rt in raw_tracks
+        for rt, it in zip(raw_tracks, items)
+        if it.get("dataReadiness") != "WARMING_UP"
     )
     critical_failed = (not items) or (not data_date_ok) or (not any_score)
     warming_boards = [
@@ -1203,16 +1242,19 @@ def collect_tracks(
     }
 
     if critical_failed or module_coverage < coverage_floor:
+        if not critical_failed:
+            fail_reason = "TRACK_METRICS_INSUFFICIENT_COVERAGE"
+        elif items and not any_score and len(warming_boards) == len(items):
+            # 全部候选处于预热态：无成熟评分可输出，诚实 fail-closed
+            fail_reason = "TRACKS_ALL_WARMING_UP"
+        else:
+            fail_reason = "TRACK_CRITICAL_INPUT_MISSING"
         return {
             "status": ModuleStatus.UNAVAILABLE.value,
             **base,
             "decision": "TRACKS_INSUFFICIENT",
             "dataReadiness": "FAILED",
-            "reason": (
-                "TRACK_CRITICAL_INPUT_MISSING"
-                if critical_failed
-                else "TRACK_METRICS_INSUFFICIENT_COVERAGE"
-            ),
+            "reason": fail_reason,
         }
 
     if module_coverage >= coverage_target:

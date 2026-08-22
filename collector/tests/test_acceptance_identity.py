@@ -76,6 +76,28 @@ def test_identity_pointer_order_violation(env):
     assert any("三指针顺序" in g for g in gaps)
 
 
+def test_identity_final_without_close_complete_rejected(env):
+    """R14-P3-02：final!=null 且 closeComplete=null 的非法 null 链必须报 gap。
+
+    旧实现先过滤 None 再排序，该状态会错误返回无 gap。
+    """
+    manifest, daily_dir = env
+    manifest["latestCloseCompleteDate"] = None
+    gaps = accept._validate_manifest_latest_identity(manifest, daily_dir)
+    assert any("FINAL 隐含 CLOSE_COMPLETE" in g for g in gaps)
+
+
+def test_identity_close_complete_without_captured_rejected(env):
+    """R14-P3-02：closeComplete!=null 且 captured=null 同属指针链断裂。"""
+    manifest, daily_dir = env
+    manifest["latestCapturedDate"] = None
+    manifest["latestDate"] = None
+    manifest["latestCloseCompleteDate"] = "2026-08-19"
+    manifest["latestFinalDate"] = "2026-08-18"
+    gaps = accept._validate_manifest_latest_identity(manifest, daily_dir)
+    assert any("CLOSE_COMPLETE 隐含 CAPTURED" in g for g in gaps)
+
+
 def test_identity_pointer_not_in_available(env):
     manifest, daily_dir = env
     manifest["latestCloseCompleteDate"] = "2026-08-15"
