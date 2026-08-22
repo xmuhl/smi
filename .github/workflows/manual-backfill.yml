@@ -10,12 +10,12 @@ on:
       force:
         description: "重新执行可用数据源"
         required: false
+        default: false
+        type: boolean
       replace_modules:
         description: "放弃合并保护的模块（逗号分隔，如 tracks；语义修订用）"
         required: false
         type: string
-        default: false
-        type: boolean
       deploy:
         description: "无数据变化也强制构建并部署（deploy 失败恢复用）"
         required: false
