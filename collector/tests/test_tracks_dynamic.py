@@ -888,7 +888,7 @@ def test_r13_p2_01_cold_start_falls_back_to_single_day(monkeypatch):
 
 def test_r23_p2_01_two_layer_qualification(monkeypatch):
     """R23-P2-01 两层资格：QUALIFIED_TODAY（rank<=5）与 RETAINED_OBSERVATION
-    （rank∈(5,12] 观察保留）独立分层，不得等价呈现。
+    （rank>5 未满出池确认，含观察区与出池宽限）独立分层，不得等价呈现。
 
     常量成交额宇宙（排名逐日稳定）：
     - 银行 rank1 / 医药B rank3：当日范本资格 → QUALIFIED_TODAY；
@@ -918,7 +918,7 @@ def test_r23_p2_01_two_layer_qualification(monkeypatch):
     assert rank.get("银行") == 1
     assert by_name["银行"]["poolQualification"] == "QUALIFIED_TODAY"
     assert by_name["医药B"]["poolQualification"] == "QUALIFIED_TODAY"
-    # 证券C 若 rank<=5 则 QUALIFIED_TODAY，rank∈(5,12] 则 RETAINED_OBSERVATION
+    # 证券C 若 rank<=5 则 QUALIFIED_TODAY，rank>5 未满出池确认则 RETAINED
     c_rank = by_name["证券C"]["turnoverRank"]
     assert by_name["证券C"]["poolQualification"] == (
         "QUALIFIED_TODAY" if c_rank <= 5 else "RETAINED_OBSERVATION"
