@@ -132,41 +132,41 @@ jobs:
 
       # R12-FIX-4：部署后自检（口径同 close-snapshot）
       - name: Verify deployment freshness
-        # 复核修订：NO_CHANGE/强制部署时 latest.json 不更新，避免假失败；
-        # 仅数据变化（changed=true）的发布才做新鲜度断言
+        # 回补旧交易日不会更新 latest.json（latest 停在更新的日期），
+        # updatedAt 新鲜度断言对 back-dated 运行必然假失败（R21 部署
+        # 观测发现）。改为目标交易日 daily 文件 SHA-256 全等校验——
+        # 对当日与回补日均正确。
         if: steps.commit.outputs.changed == 'true'
+        env:
+          TARGET_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.date || 'auto' }}
         run: |
-          SITE="https://smi-6s2.pages.dev/data/latest.json"
+          set -euo pipefail
+          if [ "$TARGET_DATE" = "auto" ]; then
+            TARGET_DATE=$(python3 - <<'PY'
+          import json
+          with open("web/public/data/manifest.json") as fh:
+            print(json.load(fh)["latestCapturedDate"])
+          PY
+          )
+          fi
+          LOCAL="web/dist/data/daily/${TARGET_DATE:0:4}/${TARGET_DATE}.json"
+          if [ ! -s "$LOCAL" ]; then
+            echo "LOCAL_DAY_FILE_MISSING: $LOCAL"
+            exit 1
+          fi
+          LOCAL_SHA256="$(sha256sum "$LOCAL" | cut -d' ' -f1)"
+          SITE_DAY="https://smi-6s2.pages.dev/data/daily/${TARGET_DATE:0:4}/${TARGET_DATE}.json"
           for attempt in 1 2 3 4 5 6; do
-            sleep 30
-            META=$(curl -fsS --max-time 20 "$SITE" 2>/dev/null | python3 -c '
-          import json, sys
-          try:
-            d = json.load(sys.stdin)
-          except Exception:
-            print("")
-            raise SystemExit(0)
-          print(d.get("updatedAt", "") + "|" + str(d.get("tradeDate", "")))
-          ' || echo "")
-            UPDATED=$(printf '%s' "$META" | cut -d"|" -f1)
-            TRADE_DATE=$(printf '%s' "$META" | cut -d"|" -f2)
-            if [ -n "$UPDATED" ]; then
-              VERDICT=$(python3 -c '
-          import sys
-          from datetime import datetime
-          def parse(s):
-            s = s.strip().replace("Z", "+00:00")
-            return datetime.fromisoformat(s)
-          print("FRESH" if parse(sys.argv[1]) >= parse(sys.argv[2]) else "STALE")
-          ' "$UPDATED" "$JOB_START_UTC")
-              echo "attempt=$attempt tradeDate=$TRADE_DATE updatedAt=$UPDATED verdict=$VERDICT"
-              if [ "$VERDICT" = "FRESH" ]; then
-                echo "SITE_FRESH"
-                exit 0
-              fi
-            else
-              echo "attempt=$attempt site unreachable or unparsable"
+            sleep 20
+            REMOTE_SHA256="$(curl -fsS --max-time 20 -H 'Cache-Control: no-cache' "$SITE_DAY" 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "")"
+            if [ -n "$REMOTE_SHA256" ] && [ "$REMOTE_SHA256" = "$LOCAL_SHA256" ]; then
+              echo "attempt=$attempt MATCH $TARGET_DATE sha256=$LOCAL_SHA256"
+              echo "SITE_DAY_EXACT_MATCH"
+              exit 0
             fi
+            echo "attempt=$attempt mismatch or unreachable (local=$LOCAL_SHA256 site=${REMOTE_SHA256:-none})"
           done
-          echo "SITE_STALE_OR_UNREACHABLE after deploy"
+          echo "SITE_DAY_STALE_OR_MISMATCH after deploy"
           exit 1
+
+
