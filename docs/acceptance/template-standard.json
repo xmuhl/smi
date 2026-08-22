@@ -834,7 +834,8 @@
         {
           "from": "2026-08-21",
           "minConfigVersion": "3.2",
-          "note": "R16-P2-01：3.2 代码（ebac337，2026-08-22）之后的首个可产数据交易日为 cutoff；此后新快照 configVersion<3.2 一律 FAIL，阻断版本降级旁路（configVersion 是被验收事实，不得作为验收强度的可信依据）。"
+          "note": "R16-P2-01：3.2 代码（ebac337，2026-08-22）之后的首个可产数据交易日为 cutoff；此后新快照 configVersion<3.2 一律 FAIL，阻断版本降级旁路（configVersion 是被验收事实，不得作为验收强度的可信依据）。；cutoff 后 configVersion 必须严格可解析为 x.y（R17-P2-01：legacy/3.x 等非数值形态一律 FAIL）",
+          "numericOnly": true
         }
       ],
       "xlsxColumns": [

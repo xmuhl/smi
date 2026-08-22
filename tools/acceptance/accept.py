@@ -1167,13 +1167,26 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                 if isinstance(min_ver, str) and isinstance(cfg_version, str):
                     try:
                         cfg_t = tuple(int(x) for x in cfg_version.split(".")[:2])
-                        min_t = tuple(int(x) for x in min_ver.split(".")[:2])
-                        if cfg_t < min_t:
-                            details.append(_detail_gap(
-                                f"configVersion={cfg_version!r} 低于 {trade_date} 起的"
-                                f"权威下限 {min_ver!r}（版本降级旁路）"))
                     except ValueError:
-                        pass  # 非数值版本（legacy 等）由 allowedConfigVersions 裁决
+                        cfg_t = None
+                    try:
+                        min_t = tuple(int(x) for x in min_ver.split(".")[:2])
+                    except ValueError:
+                        min_t = None
+                    # R17-P2-01：cutoff 规则 fail-closed——非数值版本
+                    # （legacy/3.x/损坏值）无法证明 >= 数值下限，一律 FAIL。
+                    # 解析失败不再静默 pass（旧行为依赖不存在的白名单兜底，
+                    # 构成 fail-open 版本降级旁路）。
+                    if cfg_t is None:
+                        if rule.get("numericOnly") or min_t is not None:
+                            details.append(_detail_gap(
+                                f"configVersion={cfg_version!r} 非严格 x.y 数值版本，"
+                                f"无法满足 {trade_date} 起的权威数值下限 "
+                                f"{min_ver!r}（版本降级旁路）"))
+                    elif min_t is not None and cfg_t < min_t:
+                        details.append(_detail_gap(
+                            f"configVersion={cfg_version!r} 低于 {trade_date} 起的"
+                            f"权威下限 {min_ver!r}（版本降级旁路）"))
 
         # 2) 穷举状态机：status ⇄ decision ⇄ coverage 区间（R15 阻断点
         #    A/B/C：PARTIAL+INSUFFICIENT、UNAVAILABLE 缺 decision/旧值、

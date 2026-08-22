@@ -624,3 +624,41 @@ def test_tracks_v4_version_schedule_unknown_legacy_version_in_window(standard):
     }
     ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-19")
     assert not ok and "权威版本表" in text, text
+
+
+def test_tracks_v4_version_schedule_future_nonnumeric_rejected(standard):
+    """R17-P2-01 负向：cutoff 后自报 "legacy"（非数值）必须 FAIL。
+
+    旧实现解析失败后静默 pass（依赖不存在的白名单兜底）→ fail-open
+    版本降级旁路：future+3.0 FAIL 但 future+legacy PASS。
+    """
+    mod = {
+        "status": "UNAVAILABLE",
+        "dataDate": "2026-08-24",
+        "configVersion": "legacy",
+        "effectiveFrom": "2026-08-20",
+        "effectiveTo": "2026-12-31",
+        "sourceSystem": "THS_UNIVERSE",
+        "decision": "TRACKS_INSUFFICIENT",
+        "coveragePct": 71.4,
+        "items": [],
+    }
+    ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-24")
+    assert not ok and "非严格 x.y 数值版本" in text, text
+
+
+def test_tracks_v4_version_schedule_future_malformed_rejected(standard):
+    """R17-P2-01 负向：cutoff 后自报 "3.x"（损坏值）必须 FAIL。"""
+    mod = {
+        "status": "UNAVAILABLE",
+        "dataDate": "2026-08-24",
+        "configVersion": "3.x",
+        "effectiveFrom": "2026-08-20",
+        "effectiveTo": "2026-12-31",
+        "sourceSystem": "THS_UNIVERSE",
+        "decision": "TRACKS_INSUFFICIENT",
+        "coveragePct": 71.4,
+        "items": [],
+    }
+    ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-24")
+    assert not ok and "非严格 x.y 数值版本" in text, text
