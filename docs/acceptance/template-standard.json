@@ -958,7 +958,8 @@
           {
             "name": "mainNetInflow",
             "kind": "finite",
-            "required": true
+            "required": false,
+            "note": "R23-P2-03：概念资格腿（THS 概念指数口径）无资金流源——INSUFFICIENT/WARMING_UP 项允许诚实缺列（null）；正式项（READY/DEGRADED）条件必填由代码层门禁（同 redStockRatio 模式）"
           },
           {
             "name": "continuousInflowDays",

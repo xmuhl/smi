@@ -1340,6 +1340,14 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                     details.append(_detail_gap(
                         f"正式项 {tid!r}.redStockRatio 必填"
                         f"（数据不足/预热项方可诚实缺列），实际 {pr!r}"))
+                # R23-P2-03：正式项 mainNetInflow 条件必填——概念资格腿
+                #（THS 概念指数无资金流口径）在 INSUFFICIENT/WARMING_UP 态
+                # 允许诚实缺列；正式评分项仍必须有值（评分依赖）
+                pn = it.get("mainNetInflow")
+                if not _is_finite_number(pn):
+                    details.append(_detail_gap(
+                        f"正式项 {tid!r}.mainNetInflow 必填"
+                        f"（概念腿数据不足项方可诚实缺列），实际 {pn!r}"))
             if status == "FINAL":
                 # FINAL=全就绪契约：正式项必须携带成熟 score（v4 标准里
                 # score 因 WARMING_UP/INSUFFICIENT 项降级为可选，FINAL 态
