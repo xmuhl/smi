@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-07-23",
   "generatedAt": "2026-08-15T12:25:03+08:00",
-  "updatedAt": "2026-08-17T10:04:16+08:00",
-  "revision": 8,
+  "updatedAt": "2026-08-22T19:27:24+08:00",
+  "revision": 9,
   "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
@@ -40,11 +40,7 @@
           "close": 14123.31,
           "previousClose": 14061.44,
           "changePct": 0.44,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-07-23 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "399006",
@@ -68,11 +64,7 @@
           "close": 4728.0,
           "previousClose": 4717.24,
           "changePct": 0.23,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-07-23 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "899050",
@@ -80,11 +72,7 @@
           "close": 1075.02,
           "previousClose": 1074.45,
           "changePct": 0.05,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: eastmoney_delay has no history; target 2026-07-23 != today"
-          ]
+          "source": "EASTMONEY"
         },
         {
           "code": "399311",
@@ -278,39 +266,9 @@
       "stockInflowTop10": [],
       "stockOutflowTop10": [],
       "errors": [
-        "industry: industry:host_blocked_or_empty",
-        "concept: concept:host_blocked_or_empty"
+        "FUNDFLOW_HISTORICAL_FETCH_FAILED: ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
       ],
-      "sourceWarnings": [
-        "industry:磨具磨料:FETCH_FAILED:ConnectionError",
-        "industry:农业综合Ⅱ:FETCH_FAILED:ConnectionError",
-        "industry:聚氨酯:FETCH_FAILED:ConnectionError",
-        "industry:钾肥:FETCH_FAILED:ConnectionError",
-        "industry:氮肥:FETCH_FAILED:ConnectionError",
-        "industry:生猪养殖:FETCH_FAILED:ConnectionError",
-        "industry:饮料乳品:FETCH_FAILED:ConnectionError",
-        "industry:纯碱:FETCH_FAILED:ConnectionError",
-        "industry:公路货运:FETCH_FAILED:ConnectionError",
-        "industry:农化制品:FETCH_FAILED:ConnectionError",
-        "industry:其他塑料制品:FETCH_FAILED:ConnectionError",
-        "industry:纺织化学制品:FETCH_FAILED:ConnectionError",
-        "industry:硅料硅片:FETCH_FAILED:ConnectionError",
-        "industry:涂料油墨:FETCH_FAILED:ConnectionError",
-        "industry:host_blocked_circuit_breaker:consecutive_failures=12:cancelled=460",
-        "concept:乳业:FETCH_FAILED:ConnectionError",
-        "concept:百日新高:FETCH_FAILED:ConnectionError",
-        "concept:昨日涨停_含一字:FETCH_FAILED:ConnectionError",
-        "concept:草甘膦:FETCH_FAILED:ConnectionError",
-        "concept:水产概念:FETCH_FAILED:ConnectionError",
-        "concept:土地流转:FETCH_FAILED:ConnectionError",
-        "concept:黄金概念:FETCH_FAILED:ConnectionError",
-        "concept:噪声防治:FETCH_FAILED:ConnectionError",
-        "concept:昨日打二板以上表现:FETCH_FAILED:ConnectionError",
-        "concept:供销社概念:FETCH_FAILED:ConnectionError",
-        "concept:猪肉概念:FETCH_FAILED:ConnectionError",
-        "concept:磷化工:FETCH_FAILED:ConnectionError",
-        "concept:host_blocked_circuit_breaker:consecutive_failures=12:cancelled=486"
-      ]
+      "sourceWarnings": []
     },
     "northbound": {
       "status": "FINAL",
@@ -34848,99 +34806,22 @@
     "tracks": {
       "status": "UNAVAILABLE",
       "dataDate": "2026-07-23",
-      "configVersion": "2.0",
-      "effectiveFrom": "2026-07-01",
+      "configVersion": "3.3",
+      "effectiveFrom": "2026-07-20",
       "effectiveTo": "2026-12-31",
       "sourceSystem": "SELF",
-      "coveragePct": 54.5,
-      "decision": "TRACKS_INSUFFICIENT",
-      "reason": "TRACK_METRICS_INSUFFICIENT_COVERAGE",
+      "coveragePct": 0.0,
+      "coverageTargetPct": 80.0,
+      "coverageHardFloorPct": 65.0,
       "errors": [
         "HS300_SEED_UNAVAILABLE",
         "RED_RATIO_SOURCE_UNAVAILABLE"
       ],
-      "items": [
-        {
-          "date": "2026-07-23",
-          "trackId": "dividend_cnsoe",
-          "trackName": "高股息中特估",
-          "positioning": "高股息/央国企价值",
-          "turnoverRank": 2,
-          "mainNetInflow": null,
-          "continuousInflowDays": 0,
-          "maAlignment": "否",
-          "rps60": 75.0,
-          "excessReturn20d": null,
-          "limitUpCount": null,
-          "ladderCompleteness": null,
-          "redStockRatio": null,
-          "coreCatalyst": "高股息防御属性、资金抱团避险，央国企市值管理政策催化",
-          "earningsRealization": "业绩稳定、分红率高，盈利兑现确定性强",
-          "score": 42.8,
-          "coveragePct": 45.0,
-          "decision": "数据不足"
-        },
-        {
-          "date": "2026-07-23",
-          "trackId": "power",
-          "trackName": "电力",
-          "positioning": "公用事业/高股息",
-          "turnoverRank": 3,
-          "mainNetInflow": null,
-          "continuousInflowDays": 0,
-          "maAlignment": "否",
-          "rps60": 25.0,
-          "excessReturn20d": null,
-          "limitUpCount": null,
-          "ladderCompleteness": null,
-          "redStockRatio": null,
-          "coreCatalyst": "夏季用电高峰、电力市场化与电改政策催化",
-          "earningsRealization": "业绩确定性强、电价上浮，经营现金流稳健",
-          "score": 21.7,
-          "coveragePct": 45.0,
-          "decision": "数据不足"
-        },
-        {
-          "date": "2026-07-23",
-          "trackId": "healthcare",
-          "trackName": "医药生物",
-          "positioning": "防御+成长",
-          "turnoverRank": 4,
-          "mainNetInflow": null,
-          "continuousInflowDays": 0,
-          "maAlignment": "是",
-          "rps60": 100.0,
-          "excessReturn20d": null,
-          "limitUpCount": null,
-          "ladderCompleteness": null,
-          "redStockRatio": null,
-          "coreCatalyst": "创新药出海授权加速、CXO订单边际改善、集采利空出清",
-          "earningsRealization": "业绩有望触底回升，出海与放量品种兑现确定性待验证",
-          "score": 64.4,
-          "coveragePct": 45.0,
-          "decision": "数据不足"
-        },
-        {
-          "date": "2026-07-23",
-          "trackId": "semiconductor_ai",
-          "trackName": "半导体/AI算力",
-          "positioning": "科技成长",
-          "turnoverRank": 1,
-          "mainNetInflow": null,
-          "continuousInflowDays": 0,
-          "maAlignment": "是",
-          "rps60": 50.0,
-          "excessReturn20d": null,
-          "limitUpCount": null,
-          "ladderCompleteness": null,
-          "redStockRatio": null,
-          "coreCatalyst": "AI算力需求景气、国产替代加速、先进制程与国产算力事件催化",
-          "earningsRealization": "板块业绩兑现依赖景气延续，高估值下兑现不及预期风险大",
-          "score": 61.1,
-          "coveragePct": 45.0,
-          "decision": "数据不足"
-        }
-      ]
+      "items": [],
+      "warmingUpBoards": [],
+      "decision": "TRACKS_INSUFFICIENT",
+      "dataReadiness": "FAILED",
+      "reason": "TRACK_CRITICAL_INPUT_MISSING"
     },
     "summary": {
       "status": "FINAL",
