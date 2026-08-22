@@ -20,8 +20,8 @@ from collector import archive as _archive
 from collector.config import load_yaml
 from collector.status import ModuleStatus
 
-CONFIG_VERSION = "3.2"
-EFFECTIVE_FROM = "2026-08-20"
+CONFIG_VERSION = "3.3"
+EFFECTIVE_FROM = "2026-07-20"
 EFFECTIVE_TO = "2026-12-31"
 SOURCE_SYSTEM = "SELF"
 
@@ -603,25 +603,28 @@ def _entry_ok(item: dict[str, Any], pool_size: int, require_inflow: bool) -> boo
     return True
 
 
-def _exit_hit(item: dict[str, Any] | None, exit_rank_max: int, require_inflow: bool) -> bool:
-    """单日触及出池条件：当日缺行 / 排名跌出 exitRankMax / 净流入非正。"""
+def _exit_hit(item: dict[str, Any] | None, exit_rank_max: int) -> bool:
+    """单日触及出池条件：当日缺行 / 排名跌出 exitRankMax。
+
+    R22（人工验收 R22-DEF-01）：仅排名口径——净流入是评分定级维度，
+    不是出局条件。范本 2026-07-17 自证：医药生物净流入 -386.52 亿、
+    半导体 -730.77 亿仍留在监测表（定位"退潮主线/主跌浪"，策略回避），
+    即"成交额排名决定谁被监测，资金流决定评级好坏"。
+    """
     if item is None:
         return True
     rank = item.get("turnoverRank")
     if rank is None or rank > exit_rank_max:
         return True
-    if require_inflow:
-        inflow = item.get("netInflow")
-        if inflow is None or inflow <= 0:
-            return True
     return False
 
 
 def select_scoring_pool(
     trade_date: str,
     per_board: dict[str, list[dict[str, Any]]] | None = None,
+    grandfather: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """正式评分池（R13-P2-01 迟滞版动态选池）。
+    """正式评分池（R13-P2-01 迟滞版动态选池；R22 增设种子初始在池）。
 
     与 select_candidate_boards（单日发现口径）的差异：
     - 入池需连续确认：近 entryWindowDays 个归档日内 >= entryMinDays 日满足
@@ -629,7 +632,11 @@ def select_scoring_pool(
     - 出池需连续确认：连续 exitConfirmDays 日触及出池条件才退出，且出池
       排名阈值 exitRankMax 与入池 poolSize 分离（双阈值防 8/9 抖动）；
     - 池成员资格从 universe 归档全历史逐日递推，无需额外状态文件。
-    无当日 universe 记录 → []（fail-closed，调用方退化为纯种子）。
+    无当日 universe 记录 → []（fail-closed；R22 起调用方亦不再回退种子，
+    无数据日诚实输出空池）。
+    grandfather：R22-DEF-01——种子板块映射到的 universe 板块名，作为
+    状态机首个证据日的初始在池成员（承继资格），此后与动态成员同规则
+    出池（仅排名口径），不再永久豁免。
     """
     cfg = load_yaml("tracks.yaml")
     selection = cfg.get("selection", {}) or {}
@@ -681,7 +688,7 @@ def select_scoring_pool(
             complete_dates.add(d)
             trusted_peak = max(trusted_peak, board_count_by_date[d])
 
-    pool: list[str] = []
+    pool: list[str] = list(grandfather or [])
     exit_streak: dict[str, int] = {}
     for d in known_dates:
         today_rows = rank_by_date[d]
@@ -703,7 +710,7 @@ def select_scoring_pool(
         kept: list[str] = []
         for name in pool:
             item = today_rows.get(name)
-            if _exit_hit(item, exit_rank_max, require_inflow):
+            if _exit_hit(item, exit_rank_max):
                 streak = exit_streak.get(name, 0) + 1
             else:
                 streak = 0
@@ -729,6 +736,12 @@ def select_scoring_pool(
                 exit_streak[name] = 0
 
         pool = kept
+
+    # R22：当日快照本身不过完整性门禁 → 不输出任何池成员（fail-closed）。
+    # 无可信证据日的板块集不可辩护（含承继成员）——08-18/19 部分快照日
+    # 诚实输出空池，与人工验收"无数据日清空"决议一致。
+    if trade_date not in complete_dates:
+        return []
 
     # 输出当日有 universe 行的池成员（缺行成员保留池籍但当日不可评分）
     items = [
@@ -925,11 +938,15 @@ def _make_track_item(
 def collect_tracks(
     trade_date: str,
 ) -> dict[str, Any]:
-    """消费 daily raw archive 采集主赛道指标（种子 + 每日动态候选池）。
+    """消费 daily raw archive 采集主赛道指标（状态机统一选池）。
 
     R12-PLAN-1：动态候选从 industry-universe-snapshot 全市场口径选出；
     资金/红盘指标优先 universe 口径，close 序列指标（MA/RPS）沿用
     track-board-close（候选首次入选时由 archive_raw 回补历史）。
+    R22-DEF-01（人工验收）：配置种子（范本 2026-07-17 四板块）不再是
+    无条件在场成员——映射 universe 板块名后并入同一套入池/出池状态机
+    （承继初始资格，仅按排名口径出池）；无 universe 数据日输出空池
+    （fail-closed），不再显示静态占位板块。
     """
     cfg = load_yaml("tracks.yaml")
     tracks_cfg = cfg.get("tracks", [])
@@ -953,17 +970,37 @@ def collect_tracks(
         else []
     )
     rank_by_name = {item["boardName"]: item for item in ranked}
+    # ---- 0) 输出赛道列表：状态机在池种子 + 动态候选（名称重合去重） ----
+    # R22-DEF-01（人工验收）：种子不再无条件在场——映射到 universe 板块名
+    # 后作为状态机初始在池成员（承继资格），与动态成员同规则出池；
+    # 无 universe 数据日不回退种子（fail-closed 空池）。
+    seed_names = _seed_match_names(seeds)
+    seed_uni_name: dict[str, str] = {}
+    for tc in seeds:
+        match_names = set(_track_match_names(tc)) | {str(tc.get("name") or "")}
+        for board_key in per_board:
+            if _names_overlap(str(board_key), match_names):
+                seed_uni_name[tc["id"]] = str(board_key)
+                break
+
     candidates = (
-        select_scoring_pool(trade_date, per_board=per_board)
+        select_scoring_pool(
+            trade_date,
+            per_board=per_board,
+            grandfather=sorted(set(seed_uni_name.values())),
+        )
         if universe_today
         else []
     )
-
-    # ---- 0) 输出赛道列表：种子 + 动态候选（名称重合去重） ----
-    seed_names = _seed_match_names(seeds)
+    pool_names_today = {str(c["boardName"]) for c in candidates}
 
     out_tracks: list[dict[str, Any]] = []
     for tc in seeds:
+        mapped = seed_uni_name.get(tc["id"])
+        if mapped is None or mapped not in pool_names_today:
+            # 从未出现在 universe，或已按排名规则连续 exitConfirmDays 日
+            # 跌出 exitRankMax → 不在监测表（范本语义：每日按条件筛选）
+            continue
         out_tracks.append(
             {
                 "trackId": tc["id"],

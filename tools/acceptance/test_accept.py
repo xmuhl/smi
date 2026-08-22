@@ -374,8 +374,8 @@ def _v4_module(**overrides):
     mod = {
         "status": "PARTIAL",
         "dataDate": TRACKS_V4_DATE,
-        "configVersion": "3.2",
-        "effectiveFrom": "2026-08-20",
+        "configVersion": "3.3",
+        "effectiveFrom": "2026-07-20",
         "effectiveTo": "2026-12-31",
         "sourceSystem": "THS_UNIVERSE",
         "decision": "TRACKS_SUFFICIENT",

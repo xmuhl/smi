@@ -8,15 +8,16 @@
 #    提供定位/催化/业绩定性文案；未配置的动态候选定性留空（fail-closed，
 #    计入指标缺口，绝不伪造）；定性文案随 configVersion 版本化，
 #    采集器写快照时携带 configVersion/effectiveFrom/To；
-# 3. tracks —— 种子赛道（上线基线，含概念/复合结构）。种子仍每日参与
-#    统一评分与四级判定（无特权），并保持板块代码/THS 映射的准确性。
+# 3. tracks —— 种子赛道（上线基线，含概念/复合结构）。R22-DEF-01 起
+#    种子映射 universe 板块名后并入入池/出池状态机（承继初始资格、
+#    仅按排名口径出池），不再无条件在场；无 universe 数据日输出空池。
 #
 # index_name_ths：同花顺板块指数接口（stock_board_industry/concept_index_ths）
 # 使用的精确板块名——与东财板块名/代码不一一对应，必须显式映射；缺失则该
 # 赛道归档 UNAVAILABLE（fail-closed，不伪造）。
 
-configVersion: "3.2"
-effectiveFrom: "2026-08-20"
+configVersion: "3.3"
+effectiveFrom: "2026-07-20"
 effectiveTo: "2026-12-31"
 
 selection:

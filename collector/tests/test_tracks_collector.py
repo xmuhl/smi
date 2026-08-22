@@ -162,11 +162,39 @@ def _build_fake_archive() -> dict[str, list[dict]]:
         }
     ]
 
+    # --- universe snapshot（R22：种子映射行，承继在池资格） ---
+    # netInflow/riseCount/fallCount 留 None：资金流沿用 flow 归档口径、
+    # 红盘占比保持诚实缺口，与既有断言一致；amount 序复刻 close 口径
+    # （div 最大、healthcare 最小）→ 排名 1..4 不变。
+    uni_rows = [
+        {"boardName": "高股息中特估", "boardCodeEm": "BK1139",
+         "chgPct": 1.0, "amount": 5000.0, "netInflow": None,
+         "riseCount": None, "fallCount": None},
+        {"boardName": "半导体/AI算力", "boardCodeEm": "BK1036",
+         "chgPct": 1.0, "amount": 4700.0, "netInflow": None,
+         "riseCount": None, "fallCount": None},
+        {"boardName": "电力", "boardCodeEm": "BK0428",
+         "chgPct": 1.0, "amount": 3000.0, "netInflow": None,
+         "riseCount": None, "fallCount": None},
+        {"boardName": "医药生物", "boardCodeEm": "BK1216",
+         "chgPct": 1.0, "amount": 2000.0, "netInflow": None,
+         "riseCount": None, "fallCount": None},
+    ]
+    universe_records = [{
+        "tradeDate": TRADE_DATE,
+        "kind": "industry-universe-snapshot",
+        "source": "TEST",
+        "capturedAt": "2026-08-13T15:00:00+08:00",
+        "items": uni_rows,
+        "counts": {"boardCount": len(uni_rows)},
+    }]
+
     return {
         "track-board-close": close_records,
         "track-board-flow": flow_records,
         "limit-up-pool": pool_records,
         "track-membership-snapshot": member_records,
+        "industry-universe-snapshot": universe_records,
     }
 
 
@@ -175,6 +203,21 @@ def _patch_archive(monkeypatch, fake):
         return fake.get(kind, [])
 
     monkeypatch.setattr(_archive, "read_records", fake_read)
+    # R22：玩具宇宙仅 4 板块，须放宽完整性绝对下限（生产=45）才能构成
+    # 证据日；不放宽时种子被 fail-closed 空池化。
+    real_load_yaml = tracks_mod.load_yaml
+
+    def fake_load_yaml(name):
+        cfg = real_load_yaml(name)
+        if name == "tracks.yaml":
+            sel = {
+                **cfg.get("selection", {}),
+                "minUniverseBoards": 1,
+            }
+            cfg = {**cfg, "selection": sel}
+        return cfg
+
+    monkeypatch.setattr(tracks_mod, "load_yaml", fake_load_yaml)
 
 
 def _by_id(items, track_id):
@@ -288,8 +331,8 @@ def test_module_result_contract_and_validate_snapshot(monkeypatch):
     # 模块级字段齐全
     assert result["status"] == ModuleStatus.PARTIAL.value
     assert result["dataDate"] == TRADE_DATE
-    assert result["configVersion"] == "3.2"
-    assert result["effectiveFrom"] == "2026-08-20"
+    assert result["configVersion"] == "3.3"
+    assert result["effectiveFrom"] == "2026-07-20"
     assert result["effectiveTo"] == "2026-12-31"
     assert result["sourceSystem"] == "SELF"
     assert result["decision"] == "TRACKS_SUFFICIENT"
