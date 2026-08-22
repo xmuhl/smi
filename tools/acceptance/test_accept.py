@@ -17,6 +17,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ACCEPT_DIR = _HERE  # tools/acceptance
 sys.path.insert(0, _ACCEPT_DIR)
 sys.path.insert(0, os.path.dirname(_HERE))
+# 仓库根也需在 path 上（函数级 `from collector...` / `from tools...` 导入；
+# 本地 `python -m pytest` 由 CWD 掩盖，CI 裸 pytest 会暴露——补齐使自足）
+sys.path.insert(0, os.path.dirname(os.path.dirname(_HERE)))
 
 import accept  # noqa: E402  (验收器 v2，已存在，只读)
 
