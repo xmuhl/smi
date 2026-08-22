@@ -562,12 +562,19 @@ def test_tracks_v4_strict_threshold_field_mismatch_rejected(standard):
     assert not ok2 and "与 decisionContract(80.0) 不一致" in text2
 
 
+def _run_tracks_v4_dated(mod, standard, trade_date):
+    snap = {"tradeDate": trade_date, "modules": {"tracks": mod}}
+    res = accept.check_tracks(snap, standard, trade_date=trade_date)
+    text = "\n".join(d["detail"] for d in res["details"])
+    return res["pass"], text
+
+
 def test_tracks_v4_legacy_30_shape_still_passes(standard):
-    """阻断点 G 正例：3.0 存量形态（无 dataReadiness/阈值透传字段）经显式
-    版本分支合法通过——真实 2026-08-20 生产快照形态。"""
+    """阻断点 G 正例：真实 2026-08-20 的 3.0 存量形态（无 dataReadiness/
+    阈值透传字段）经显式版本分支 + 权威版本表合法通过。"""
     mod = {
         "status": "UNAVAILABLE",
-        "dataDate": TRACKS_V4_DATE,
+        "dataDate": "2026-08-20",
         "configVersion": "3.0",
         "effectiveFrom": "2026-08-20",
         "effectiveTo": "2026-12-31",
@@ -576,5 +583,44 @@ def test_tracks_v4_legacy_30_shape_still_passes(standard):
         "coveragePct": 71.4,
         "items": [],
     }
-    ok, text = _run_tracks_v4(mod, standard)
-    assert ok, f"3.0 存量形态应 PASS：{text}"
+    ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-20")
+    assert ok, f"3.0 存量形态（2026-08-20）应 PASS：{text}"
+
+
+def test_tracks_v4_version_schedule_blocks_future_downgrade(standard):
+    """R16-P2-01 负向：cutoff（2026-08-21）之后的新交易日自报 3.0 必须 FAIL。
+
+    configVersion 是被验收事实，不得作为验收强度的可信依据（自证循环）；
+    未来快照版本回退（旧 worker/错误常量）不再能伪装成"历史兼容"。
+    """
+    mod = {
+        "status": "UNAVAILABLE",
+        "dataDate": "2026-08-24",
+        "configVersion": "3.0",
+        "effectiveFrom": "2026-08-20",
+        "effectiveTo": "2026-12-31",
+        "sourceSystem": "THS_UNIVERSE",
+        "decision": "TRACKS_INSUFFICIENT",
+        "coveragePct": 71.4,
+        "items": [],
+    }
+    ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-24")
+    assert not ok and "权威下限" in text and "版本降级旁路" in text, text
+
+
+def test_tracks_v4_version_schedule_unknown_legacy_version_in_window(standard):
+    """R16-P2-01 边界：cutoff 之前的非数值版本（如误报）不在权威版本表
+    allowedConfigVersions 内必须 FAIL（时间表是白名单不是自由放行）。"""
+    mod = {
+        "status": "UNAVAILABLE",
+        "dataDate": "2026-08-19",
+        "configVersion": "9.9",
+        "effectiveFrom": "2026-08-20",
+        "effectiveTo": "2026-12-31",
+        "sourceSystem": "THS_UNIVERSE",
+        "decision": "TRACKS_INSUFFICIENT",
+        "coveragePct": 71.4,
+        "items": [],
+    }
+    ok, text = _run_tracks_v4_dated(mod, standard, "2026-08-19")
+    assert not ok and "权威版本表" in text, text

@@ -1135,6 +1135,46 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
             details.append(_detail_gap(
                 f"模块级 decision={decision!r} 不在契约枚举"))
 
+        # 1b) 权威版本时间表（R16-P2-01）：configVersion 是被验收事实，
+        # 不得同时作为验收强度的可信依据（自证循环——未来新快照错误
+        # 自报 3.0 会伪装成"历史兼容"绕过 3.2 严格契约）。快照外部的
+        # tracksVersionSchedule 把旧版本绑定到既有历史日期；cutoff 之后
+        # 自报低于 minConfigVersion 一律 FAIL。
+        schedule = spec.get("tracksVersionSchedule") or []
+        if schedule:
+            rule = None
+            for r in schedule:
+                if not isinstance(r, dict):
+                    continue
+                thr = r.get("through")
+                frm = r.get("from")
+                if isinstance(thr, str) and trade_date <= thr:
+                    rule = r
+                    break
+                if isinstance(frm, str) and trade_date >= frm:
+                    rule = r
+                    break
+            if rule is not None:
+                allowed_versions = rule.get("allowedConfigVersions")
+                if (
+                    isinstance(allowed_versions, list)
+                    and cfg_version not in allowed_versions
+                ):
+                    details.append(_detail_gap(
+                        f"configVersion={cfg_version!r} 不在 {trade_date} 的权威版本表 "
+                        f"allowedConfigVersions={allowed_versions}"))
+                min_ver = rule.get("minConfigVersion")
+                if isinstance(min_ver, str) and isinstance(cfg_version, str):
+                    try:
+                        cfg_t = tuple(int(x) for x in cfg_version.split(".")[:2])
+                        min_t = tuple(int(x) for x in min_ver.split(".")[:2])
+                        if cfg_t < min_t:
+                            details.append(_detail_gap(
+                                f"configVersion={cfg_version!r} 低于 {trade_date} 起的"
+                                f"权威下限 {min_ver!r}（版本降级旁路）"))
+                    except ValueError:
+                        pass  # 非数值版本（legacy 等）由 allowedConfigVersions 裁决
+
         # 2) 穷举状态机：status ⇄ decision ⇄ coverage 区间（R15 阻断点
         #    A/B/C：PARTIAL+INSUFFICIENT、UNAVAILABLE 缺 decision/旧值、
         #    FINAL 不验 coverage 均须 FAIL）
