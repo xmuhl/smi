@@ -1374,6 +1374,17 @@ def collect_tracks(
                 implemented += 1
         coverages.append(implemented / len(_INDICATOR_FIELDS) * 100.0)
 
+    # 产品裁决（2026-08-23 人工验收）：监测表统一按当日成交额排名升序——
+    # 种子与动态候选混排展示，rankScope/poolQualification 标注列保留资格
+    # 语义差异；template-standard.json tracks.items.sortedBy 同步强制。
+    # 稳定排序；缺排名成员（理论不可达：无 universe 行不进 items）排最后。
+    items.sort(
+        key=lambda it: (
+            it.get("turnoverRank") is None,
+            it.get("turnoverRank") if it.get("turnoverRank") is not None else 0,
+        )
+    )
+
     module_coverage = (
         sum(coverages) / len(coverages)
         if coverages

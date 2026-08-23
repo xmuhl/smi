@@ -41,7 +41,7 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 - **指标口径**：资金类优先 universe（概念腿净流入/涨跌家数为诚实缺列，正式项 mainNetInflow 条件必填）；close 序列类用 track-board-close 归档
 - **评分与判定**：`config/track-scoring.yaml` 四维度 25/35/25/15；四级判定 CORE_MAIN/SECONDARY_MAIN/SHORT_LINE/PULSE_AVOID；coverage 三态门禁（target 80 / floor 65）
 - **验收防线**（R23-P3-01/R24-P3-01）：cfg≥3.4 正式项 poolQualification 必填枚举；cfg≥3.5 rankScope 必填 + 资格层与 turnoverRank 交叉校验（标签写反即 FAIL）
-- **前端**：观察保留徽标（板块名列）；空表两分支文案（UNAVAILABLE=上游不可用 / 完整无合格=无符合条件主赛道）；预热徽标
+- **前端**：观察保留徽标（板块名列）；空表两分支文案（UNAVAILABLE=上游不可用 / 完整无合格=无符合条件主赛道）；预热徽标；监测表按当日 turnoverRank 升序统一排序（种子与动态候选混排，acceptance sortedBy 强制；Legacy 范本日 07-17 豁免——产品裁决 2026-08-23）
 
 ## 生产域
 

@@ -1004,7 +1004,7 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
   - **enforce**：递归检查——所有模块顶层 dataDate/asOf/publishedAt/latestPublishedReference.dataDate 及 nested 时序字段（如 tracks.items.date、northbound.quarterlyHolding.asOf/publishedAt）必须 <= tradeDate；任一字段晚于 tradeDate 即 FAIL；缺失的不在比较范围时按该字段结构 required 规则处理。
 - **INV-UNIT-亿元**：turnover/fundFlow/northbound/margin 金额单位统一为亿元；fundFlow 的 netInflowYi 含义为主力净流入（亿元），正为流入负为流出。
   - **enforce**：金额字段必须有 unit=亿元 或等价亿元数值域声明；**unit 缺失即 FAIL**（不得仅当 unit 存在且错误时才失败）。
-- **INV-LIST-SORT-SIGN**：榜单唯一性/排序/符号：items/lists 内 uniqueBy 字段不重复；Top 列表按数值降序、Bottom 列表按升序（或规定方向）；fundFlow 流入全>0、流出全<0，northbound netBuy>0、netSell<0。
+- **INV-LIST-SORT-SIGN**：榜单唯一性/排序/符号：items/lists 内 uniqueBy 字段不重复；Top 列表按数值降序、Bottom 列表按升序（或规定方向）；fundFlow 流入全>0、流出全<0，northbound netBuy>0、netSell<0；tracks.items 按 turnoverRank 升序（种子与动态候选统一排名混排，产品裁决 2026-08-23；Legacy 范本日 07-17 豁免，行序随 Excel 范本）。
   - **enforce**：对每个声明的榜单 lists/items 校验 uniqueBy 互不重复、Top 降序/Bottom 升序、符号约束；排序/符号/唯一性任一违反即 FAIL。
 - **INV-MARGIN-IDENTITY**：marginBalance == financingBalance + securitiesLendingBalance（容差 0.05）；marginBalanceChange == 当日 marginBalance - 前一交易日 FINAL marginBalance（容差 0.01）。
   - **enforce**：任一恒等不成立即 FAIL；前一交易日缺失时不得记 note 放行，须按 PENDING 规则判定。

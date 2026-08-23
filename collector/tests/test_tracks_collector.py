@@ -444,3 +444,21 @@ def test_r24_rank_scope_metadata(monkeypatch):
     # 单板行业赛道
     assert by_id["power"]["rankScope"] == "INDUSTRY_UNIVERSE"
     assert by_id["healthcare"]["rankScope"] == "INDUSTRY_UNIVERSE"
+
+
+def test_items_sorted_by_turnover_rank_globally(monkeypatch):
+    """产品裁决 2026-08-23：监测表统一按当日成交额排名升序。
+
+    种子与动态候选混排展示（不再种子优先分组），rankScope/poolQualification
+    作为标注列保留资格语义差异；与 template-standard.json
+    tracks.items.sortedBy=turnoverRank asc 一致。
+    """
+    fake = _build_fake_archive()
+    _patch_archive(monkeypatch, fake)
+
+    result = tracks_mod.collect_tracks(TRADE_DATE)
+    items = result["items"]
+    assert len(items) >= 4
+    ranks = [it["turnoverRank"] for it in items]
+    assert all(r is not None for r in ranks)
+    assert ranks == sorted(ranks)

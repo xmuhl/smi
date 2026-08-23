@@ -1417,6 +1417,14 @@ def check_tracks(snapshot, standard=None, trade_date=None, manifest=None, daily_
                     "earningsRealization": False,
                     "redStockRatio": False,
                 }
+            if trade_date == ref_date:
+                # Legacy 范本日（07-17）items 行序=Excel 范本行序（金标保真），
+                # 不适用 turnoverRank 全局排序——该约束仅约束生成器新输出
+                # （产品裁决 2026-08-23）；uniqueBy/minItems 等其余契约照旧。
+                eff_items_spec = {
+                    k: v for k, v in eff_items_spec.items()
+                    if k != "sortedBy"
+                }
             details.extend(_validate_items(mod, eff_items_spec, enum_extras=enum_extras,
                                            item_plan=eff_item_plan))
             # trackId 集合与 referenceAssertions/模块定义一致

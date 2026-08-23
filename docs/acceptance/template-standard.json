@@ -934,6 +934,10 @@
       "items": {
         "minItems": 4,
         "uniqueBy": "trackId",
+        "sortedBy": {
+          "field": "turnoverRank",
+          "direction": "asc"
+        },
         "fields": [
           {
             "name": "date",
