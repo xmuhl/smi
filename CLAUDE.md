@@ -126,3 +126,4 @@ R28 后待观察：周一 08-24 首个 3.5 自动滚动；coverage 常态 76~82%
 | `work/SMI_R12_Implementation_Report.md` | R12 实施报告（部署链路修复+主赛道动态化，f56e28d） |
 | `work/SMI_R2[2-8]_Fix_Notes.md` | R22-R28 评审迭代修复说明（种子池缺陷→3.5 收敛全程） |
 | `work/acceptance/*.json` | 验收报告存档 |
+| `work/DATA_AUDIT_20260823.md` | 线上数据全量审计报告（07-20~08-21 逐日矩阵+不可回补清单） |
