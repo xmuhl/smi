@@ -419,3 +419,7 @@ table.smi-table {
 .track-table td:nth-child(14) {
   word-break: break-word;
 }
+/* fixed 布局窄列下表头允许换行，防 nowrap 溢出重叠 */
+.track-table th {
+  white-space: normal;
+}
