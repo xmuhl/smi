@@ -785,7 +785,7 @@
       "displayRules": [
         "FINAL：必须渲染 融资余额(financingBalance)/融券余额(securitiesLendingBalance)/两融总余额(marginBalance)及变动(marginBalanceChange)，并满足总量恒等与环比恒等。",
         "PENDING：顶部显示『两融数据 T+1 披露，今日暂缺，待次日回补』；存在 latestPublishedReference 时渲染最近已披露参考，不得伪装成当日 FINAL。",
-        "页脚渲染两融成交额、成交占比及质量标注（LEGACY/派生/估算）。"
+        "页脚两融成交额/成交占比仅在数据可得（quality 非 UNAVAILABLE，如 LEGACY 范本日）时渲染；UNAVAILABLE 诚实缺列时整行隐藏，不渲染占位符（产品裁决 2026-08-23）。"
       ],
       "notes": "FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + securitiesLendingBalance)| <= 0.05；marginBalanceChange 须与前一交易日 FINAL margin 的 marginBalance 差额恒等（|change - (today - prev)| <= 0.01）。PENDING 分支：仅限 tradeDate==latestCapturedDate 且 latestPublishedReference 为 dict 且其 dataDate<tradeDate、三项余额 finite>=0、总量恒等、dataDate 确为已落盘 FINAL margin 日期（须验到存在该日文件且 margin FINAL）。"
     },

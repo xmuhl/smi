@@ -796,7 +796,7 @@ mode 严格枚举：POST_20240819_LEGACY_IMPORTED（07-17 参考日使用）或 
 
 - FINAL：必须渲染 融资余额(financingBalance)/融券余额(securitiesLendingBalance)/两融总余额(marginBalance)及变动(marginBalanceChange)，并满足总量恒等与环比恒等。
 - PENDING：顶部显示『两融数据 T+1 披露，今日暂缺，待次日回补』；存在 latestPublishedReference 时渲染最近已披露参考，不得伪装成当日 FINAL。
-- 页脚渲染两融成交额、成交占比及质量标注（LEGACY/派生/估算）。
+- 页脚两融成交额/成交占比仅在数据可得（quality 非 UNAVAILABLE，如 LEGACY 范本日）时渲染；UNAVAILABLE 诚实缺列时整行隐藏，不渲染占位符（产品裁决 2026-08-23）。
 
 **口径注释 notes**：
 

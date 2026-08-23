@@ -41,7 +41,8 @@
         <div class="sub flat">{{ qualityText(module.financingNetBuyAmount?.quality) }}</div>
       </div>
     </div>
-    <div class="empty-tip">
+    <!-- 产品裁决 2026-08-23：两融成交额不可得(UNAVAILABLE 桩)时整行隐藏，不再渲染"—（—）· 占比 —"占位 -->
+    <div class="empty-tip" v-if="module.marginTradeAmount && module.marginTradeAmount.quality !== 'UNAVAILABLE'">
       两融成交额：{{ fmt(module.marginTradeAmount?.value) }}（{{ qualityText(module.marginTradeAmount?.quality) }}）· 占比 {{ pct(module.marginTradeSharePct?.value) }}
     </div>
   </div>
