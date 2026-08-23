@@ -33,7 +33,7 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 
 - **数据底座**：`industry-universe-snapshot` 归档（每日 THS 行业汇总 ~90 板块成交额/净流入/涨跌家数 + 东财 BK 代码映射）；**概念资格腿注入**（R23-P2-03）：board_type=concept 赛道以 THS 概念指数逐日成交额（元/1e8→亿，仅行业证据日）插入行业 universe **联合排名**——同源同单位可比（如高股息中特估→同花顺中特估100，boardCode 309062，归档 154 日）
 - **选池**（`config/tracks.yaml` v3.5 selection）：
-  - 准入=**当日前 5 直接入池**（entryRankMax=5，每日范本真理源，无确认门槛；原 2/3 入池确认与净流入>0 硬门均已退役——"排名决定监测资格，资金流决定评分/评级"）
+  - 准入=**当日前 5 直接入池**（entryRankMax=5，每日范本真理源，无确认门槛；原 2/3 入池确认与净流入>0 硬门均已退役——"排名决定监测资格，资金流决定评分/评级"；2026-08-23 人工验收质疑「概念腿无净流入仍入榜」后，用户裁决**维持该语义**——概念腿净流入诚实缺列 + INSUFFICIENT 降置信表达即为正确行为，不再复议）
   - 出池=连续 exitConfirmDays(2) 日排名>exitRankMax(12)；防抖完全由出池确认承担
   - 两层资格：`poolQualification` = QUALIFIED_TODAY（rank≤5）/ RETAINED_OBSERVATION（rank>5 未满出池确认，含观察区与出池宽限）
   - `rankScope` 口径元数据三分：INDUSTRY_UNIVERSE / CONCEPT_INJECTED / INDUSTRY_LEG（复合赛道资格按显式 qualification 主腿，评分按复合结构；主腿排名不得误称复合排名）
