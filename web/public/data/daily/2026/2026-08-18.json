@@ -2,9 +2,9 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-18",
   "generatedAt": "2026-08-20T18:54:46+08:00",
-  "updatedAt": "2026-08-23T00:43:32+08:00",
-  "revision": 2,
-  "overallStatus": "PARTIAL_ERROR",
+  "updatedAt": "2026-08-23T17:25:30+08:00",
+  "revision": 3,
+  "overallStatus": "PARTIAL",
   "generationReason": "MANUAL_BACKFILL",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
@@ -93,22 +93,23 @@
       ]
     },
     "turnover": {
-      "status": "ERROR",
+      "status": "FINAL",
       "dataDate": "2026-08-18",
       "source": [
-        "EASTMONEY",
-        "EXCHANGE",
-        "SINA"
+        "EXCHANGE"
       ],
       "unit": "亿元",
-      "errors": [
-        "eastmoney: eastmoney spot has no history; exchange: HTTPSConnectionPool(host='query.sse.com.cn', port=443): Max retries exceeded with url: /commonQuery.do?sqlId=COMMON_SSE_SJ_GPSJ_CJGK_MRGK_C&PRODUCT_CODE=01%2C02%2C03%2C11%2C17&type=inParams&SEARCH_DATE=2026-08-18 (Caused by NewConnectionError(\"HTTPSConnection(host='query.sse.com.cn', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable\")); sina: sina spot has no history"
-      ],
-      "turnoverToday": null,
-      "turnoverPrevious": null,
-      "turnoverDelta": null,
-      "turnoverChangePct": null,
-      "volumeState": "UNKNOWN"
+      "method": "SH_SZ_A_NO_B_NO_BJ_V1",
+      "turnoverToday": 24026.2,
+      "turnoverPrevious": 23869.27,
+      "turnoverDelta": 156.93,
+      "turnoverChangePct": 0.66,
+      "volumeState": "FLAT",
+      "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+      "comparisonStatus": "COMPARABLE",
+      "sourceWarnings": [
+        "eastmoney: eastmoney spot has no history"
+      ]
     },
     "sentiment": {
       "status": "PARTIAL",
@@ -249,8 +250,14 @@
       ],
       "errors": [],
       "sourceWarnings": [
-        "industry:skipped=0",
-        "concept:skipped=0"
+        "industry:造纸:FETCH_FAILED:SSLError",
+        "industry:skipped=1",
+        "concept:鸿蒙概念:FETCH_FAILED:SSLError",
+        "concept:猴痘概念:FETCH_FAILED:SSLError",
+        "concept:化肥:FETCH_FAILED:SSLError",
+        "concept:两轮车:FETCH_FAILED:SSLError",
+        "concept:生态农业:FETCH_FAILED:SSLError",
+        "concept:skipped=5"
       ]
     },
     "fundFlow": {
@@ -269,7 +276,7 @@
       "stockInflowTop10": [],
       "stockOutflowTop10": [],
       "errors": [
-        "FUNDFLOW_HISTORICAL_FETCH_FAILED: HTTPError: 502 Server Error: Bad Gateway for url: https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f12&fs=m%3A90+t%3A3+f%3A%2150&fields=f2%2Cf3%2Cf4%2Cf8%2Cf12%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf24%2Cf25%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf124%2Cf107%2Cf104%2Cf105%2Cf136"
+        "FUNDFLOW_HISTORICAL_FETCH_FAILED: ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
       ],
       "sourceWarnings": []
     },
@@ -34809,7 +34816,7 @@
     "tracks": {
       "status": "UNAVAILABLE",
       "dataDate": "2026-08-18",
-      "configVersion": "3.3",
+      "configVersion": "3.5",
       "effectiveFrom": "2026-07-20",
       "effectiveTo": "2026-12-31",
       "sourceSystem": "SELF",
@@ -34835,9 +34842,9 @@
       "fundFlow": "主力资金模块暂未取得完整有效数据，本项不作判断。",
       "margin": "两融总余额 26895.59 亿元；尚未取得有效的前一交易日余额变化数据，本项不作方向判断。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
-      "marketEnvironment": "两市成交额模块暂未取得有效数据，本项不作判断。",
+      "marketEnvironment": "沪深两市成交额 24026 亿元，前一交易日 23869 亿元，较前一交易日增加 156 亿元（+0.66%），平量。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",
-      "riskWarning": "获取失败：turnover。 当前不可用：fundFlow、tracks。 部分数据：sentiment。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
+      "riskWarning": "当前不可用：fundFlow、tracks。 部分数据：sentiment。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
   },
   "validation": {

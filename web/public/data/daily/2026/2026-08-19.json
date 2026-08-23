@@ -2,10 +2,10 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-19",
   "generatedAt": "2026-08-19T17:13:28+08:00",
-  "updatedAt": "2026-08-23T01:01:16+08:00",
-  "revision": 3,
+  "updatedAt": "2026-08-23T17:26:02+08:00",
+  "revision": 4,
   "overallStatus": "PARTIAL",
-  "generationReason": "MANUAL_BACKFILL",
+  "generationReason": "TURNOVER_CHAIN_RECONCILE",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -101,12 +101,12 @@
       "unit": "亿元",
       "method": "SH_SZ_A_NO_B_NO_BJ_V1",
       "turnoverToday": 25126.72,
-      "turnoverPrevious": null,
-      "turnoverDelta": null,
-      "turnoverChangePct": null,
-      "volumeState": "UNKNOWN",
-      "previousMethod": null,
-      "comparisonStatus": "PREVIOUS_UNAVAILABLE",
+      "turnoverPrevious": 24026.2,
+      "turnoverDelta": 1100.52,
+      "turnoverChangePct": 4.58,
+      "volumeState": "FLAT",
+      "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
+      "comparisonStatus": "COMPARABLE",
       "sourceWarnings": [
         "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
       ]
@@ -35110,7 +35110,7 @@
       "fundFlow": "行业主力净流入居前：银行、贵金属、石油加工贸易；行业主力净流出居前：半导体、通信设备、消费电子。",
       "margin": "两融总余额 26593.01 亿元，较前一交易日减少 302.58 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
-      "marketEnvironment": "沪深两市成交额 25126 亿元；暂无前一交易日可比数据，本项不作量能方向判断。",
+      "marketEnvironment": "沪深两市成交额 25126 亿元，前一交易日 24026 亿元，较前一交易日增加 1100 亿元（+4.58%），平量。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",
       "riskWarning": "当前不可用：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
