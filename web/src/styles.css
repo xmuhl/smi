@@ -403,14 +403,19 @@ table.smi-table {
   -webkit-overflow-scrolling: touch;
 }
 .track-table {
-  min-width: 1150px;
+  min-width: 1500px;
+  table-layout: fixed;
 }
-/* 核心催化逻辑(13)/业绩兑现(14) 长文本列限宽换行，避免单行无限拉宽 */
+/* 核心催化逻辑(13)/业绩兑现(14) 长文本列定宽换行（fixed 布局下显式列宽，防被压缩成竖排） */
 .track-table th:nth-child(13),
-.track-table td:nth-child(13),
+.track-table td:nth-child(13) {
+  width: 230px;
+}
 .track-table th:nth-child(14),
 .track-table td:nth-child(14) {
-  max-width: 240px;
+  width: 150px;
+}
+.track-table td:nth-child(13),
+.track-table td:nth-child(14) {
   word-break: break-word;
-  white-space: normal;
 }
