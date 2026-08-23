@@ -50,11 +50,12 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 | `smi-6s2.pages.dev` | Cloudflare Pages 默认域 | ✅ 生产 |
 | `smi.gorestart.cn` | 自定义域名（阿里云 CNAME） | ✅ 生产 |
 
-## 当前状态（2026-08-23 · R28 收敛基线）
+## 当前状态（2026-08-23 · 验收修复基线，人工验收通过）
 
 - **评审收敛**：R22→R28 七轮迭代全部 CLOSED（R28：0 NOT_CLOSED）；起因为人工验收发现种子池无条件占位（R22-DEF-01）；R22 假设清单机制升级出 4 项规格问题并全部修复（3.3→3.4→3.5）
-- **tracks 3.5 已上线**：08-21 监测表=当日前5（半导体①通信②元件③高股息中特估④[概念注入]化学制药⑤）；07-20~08-19 历史日诚实空池；acceptance PASS=3（07-17/08-20/08-21）；测试 312 绿
-- **提交链**：e0c0db6(3.3 种子并入状态机)→6171484(--replace-modules)→d77cdd7(3.4)→58e89c1(3.5 直入/显式腿/rankScope)→8bf7d03/95a9ed6/ce60d38/R28 文档收口
+- **tracks 3.5 已上线**：08-21 监测表=当日前5（半导体①通信②元件③高股息中特估④[概念注入]化学制药⑤，turnoverRank 全局升序）；07-20~08-19 历史日诚实空池；acceptance PASS=3（07-17/08-20/08-21）；测试 313 绿
+- **人工验收修复轮（08-23，验收通过）**：turnover 08-18 回补 ERROR→FINAL + 08-19 链条重算（1272e5f）；tracks 监测表 turnoverRank 全局升序统一排序 + sortedBy 强制/Legacy 豁免（b2be8ed）；margin 08-17 T+1 回补 FINAL + 08-18 balanceChange 联动（f371c26）；margin 两融成交额行 UNAVAILABLE 隐藏（0590126）；全量审计报告 work/DATA_AUDIT_20260823.md（dba0a91）。turnover/summary/margin 模块级 failDates 全部清零，残余仅 sentiment 22 日 + fundFlow 21 日结构性缺口
+- **提交链**：e0c0db6(3.3)→6171484(--replace-modules)→d77cdd7(3.4)→58e89c1(3.5)→8bf7d03/95a9ed6/ce60d38/e90f940(R28 收口)→094bf3b(上下文)→1272e5f/b2be8ed/f371c26/dba0a91/0590126(验收修复轮)→1444621(付费源裁决)
 - **待观察**：① 周一 2026-08-24 首个 3.5 自动滚动日（close-snapshot 应自动产出当日前5，无确认延迟）② 方案 A（完整概念 universe=375 概念逐日采集+taxonomy 去重）为留档产品增强，当前方案 B（监测口径命名）已收敛 ③ fundFlow push2his 替代源长期跟踪（免费源实测确认无替代——两个 _hist 接口底层同为 push2his；付费源暂不考虑——产品裁决 2026-08-23）
 - **送审材料**：work/SMI_R2[2-8]_Fix_Notes.md + zip；评审报告在 ~/Downloads；对话页固定 g-p-69b6697161988191bd88eeeadca58000
 
@@ -99,7 +100,7 @@ python -m collector.jobs.t1_reconcile --date YYYY-MM-DD
 
 - 验收器：`tools/acceptance/accept.py`（读标准 `docs/acceptance/template-standard.json`）
 - 历史覆盖 Profile：`docs/acceptance/historical-profile.json`（产品裁决已知边界）
-- 最新 clean 报告：`work/acceptance/p1_r9_final_c7.json`（dirty=false，绑定 c7de51b）；R28 后常态 PASS=3（07-17/08-20/08-21），其余 failDates 为已披露边界族（sentiment/fundFlow 无历史源、margin T+1、summary 派生）
+- 最新 clean 报告：`work/acceptance/baseline-report.json`（验收修复轮后，08-23）；常态 PASS=3（07-17/08-20/08-21），模块级残余仅 sentiment 22 日 + fundFlow 21 日（结构性无历史源）——turnover/summary/margin failDates 已于 08-23 清零
 - 页面探针：`tools/acceptance/page_check.js`（`window.__smiPageCheck()`）
 
 ## 已知边界（产品裁决 v1 + R12 运行时观察项）
