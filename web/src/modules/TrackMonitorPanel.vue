@@ -136,6 +136,15 @@ const warmingNote = computed(() => {
 .track-table td {
   white-space: nowrap;
 }
+/* UI 评审 B3（产品裁决 2026-08-23）：fixed 窄列布局下表头换行、催化/业绩长文本列换行，防溢出重叠 */
+.track-table th {
+  white-space: normal;
+}
+.track-table td:nth-child(13),
+.track-table td:nth-child(14) {
+  white-space: normal;
+  word-break: break-word;
+}
 .badge-warming {
   display: inline-block;
   margin-left: 4px;
