@@ -4,7 +4,8 @@
 
 A股收盘全景 Web 看板。Python 采集 + Vue3 前端 + Cloudflare Pages 托管。
 每日自动采集 9 大模块收盘数据，生成 JSON 快照，构建部署到 Pages。
-R12 起（2026-08-20）主赛道按每日全市场板块数据动态筛选（范本第 8 表口径）。
+主赛道自 R22-R28（2026-08-23）按**监测口径前 5 逐日直选**（范本第 8 表
+严格口径；configVersion 3.5），经 ChatGPT 七轮评审迭代收敛（0 NOT_CLOSED）。
 
 ## 环境铁律（踩坑必读）
 
@@ -14,6 +15,10 @@ R12 起（2026-08-20）主赛道按每日全市场板块数据动态筛选（范
 - **部署环境 Node 必须 ≥22**：wrangler 4.122.0 的 engines 硬要求；Node 20 下 `npm ci` 仅 EBADENGINE 警告但运行时退出（2026-08-17~20 部署全失败的根因）
 - **git 两提交法**：先提交代码/数据（输入树），再单独提交验收报告（report-only commit）
 - 全量 pytest 现可安全直跑（~6s）：`python -m pytest collector/tests/ -q`（R12 修复了 test_core 的 sys.modules["akshare"] 泄漏——此前该泄漏使后续测试真实联网 16 分钟/个）
+- **本机 v2rayN 路由已定制**（2026-08-22）：`gorestart.cn→proxy`、`pages.dev→direct`（代理出口掐断浏览器到 pages.dev 的 TLS，直连通畅）；勿回改
+- **网络源可用性**（2026-08-23 实测）：东财 push2/push2his 经代理与直连均封（fundFlow 概念资金流不可得的根因）；THS 概念指数 `stock_board_concept_index_ths` 经代理可用（含成交额历史）；GitHub API 走 `curl --proxy http://127.0.0.1:10808` + token（`git credential fill`）
+- **ChatGPT 送审**：常驻 CDP relay（`tmp/cwa/cdp_relay.py`，心跳 tmp/cwa/relay_alive.json <15s 即活）持有单条 Chrome 调试连接，轮次脚本（tmp/cwa/cwa_rNN.py）经文件队列复用——不弹调试确认框；relay 死亡时轮次脚本自动回退直连（会弹一次框）。本机手跑 net_guard 采集脚本必须写成 .py 文件执行（spawn 模式不支持 stdin 脚本）
+- **语义修订重生成数据**：manual-backfill 加 `--replace-modules tracks`（workflow 输入同名）可豁免 R8-P1-01 PARTIAL 历史保护整体替换；默认保护不变
 
 ## 架构
 
@@ -24,13 +29,19 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 
 9 大模块：marketIndex / turnover / sentiment / sectorPerformance / fundFlow / northbound / margin / tracks / summary
 
-### 主赛道（tracks，R12 动态化）
+### 主赛道（tracks，3.5 · R22-R28 收敛语义）
 
-- **数据底座**：`industry-universe-snapshot` 归档（每日 THS 行业汇总全市场 ~90 板块的成交额/净流入/涨跌家数 + 东财 BK 代码映射）；close-snapshot 在 tracks 采集前预写当日 universe（破解 cron 时序），archive-raw 阶段 5 幂等去重（`ALREADY_ARCHIVED`）、冲突降级 SKIP
-- **选池**（`config/tracks.yaml` v3.0 selection）：近 5 日成交额全市场排名 ≤8 且当日净流入>0 的行业板块 = 动态候选；与 4 条种子赛道（高股息中特估/电力/医药生物/半导体AI算力，无评分特权）合并去重（名称精确/规范化匹配，禁子串）
-- **指标口径**：资金类（排名/净流入/连续净流入天数/红盘占比/涨停率分母）优先 universe；close 序列类（MA/RPS/60日收益）用 track-board-close 归档（候选首次入选由 archive-raw 阶段 6 回补 THS 历史，幂等）
-- **评分与判定**：`config/track-scoring.yaml` 四维度权重 25/35/25/15（资金/趋势/情绪/逻辑）；`calculators/tracks._decide_four` 四级判定 CORE_MAIN/SECONDARY_MAIN/SHORT_LINE/PULSE_AVOID；定性双列（催化/业绩）无枚举分级前不计 coverage 分母（信息性展示）
-- **元数据**：boardMetadata 字典（8 板块定性文案+aliases）；未配置候选定性留空（fail-closed）
+- **数据底座**：`industry-universe-snapshot` 归档（每日 THS 行业汇总 ~90 板块成交额/净流入/涨跌家数 + 东财 BK 代码映射）；**概念资格腿注入**（R23-P2-03）：board_type=concept 赛道以 THS 概念指数逐日成交额（元/1e8→亿，仅行业证据日）插入行业 universe **联合排名**——同源同单位可比（如高股息中特估→同花顺中特估100，boardCode 309062，归档 154 日）
+- **选池**（`config/tracks.yaml` v3.5 selection）：
+  - 准入=**当日前 5 直接入池**（entryRankMax=5，每日范本真理源，无确认门槛；原 2/3 入池确认与净流入>0 硬门均已退役——"排名决定监测资格，资金流决定评分/评级"）
+  - 出池=连续 exitConfirmDays(2) 日排名>exitRankMax(12)；防抖完全由出池确认承担
+  - 两层资格：`poolQualification` = QUALIFIED_TODAY（rank≤5）/ RETAINED_OBSERVATION（rank>5 未满出池确认，含观察区与出池宽限）
+  - `rankScope` 口径元数据三分：INDUSTRY_UNIVERSE / CONCEPT_INJECTED / INDUSTRY_LEG（复合赛道资格按显式 qualification 主腿，评分按复合结构；主腿排名不得误称复合排名）
+  - 种子=状态机初始在池成员（grandfather 承继资格），与动态成员同规则出池；无 universe 数据日/当日快照不过完整性门禁（≥max(45, 峰值×0.5)）→ 空池 fail-closed；未映射种子以 module errors 披露不静默消失
+- **指标口径**：资金类优先 universe（概念腿净流入/涨跌家数为诚实缺列，正式项 mainNetInflow 条件必填）；close 序列类用 track-board-close 归档
+- **评分与判定**：`config/track-scoring.yaml` 四维度 25/35/25/15；四级判定 CORE_MAIN/SECONDARY_MAIN/SHORT_LINE/PULSE_AVOID；coverage 三态门禁（target 80 / floor 65）
+- **验收防线**（R23-P3-01/R24-P3-01）：cfg≥3.4 正式项 poolQualification 必填枚举；cfg≥3.5 rankScope 必填 + 资格层与 turnoverRank 交叉校验（标签写反即 FAIL）
+- **前端**：观察保留徽标（板块名列）；空表两分支文案（UNAVAILABLE=上游不可用 / 完整无合格=无符合条件主赛道）；预热徽标
 
 ## 生产域
 
@@ -38,6 +49,14 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 |------|------|------|
 | `smi-6s2.pages.dev` | Cloudflare Pages 默认域 | ✅ 生产 |
 | `smi.gorestart.cn` | 自定义域名（阿里云 CNAME） | ✅ 生产 |
+
+## 当前状态（2026-08-23 · R28 收敛基线）
+
+- **评审收敛**：R22→R28 七轮迭代全部 CLOSED（R28：0 NOT_CLOSED）；起因为人工验收发现种子池无条件占位（R22-DEF-01）；R22 假设清单机制升级出 4 项规格问题并全部修复（3.3→3.4→3.5）
+- **tracks 3.5 已上线**：08-21 监测表=当日前5（半导体①通信②元件③高股息中特估④[概念注入]化学制药⑤）；07-20~08-19 历史日诚实空池；acceptance PASS=3（07-17/08-20/08-21）；测试 312 绿
+- **提交链**：e0c0db6(3.3 种子并入状态机)→6171484(--replace-modules)→d77cdd7(3.4)→58e89c1(3.5 直入/显式腿/rankScope)→8bf7d03/95a9ed6/ce60d38/R28 文档收口
+- **待观察**：① 周一 2026-08-24 首个 3.5 自动滚动日（close-snapshot 应自动产出当日前5，无确认延迟）② 方案 A（完整概念 universe=375 概念逐日采集+taxonomy 去重）为留档产品增强，当前方案 B（监测口径命名）已收敛 ③ fundFlow push2his 替代源长期跟踪
+- **送审材料**：work/SMI_R2[2-8]_Fix_Notes.md + zip；评审报告在 ~/Downloads；对话页固定 g-p-69b6697161988191bd88eeeadca58000
 
 ## 自动更新链路（GitHub Actions，全部 Node 22）
 
@@ -80,7 +99,7 @@ python -m collector.jobs.t1_reconcile --date YYYY-MM-DD
 
 - 验收器：`tools/acceptance/accept.py`（读标准 `docs/acceptance/template-standard.json`）
 - 历史覆盖 Profile：`docs/acceptance/historical-profile.json`（产品裁决已知边界）
-- 最新 clean 报告：`work/acceptance/p1_r9_final_c7.json`（dirty=false，绑定 c7de51b）
+- 最新 clean 报告：`work/acceptance/p1_r9_final_c7.json`（dirty=false，绑定 c7de51b）；R28 后常态 PASS=3（07-17/08-20/08-21），其余 failDates 为已披露边界族（sentiment/fundFlow 无历史源、margin T+1、summary 派生）
 - 页面探针：`tools/acceptance/page_check.js`（`window.__smiPageCheck()`）
 
 ## 已知边界（产品裁决 v1 + R12 运行时观察项）
@@ -89,10 +108,10 @@ python -m collector.jobs.t1_reconcile --date YYYY-MM-DD
 |------|----------|------|
 | sentiment | riseCount/fallCount/flatCount 等无免费历史源 | PARTIAL/UNAVAILABLE |
 | fundFlow | stockInflowTop10/OutflowTop10 无历史源；push2his 封禁 | UNAVAILABLE/PARTIAL |
-| tracks | universe 底座已修复资金/红盘输入；excessReturn20d 无 HS300 归档源（诚实缺口）；动态候选 close 历史自入选次日起累积；涨停池分子（东财）与 universe 分母（THS 家数）命名体系混合，未对齐时情绪维 fail-closed | 首日 UNAVAILABLE→逐步 PARTIAL |
+| tracks | 07-20~08-19 板块快照不可回溯（接入前）→诚实空池（3.3 起）；excessReturn20d 无 HS300 归档源（诚实缺口）；概念腿净流入/涨跌家数无源（INSUFFICIENT 层诚实缺列）；涨停池分子（东财）与 universe 分母（THS 家数）命名体系混合，未对齐时情绪维 fail-closed | 空池日 UNAVAILABLE；数据日 PARTIAL |
 | 07-20~07-24 | 涨停池保留窗口外不可恢复 | UNRECOVERABLE |
 
-R12 后待观察（均有 fail-closed 兜底）：archive-raw 阶段 5 `ALREADY_ARCHIVED` 命中与 md5 自检首轮通过情况；动态候选回补后 tracks coverage 能否 ≥80 转 PARTIAL；coverage 常态 82.4% 对阈值 80 余量仅 2.4 个百分点（fail-fast 设计）。
+R28 后待观察：周一 08-24 首个 3.5 自动滚动；coverage 常态 76~82% 对阈值 80 余量薄（08-21 已落 DEGRADED 带——保留评分降置信，属设计内）；概念腿资金流缺口常态化后 minFormalItems=4 是否仍稳。
 
 ## 深入文档
 
@@ -105,4 +124,5 @@ R12 后待观察（均有 fail-closed 兜底）：archive-raw 阶段 5 `ALREADY_
 | `docs/acceptance/historical-profile.json` | 历史覆盖合同（机器可读） |
 | `work/SMI_HANDOVER.md` | 任务交接手册（含完整命令速查） |
 | `work/SMI_R12_Implementation_Report.md` | R12 实施报告（部署链路修复+主赛道动态化，f56e28d） |
+| `work/SMI_R2[2-8]_Fix_Notes.md` | R22-R28 评审迭代修复说明（种子池缺陷→3.5 收敛全程） |
 | `work/acceptance/*.json` | 验收报告存档 |
