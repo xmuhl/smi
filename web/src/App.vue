@@ -18,17 +18,36 @@
         · 收盘完整 {{ manifest.latestCloseCompleteDate || "—" }}
         · 全量最终 {{ manifest.latestFinalDate || "—" }}
       </div>
+      <!-- UI 评审 A4：分区锚点导航 -->
+      <div class="anchor-nav">
+        <a href="#sec-overview">① 总览</a>
+        <a href="#sec-sector">② 板块资金</a>
+        <a href="#sec-leverage">③ 杠杆赛道</a>
+        <a href="#sec-summary">④ 结论</a>
+      </div>
     </div>
 
     <div v-if="error" class="empty-tip">加载失败：{{ error }}</div>
-    <div v-else-if="!snapshot" class="empty-tip">加载中…</div>
+    <div v-else-if="!snapshot" class="grid" aria-busy="true">
+      <div class="card sk" style="height: 220px"></div>
+      <div class="card sk" style="height: 140px"></div>
+      <div class="card sk" style="height: 140px"></div>
+    </div>
 
     <template v-else>
       <div class="legacy-banner" v-if="snapshot.meta.legacy">
         历史 Legacy 数据：来自 {{ snapshot.tradeDate }} 原 Excel（通达信口径），仅用于还原当日报表。
       </div>
 
-      <div class="section-title">① 市场总览</div>
+      <!-- UI 评审 B2：今日结论速览条（结论前置，不替代 ④ 区完整渲染） -->
+      <div class="quick-summary" v-if="snapshot.modules.summary">
+        <span class="qs-chip">今日结论速览</span>
+        <span class="qs-text" v-if="snapshot.modules.summary.marketEnvironment">{{ snapshot.modules.summary.marketEnvironment }}</span>
+        <span class="qs-text qs-warn" v-if="snapshot.modules.summary.riskWarning">{{ snapshot.modules.summary.riskWarning }}</span>
+        <a class="qs-link" href="#sec-summary">完整结论 ↓</a>
+      </div>
+
+      <div class="section-title" id="sec-overview">① 市场总览</div>
       <div class="grid">
         <MarketIndexPanel :module="snapshot.modules.marketIndex" />
         <div class="grid grid-2">
@@ -37,20 +56,21 @@
         </div>
       </div>
 
-      <div class="section-title">② 板块与资金</div>
-      <div class="grid grid-3">
+      <div class="section-title" id="sec-sector">② 板块与资金</div>
+      <div class="grid grid-2">
         <SectorPanel :module="snapshot.modules.sectorPerformance" />
         <FundFlowPanel :module="snapshot.modules.fundFlow" />
-        <NorthboundPanel :module="snapshot.modules.northbound" />
       </div>
+      <!-- UI 评审 B1：北向为低频 point-in-time 参考数据，独立全宽卡（内部默认折叠），不再占据三等列黄金位 -->
+      <NorthboundPanel :module="snapshot.modules.northbound" />
 
-      <div class="section-title">③ 杠杆与主赛道</div>
+      <div class="section-title" id="sec-leverage">③ 杠杆与主赛道</div>
       <div class="grid">
         <MarginPanel :module="snapshot.modules.margin" />
         <TrackMonitorPanel :module="snapshot.modules.tracks" :tradeDate="snapshot.tradeDate" />
       </div>
 
-      <div class="section-title">④ 今日结论</div>
+      <div class="section-title" id="sec-summary">④ 今日结论</div>
       <SummaryPanel :module="snapshot.modules.summary" />
 
       <div class="empty-tip" style="margin-top: 24px; text-align: center">

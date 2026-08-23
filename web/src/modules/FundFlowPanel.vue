@@ -32,7 +32,7 @@
       </div>
     </div>
     <!-- 口径页脚：展示单位与口径；含 EASTMONEY_PUSH2HIS_HISTORICAL（东方财富历史数据回补，免费源）标注（标准 fundFlow 口径页脚） -->
-    <div class="empty-tip">单位：${module.unit || "亿元"} · 数据口径：{{ methodLabel }}</div>
+    <div class="empty-tip">单位：{{ module.unit || "亿元" }} · 数据口径：{{ methodLabel }}</div>
   </div>
 </template>
 

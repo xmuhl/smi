@@ -674,7 +674,7 @@ industry/concept/stock 六类 TOP10 各必须 minItems=10，不放松门禁。it
 **渲染规则 displayRules**：
 
 - Legacy 分支（POST_20240819_LEGACY_IMPORTED）：顶部必须显示『历史口径已变更』通知，说明北向字段来自原 Excel Legacy 导入、不作为官方连续序列；必须渲染合计/沪股通/深股通净流入(legacyImportedFields)及净买入/净卖出 TOP10。
-- Official 分支（POST_20240819_OFFICIAL_REPLACEMENT）：必须展示 quarterlyHolding.field（dict、status=FINAL、items 非空且逐项含 code/hkexStockCode/name/shareholding/pctOfIssued/market）；asOf 与 publishedAt 为 required dateString，须存在且 asOf<=selectedDate、publishedAt<=selectedDate（防 look-ahead，缺任一即 FAIL）；可选 dailyOfficialActivity 块，仅承载官方成交总额/笔数与十大活跃证券，不得推导净流入。
+- Official 分支（POST_20240819_OFFICIAL_REPLACEMENT）：必须展示 quarterlyHolding.field（dict、status=FINAL、items 非空且逐项含 code/hkexStockCode/name/shareholding/pctOfIssued/market）；asOf 与 publishedAt 为 required dateString，须存在且 asOf<=selectedDate、publishedAt<=selectedDate（防 look-ahead，缺任一即 FAIL）；可选 dailyOfficialActivity 块，仅承载官方成交总额/笔数与十大活跃证券，不得推导净流入。季度持仓表默认折叠为摘要行（asOf/条数/point-in-time 标注），可一键展开完整前 20 条——低频参考数据不占黄金滚动位（产品裁决 2026-08-23）。
 - 页面须显著注明『官方已停止日度净流入披露，以下为官方替代口径（point-in-time），不与 Legacy 净流入连续比较』。
 
 **口径注释 notes**：
@@ -970,6 +970,7 @@ FINAL 分支：三项余额 finite>=0 且 |marginBalance - (financingBalance + s
 - 必须渲染各总结块并带小标题：指数与量能(indexAndTurnover)、市场情绪(sentiment)、资金流向(fundFlow)、赛道监测(trackConclusion)、风险提示(riskWarning，含风险样式)。
 - margin/marketEnvironment/northbound 三个块仅在字段存在时渲染（v-if），标题分别为 两融/市场环境/北向资金。
 - 风险提示块使用黄色左边框样式突出，且必须包含『不构成投资建议』。
+- 允许在页面顶部渲染『今日结论速览』摘要条（marketEnvironment/riskWarning + 锚点跳转），不替代本区完整渲染（产品裁决 2026-08-23）。
 
 **口径注释 notes**：
 

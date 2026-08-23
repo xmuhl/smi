@@ -278,3 +278,113 @@ table.smi-table {
   font-size: 12px;
   color: var(--text-dim);
 }
+
+/* ===== UI 评审修订（产品裁决 2026-08-23，work/UI_UX_REVIEW_20260823.md）===== */
+/* A4: 分区锚点 */
+.section-title {
+  scroll-margin-top: 72px;
+  font-size: 20px;
+}
+.anchor-nav {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.anchor-nav a {
+  color: var(--blue);
+  text-decoration: none;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.anchor-nav a:hover {
+  border-color: var(--blue);
+}
+/* B2: 今日结论速览条 */
+.quick-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin: 10px 0;
+}
+.qs-chip {
+  font-size: 12px;
+  color: var(--blue);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.qs-text {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.qs-warn {
+  border-bottom: 1px dashed var(--yellow);
+}
+.qs-link {
+  font-size: 12px;
+  color: var(--blue);
+  margin-left: auto;
+  text-decoration: none;
+  white-space: nowrap;
+}
+/* A2/B1: 北向折叠 */
+.nb-summary-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.link-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--blue);
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.link-btn:hover {
+  border-color: var(--blue);
+}
+.nb-table {
+  max-width: 980px;
+}
+/* B3: 主赛道宽表冻结首列 */
+.track-table th:first-child,
+.track-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+  z-index: 1;
+}
+/* C: 字号层级 + 表格数字 */
+.card h3 {
+  font-size: 16px;
+}
+.value,
+.smi-table td,
+.smi-table th {
+  font-variant-numeric: tabular-nums;
+}
+/* C: 骨架屏 */
+.card.sk {
+  background: linear-gradient(100deg, var(--panel) 40%, var(--panel-2) 50%, var(--panel) 60%);
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.2s infinite;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+@keyframes sk-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}

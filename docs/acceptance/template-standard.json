@@ -711,7 +711,7 @@
       },
       "displayRules": [
         "Legacy 分支（POST_20240819_LEGACY_IMPORTED）：顶部必须显示『历史口径已变更』通知，说明北向字段来自原 Excel Legacy 导入、不作为官方连续序列；必须渲染合计/沪股通/深股通净流入(legacyImportedFields)及净买入/净卖出 TOP10。",
-        "Official 分支（POST_20240819_OFFICIAL_REPLACEMENT）：必须展示 quarterlyHolding.field（dict、status=FINAL、items 非空且逐项含 code/hkexStockCode/name/shareholding/pctOfIssued/market）；asOf 与 publishedAt 为 required dateString，须存在且 asOf<=selectedDate、publishedAt<=selectedDate（防 look-ahead，缺任一即 FAIL）；可选 dailyOfficialActivity 块，仅承载官方成交总额/笔数与十大活跃证券，不得推导净流入。",
+        "Official 分支（POST_20240819_OFFICIAL_REPLACEMENT）：必须展示 quarterlyHolding.field（dict、status=FINAL、items 非空且逐项含 code/hkexStockCode/name/shareholding/pctOfIssued/market）；asOf 与 publishedAt 为 required dateString，须存在且 asOf<=selectedDate、publishedAt<=selectedDate（防 look-ahead，缺任一即 FAIL）；可选 dailyOfficialActivity 块，仅承载官方成交总额/笔数与十大活跃证券，不得推导净流入。季度持仓表默认折叠为摘要行（asOf/条数/point-in-time 标注），可一键展开完整前 20 条——低频参考数据不占黄金滚动位（产品裁决 2026-08-23）。",
         "页面须显著注明『官方已停止日度净流入披露，以下为官方替代口径（point-in-time），不与 Legacy 净流入连续比较』。"
       ],
       "notes": "mode 严格枚举：POST_20240819_LEGACY_IMPORTED（07-17 参考日使用）或 POST_20240819_OFFICIAL_REPLACEMENT。OFFICIAL_REPLACEMENT 分支：模块 status=FINAL、quarterlyHolding 为 dict 且 status=FINAL、items 非空且逐项 schema 合法；asOf 与 publishedAt 均为 required（kind=dateString，用 date/datetime 解析后比较，不用裸字符串），二者必须存在且满足 asOf<=tradeDate 且 publishedAt<=tradeDate（防 look-ahead）；缺任一字段即 FAIL。可选 dailyOfficialActivity 块仅含官方成交总额/笔数与前十大成交活跃证券，不得推导净流入。Legacy 分支：legacyImportedFields.totalNetInflow/shanghaiNetInflow/shenzhenNetInflow 精确断言 -156.32/-68.54/-87.78。若未来采用非官方估算，只能放独立 estimated 分支，isOfficial=false、标明模型/误差/来源，不作为官方口径验收门禁的替代。"
@@ -1193,7 +1193,8 @@
       "displayRules": [
         "必须渲染各总结块并带小标题：指数与量能(indexAndTurnover)、市场情绪(sentiment)、资金流向(fundFlow)、赛道监测(trackConclusion)、风险提示(riskWarning，含风险样式)。",
         "margin/marketEnvironment/northbound 三个块仅在字段存在时渲染（v-if），标题分别为 两融/市场环境/北向资金。",
-        "风险提示块使用黄色左边框样式突出，且必须包含『不构成投资建议』。"
+        "风险提示块使用黄色左边框样式突出，且必须包含『不构成投资建议』。",
+        "允许在页面顶部渲染『今日结论速览』摘要条（marketEnvironment/riskWarning + 锚点跳转），不替代本区完整渲染（产品裁决 2026-08-23）。"
       ],
       "notes": "8 段 required（indexAndTurnover/sentiment/fundFlow/trackConclusion/marketEnvironment/northbound/margin/riskWarning），每段 string、minChars>=10、中文字符占比>=0.5、不含 rejectedPlaceholders；riskWarning 必须含『不构成投资建议』。summaryFacts 声明结构化事实锚点（见 summaryFacts 字段），验收器须将其与底层模块逐字段比对：marketEnvironment 锚 turnover（COMPARABLE 时禁用『暂无/无可比较/暂无可比较/不可比』等词，量能词按 volumeState 映射 EXPANSION→放量/CONTRACTION→缩量/FLAT→平量/UNKNOWN→量能不明）；trackConclusion 锚 tracks（FINAL 且 items 非空时 4 赛道名前缀全部提及且与数量/判定一致）；margin 段锚 margin（FINAL 反映余额与净变动方向，PENDING 显式『待次日回补』）；northbound 段锚 northbound（LEGACY 标注口径变更、OFFICIAL 体现 point-in-time）。依赖模块非 FINAL/替代口径时，summary 必须显式包含『不可用/口径替代』说明，不得生成貌似完整的结论。",
       "summaryFacts": {

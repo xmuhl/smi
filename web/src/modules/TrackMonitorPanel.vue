@@ -4,6 +4,16 @@
       主赛道每日监测
       <StatusBadge :status="module.status" />
     </h3>
+    <!-- UI 评审 B3：覆盖/降级/预热说明上移到表格之前，先读语义再看数据 -->
+    <div class="boundary-tip" v-if="unavailableNote">
+      {{ unavailableNote }}
+    </div>
+    <div class="boundary-tip" v-if="degradedNote">
+      {{ degradedNote }}
+    </div>
+    <div class="boundary-tip" v-if="warmingNote">
+      {{ warmingNote }}
+    </div>
     <div class="table-wrap">
       <table class="smi-table track-table">
         <tr>
@@ -58,15 +68,6 @@
     </div>
     <div class="empty-tip" v-if="module.sourceSystem === 'TONGDAXIN_LEGACY'">
       数据口径：通达信 Legacy（历史导入）
-    </div>
-    <div class="boundary-tip" v-if="unavailableNote">
-      {{ unavailableNote }}
-    </div>
-    <div class="boundary-tip" v-if="degradedNote">
-      {{ degradedNote }}
-    </div>
-    <div class="boundary-tip" v-if="warmingNote">
-      {{ warmingNote }}
     </div>
   </div>
 </template>

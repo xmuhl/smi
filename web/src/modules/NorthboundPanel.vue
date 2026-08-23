@@ -56,11 +56,13 @@
     </template>
 
     <template v-else-if="module.quarterlyHolding">
-      <div class="metric" v-if="module.quarterlyHolding.asOf">
-        <div class="label">最近一期季度持仓（{{ module.quarterlyHolding.asOf }}）</div>
-        <div class="value flat">{{ module.quarterlyHolding.items.length }} 只</div>
+      <!-- UI 评审 A2/B1（产品裁决 2026-08-23）：低频 point-in-time 参考数据默认折叠为摘要行，可展开完整表 -->
+      <div class="nb-summary-line" v-if="module.quarterlyHolding.asOf">
+        <span>最近一期季度持仓（{{ module.quarterlyHolding.asOf }}）· {{ module.quarterlyHolding.items.length }} 只 · point-in-time 参考数据</span>
+        <button class="link-btn" @click="toggleExpanded">{{ expanded ? "收起持仓表" : "展开持仓表（前 20 条）" }}</button>
       </div>
-      <table class="smi-table" v-if="module.quarterlyHolding.items.length">
+      <template v-if="expanded && module.quarterlyHolding.items.length">
+      <table class="smi-table nb-table" v-if="module.quarterlyHolding.items.length">
         <tr>
           <th>代码</th>
           <th>名称</th>
@@ -87,7 +89,8 @@
       >
         共 {{ module.quarterlyHolding.items.length }} 条，仅展示前 20 条
       </div>
-      <div v-else class="empty-tip">季度持仓暂未取得（{{ module.quarterlyHolding.status }}）</div>
+      </template>
+      <div v-if="!module.quarterlyHolding.items.length" class="empty-tip">季度持仓暂未取得（{{ module.quarterlyHolding.status }}）</div>
     </template>
 
     <div class="empty-tip" v-if="!legacy">
@@ -97,13 +100,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { NorthboundModule } from "../types/smi";
 import StatusBadge from "../components/StatusBadge.vue";
 
 const props = defineProps<{ module: NorthboundModule }>();
 
 const legacy = computed(() => props.module.legacyImportedFields ?? null);
+
+// UI 评审 A2：折叠状态跨会话记忆
+const expanded = ref(localStorage.getItem("smi-nb-expanded") === "1");
+function toggleExpanded() {
+  expanded.value = !expanded.value;
+  localStorage.setItem("smi-nb-expanded", expanded.value ? "1" : "0");
+}
 
 function marketText(market: string | null | undefined): string {
   if (market === "sh") return "沪股通";
