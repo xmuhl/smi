@@ -55,7 +55,7 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 - **评审收敛**：R22→R28 七轮迭代全部 CLOSED（R28：0 NOT_CLOSED）；起因为人工验收发现种子池无条件占位（R22-DEF-01）；R22 假设清单机制升级出 4 项规格问题并全部修复（3.3→3.4→3.5）
 - **tracks 3.5 已上线**：08-21 监测表=当日前5（半导体①通信②元件③高股息中特估④[概念注入]化学制药⑤）；07-20~08-19 历史日诚实空池；acceptance PASS=3（07-17/08-20/08-21）；测试 312 绿
 - **提交链**：e0c0db6(3.3 种子并入状态机)→6171484(--replace-modules)→d77cdd7(3.4)→58e89c1(3.5 直入/显式腿/rankScope)→8bf7d03/95a9ed6/ce60d38/R28 文档收口
-- **待观察**：① 周一 2026-08-24 首个 3.5 自动滚动日（close-snapshot 应自动产出当日前5，无确认延迟）② 方案 A（完整概念 universe=375 概念逐日采集+taxonomy 去重）为留档产品增强，当前方案 B（监测口径命名）已收敛 ③ fundFlow push2his 替代源长期跟踪
+- **待观察**：① 周一 2026-08-24 首个 3.5 自动滚动日（close-snapshot 应自动产出当日前5，无确认延迟）② 方案 A（完整概念 universe=375 概念逐日采集+taxonomy 去重）为留档产品增强，当前方案 B（监测口径命名）已收敛 ③ fundFlow push2his 替代源长期跟踪（免费源实测确认无替代——两个 _hist 接口底层同为 push2his；付费源暂不考虑——产品裁决 2026-08-23）
 - **送审材料**：work/SMI_R2[2-8]_Fix_Notes.md + zip；评审报告在 ~/Downloads；对话页固定 g-p-69b6697161988191bd88eeeadca58000
 
 ## 自动更新链路（GitHub Actions，全部 Node 22）
