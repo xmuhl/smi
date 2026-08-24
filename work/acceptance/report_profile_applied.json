@@ -1,0 +1,4170 @@
+{
+  "reportCommitSemantics": "two-commit：先提交输入树后运行验收，报告单独提交。evaluatedCommit=被验收输入树(HEAD)所在提交；dirty=true 表示未提交改动存在，输入树未完全固化。",
+  "provenance": {
+    "repoCommit": "d63c868533a145a896edefdba00574126e86bf80",
+    "evaluatedCommit": "d63c868533a145a896edefdba00574126e86bf80",
+    "dirty": true,
+    "standardSha256": "96388a2f6d2140c5cd06ac8116d56c20421d55516b63c4c65e65157bf8af21be",
+    "acceptorSha256": "3b8f217a23d5ac5d8073718af1979b1f25a4a8bfd2c4123178685954310bbf88",
+    "manifestSha256": "606c09506c78095bba907e40aaa4d16eb8cf495f0d8052d5a24f086b398f492b",
+    "schemaVersion": "1.2",
+    "perDateSnapshotSha256": {
+      "2026-07-17": "313be8ebee230490841abd9160b0a2294b28d8404c6bbe0ebeed938e063719a6",
+      "2026-07-20": "64a12ab35560f67fdcad4e1d21f17d8cb0b8ee122ca5e7effff685df1c9212d7",
+      "2026-07-21": "237fe9d61875c4b3be28b6304730301a25ab94827d1b7346bda2b17df2d5b566",
+      "2026-07-22": "1a8a8ea9ebdc75bccff9809716ca5f1c3f16ad8742a9495513746601307bfa7a",
+      "2026-07-23": "c52cd6174437781aee747a7d29686c1118cdda3616e2179ec777882307f7a9db",
+      "2026-07-24": "a0b7b53f1245ff2c4b82eb4d99f17a46afed400ce3a42a60a9dabc25f4a257fd",
+      "2026-07-27": "5af324431e1e4e78e136c4f6d43667eb981476efbebcdc35d3a176574a98b84d",
+      "2026-07-28": "53eaa354f7041897ed62edd25ae4c8052db429d775a43bcd824d45cef6097dee",
+      "2026-07-29": "7fb52649a77b2978072cdcef77dd6f51ca2ed4a1ec5c530842a5317b177394f7",
+      "2026-07-30": "aac5884a8da23edc6ce0ce6211ce828cf61e570adcb79a20bc535a05861f9636",
+      "2026-07-31": "6ff10f110c763c307392d5a3598c50e17575aff5f09c1bb145ccc80dc892d1ad",
+      "2026-08-03": "d42bc1b74e51e01d1a7d4a89c45be00545fd181efc50e2d8c9ea2ca0bdd02787",
+      "2026-08-04": "3b72219613f892a0159326aa66274d01643b620790f562132da5c8a5a5b16b11",
+      "2026-08-05": "598f67f69643caf0f89fda0e35eef82c2879d534a095515a73b6fb24053f9d19",
+      "2026-08-06": "0dd52cfe7273653cb382dd48002f0c54aa576bb3a8e742eea773cda4e05ece6a",
+      "2026-08-07": "16ec3a51e3c5a366c82ee7de50c38e1f84ad34687ec23e7189ef08fd2ecdb739",
+      "2026-08-10": "8a5ea0aff0d9179dc414bbd5df3df7bedc0cf559a8350b419af1f95a33b51350",
+      "2026-08-11": "9769666808451e047ca1caf8b883988752689516539dbc75a435b6d9b03ce1bd",
+      "2026-08-12": "16cdca89c605e46977500ca23e8f3e4e53930a74f08678fc80faadc9fe4166b5",
+      "2026-08-13": "f5fe4fe106d11a0bb6a70d8e1e0c16f55e8872ba713f6c858a1f2fd6e324a38e",
+      "2026-08-14": "ee01f75e958b89a100aaa9b7b980066b6f9c904ee7e5898fe06e681172745990",
+      "2026-08-17": "7736d7fa0c608cb072394bdd485632bcdd2c1742a396dca78f8e4f5537c0f92e",
+      "2026-08-18": "b65481947b3b73ef8fdb472d056e871900c8271fcf07276542e14047f22ba250",
+      "2026-08-19": "9f1cdf2eb5768834d438b6a58a7d675b191327d4345c769f45980345f84c563e",
+      "2026-08-20": "c7f9a3f6dcd8e7f81263c044dad220b8e40624b7db56f88e9b3d0e70d25f89fa",
+      "2026-08-21": "465086f1e6c8b1f0f0d99582fcbad71c75d9d3b1b89dc09b5fb5d8b1f99b16cf"
+    },
+    "pythonVersion": "3.13.5",
+    "generatedAt": "2026-08-24T22:07:55.054850+08:00"
+  },
+  "standard": "docs\\acceptance\\template-standard.json",
+  "dates": {
+    "2026-07-17": {
+      "gap": null,
+      "overall": "PASS",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_LEGACY_IMPORTED 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "前一日 FINAL margin 缺失/非 FINAL：环比恒等记录为 gap（不判 fail）"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "tracks_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "tracks_V2: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-20": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: PREVIOUS_METHOD_MISMATCH 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: brokenLimitCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: limitSealRatePct"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: maxLimitUpStreak"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-21": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: brokenLimitCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: limitSealRatePct"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: maxLimitUpStreak"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-22": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: brokenLimitCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: limitSealRatePct"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: maxLimitUpStreak"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-23": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: brokenLimitCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: limitSealRatePct"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: maxLimitUpStreak"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-24": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitUpCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: brokenLimitCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: limitSealRatePct"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: maxLimitUpStreak"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-27": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-28": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-29": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-30": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-07-31": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitDownCount"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-03": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-04": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitDownCount"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-05": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-06": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-07": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-10": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-11": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-12": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "PARTIAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='PARTIAL' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: nonStLimitDownCount"
+            },
+            {
+              "passed": false,
+              "detail": "字段为 null: stLimitDownCount"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-13": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-14": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "字段缺失: limitSealRatePct"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: maxLimitUpStreak"
+            },
+            {
+              "passed": false,
+              "detail": "非参考日 limitSealRatePct 缺失/null（状态为 FINAL）需缺口说明"
+            },
+            {
+              "passed": false,
+              "detail": "非参考日 maxLimitUpStreak 缺失/null（状态为 FINAL）需缺口说明"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-17": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "字段缺失: limitSealRatePct"
+            },
+            {
+              "passed": false,
+              "detail": "字段缺失: maxLimitUpStreak"
+            },
+            {
+              "passed": false,
+              "detail": "非参考日 limitSealRatePct 缺失/null（状态为 FINAL）需缺口说明"
+            },
+            {
+              "passed": false,
+              "detail": "非参考日 maxLimitUpStreak 缺失/null（状态为 FINAL）需缺口说明"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-18": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": false,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "UNAVAILABLE",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "status='UNAVAILABLE' 期望 FINAL"
+            },
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "industryOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockInflowTop10 长度 0 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-19": {
+      "gap": null,
+      "overall": "FAIL",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": false,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": false,
+              "detail": "industryInflowTop10 长度 8 < minItems 10"
+            },
+            {
+              "passed": false,
+              "detail": "conceptInflowTop10 长度 5 < minItems 10"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "UNAVAILABLE",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-20": {
+      "gap": null,
+      "overall": "PASS",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": []
+        },
+        "tracks": {
+          "status": "PARTIAL",
+          "pass": true,
+          "rule": {
+            "through": "2026-08-20",
+            "allowedConfigVersions": [
+              "legacy",
+              "1.0",
+              "2.0",
+              "3.0",
+              "3.1",
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5"
+            ],
+            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    },
+    "2026-08-21": {
+      "gap": null,
+      "overall": "PASS",
+      "invariants": {
+        "INV-DATE-LOOKAHEAD": true,
+        "INV-UNIT-亿元": true,
+        "INV-LIST-SORT-SIGN": true,
+        "INV-MARGIN-IDENTITY": true,
+        "INV-TURNOVER-IDENTITY": true,
+        "INV-SENTIMENT-WIDTH": true,
+        "INV-ENUM-SOURCE-METHOD": true,
+        "INV-REF-EXACT": true,
+        "INV-NORTHBOUND-PIT": true
+      },
+      "modules": {
+        "marketIndex": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "marketIndex_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "marketIndex_V2: status=FINAL；items 结构/必需核心指数均有效"
+            }
+          ]
+        },
+        "turnover": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "turnover_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "turnover_V2: COMPARABLE 状态机通过"
+            }
+          ]
+        },
+        "sentiment": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sentiment_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
+            }
+          ]
+        },
+        "sectorPerformance": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "sectorPerformance_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "sectorPerformance_V2: 四类板块榜单通过"
+            }
+          ]
+        },
+        "fundFlow": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "fundFlow_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
+            }
+          ]
+        },
+        "northbound": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "northbound_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "northbound_V2: POST_20240819_OFFICIAL_REPLACEMENT 分支通过"
+            }
+          ]
+        },
+        "margin": {
+          "status": "PENDING",
+          "pass": true,
+          "rule": "margin_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "PENDING D0 分支通过"
+            }
+          ]
+        },
+        "tracks": {
+          "status": "PARTIAL",
+          "pass": true,
+          "rule": {
+            "from": "2026-08-21",
+            "minConfigVersion": "3.5",
+            "note": "R16-P2-01：3.2 代码（ebac337，2026-08-22）之后的首个可产数据交易日为 cutoff；此后新快照 configVersion<3.2 一律 FAIL，阻断版本降级旁路（configVersion 是被验收事实，不得作为验收强度的可信依据）。；cutoff 后 configVersion 必须严格可解析为 x.y（R17-P2-01：legacy/3.x 等非数值形态一律 FAIL） R22-DEF-01：3.3（种子并入状态机，出池仅按成交额排名口径——净流入为评分维度非出局条件，范本 07-17 医药-386亿/半导体-730亿仍在监测表自证）；cutoff 提升至 3.3。 R23：cutoff 提升至 3.4（R22-P2-01/02/03+P3-01 语义修订：准入仅排名<=5；QUALIFIED_TODAY/RETAINED_OBSERVATION 分层；概念资格腿注入行业 universe 联合排名）。 R24：cutoff 3.5（R23 裁定收口：QUALIFIED_TODAY=当日前5每日范本真理源无确认门槛；监测口径改名=行业universe+已配置概念联合排名，不自称全市场；复合赛道显式 qualification leg+rankScope 元数据）。",
+            "numericOnly": true
+          },
+          "details": [
+            {
+              "passed": true,
+              "detail": "{'from': '2026-08-21', 'minConfigVersion': '3.5', 'note': 'R16-P2-01：3.2 代码（ebac337，2026-08-22）之后的首个可产数据交易日为 cutoff；此后新快照 configVersion<3.2 一律 FAIL，阻断版本降级旁路（configVersion 是被验收事实，不得作为验收强度的可信依据）。；cutoff 后 configVersion 必须严格可解析为 x.y（R17-P2-01：legacy/3.x 等非数值形态一律 FAIL） R22-DEF-01：3.3（种子并入状态机，出池仅按成交额排名口径——净流入为评分维度非出局条件，范本 07-17 医药-386亿/半导体-730亿仍在监测表自证）；cutoff 提升至 3.3。 R23：cutoff 提升至 3.4（R22-P2-01/02/03+P3-01 语义修订：准入仅排名<=5；QUALIFIED_TODAY/RETAINED_OBSERVATION 分层；概念资格腿注入行业 universe 联合排名）。 R24：cutoff 3.5（R23 裁定收口：QUALIFIED_TODAY=当日前5每日范本真理源无确认门槛；监测口径改名=行业universe+已配置概念联合排名，不自称全市场；复合赛道显式 qualification leg+rankScope 元数据）。', 'numericOnly': True}: items>=4；逐列 typed 校验通过"
+            }
+          ]
+        },
+        "summary": {
+          "status": "FINAL",
+          "pass": true,
+          "rule": "summary_V2",
+          "details": [
+            {
+              "passed": true,
+              "detail": "summary_V2: 8 段中文摘要 + 风险提示 + 依赖完整性通过"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "summary": {
+    "passDates": [
+      "2026-07-17",
+      "2026-08-20",
+      "2026-08-21"
+    ],
+    "failDates": [
+      "2026-07-20",
+      "2026-07-21",
+      "2026-07-22",
+      "2026-07-23",
+      "2026-07-24",
+      "2026-07-27",
+      "2026-07-28",
+      "2026-07-29",
+      "2026-07-30",
+      "2026-07-31",
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-06",
+      "2026-08-07",
+      "2026-08-10",
+      "2026-08-11",
+      "2026-08-12",
+      "2026-08-13",
+      "2026-08-14",
+      "2026-08-17",
+      "2026-08-18",
+      "2026-08-19"
+    ],
+    "moduleFailCounts": [
+      {
+        "module": "marketIndex",
+        "failDates": 0
+      },
+      {
+        "module": "turnover",
+        "failDates": 0
+      },
+      {
+        "module": "sentiment",
+        "failDates": 10
+      },
+      {
+        "module": "sectorPerformance",
+        "failDates": 0
+      },
+      {
+        "module": "fundFlow",
+        "failDates": 21
+      },
+      {
+        "module": "northbound",
+        "failDates": 0
+      },
+      {
+        "module": "margin",
+        "failDates": 0
+      },
+      {
+        "module": "tracks",
+        "failDates": 0
+      },
+      {
+        "module": "summary",
+        "failDates": 0
+      }
+    ]
+  },
+  "profileApplied": {
+    "schemaVersion": "2.0",
+    "sourceReport": "work/acceptance/report.json",
+    "sourceProfile": "docs\\acceptance\\historical-profile.json",
+    "profileVersion": "historical-v1",
+    "referenceDate": "2026-07-17",
+    "acceptedModuleBoundaries": {
+      "2026-07-20": {
+        "sentiment": "unrecoverable_range",
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-21": {
+        "sentiment": "unrecoverable_range",
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-22": {
+        "sentiment": "unrecoverable_range",
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-23": {
+        "sentiment": "unrecoverable_range",
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-24": {
+        "sentiment": "unrecoverable_range",
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-27": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-28": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-29": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-30": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-07-31": {
+        "sentiment": "missing_fields:nonStLimitDownCount,stLimitDownCount",
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-03": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-04": {
+        "sentiment": "missing_fields:nonStLimitDownCount,stLimitDownCount",
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-05": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-06": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-07": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-10": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-11": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-12": {
+        "sentiment": "missing_fields:nonStLimitDownCount,stLimitDownCount",
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-13": {
+        "fundFlow": "missing_fields:stockInflowTop10,stockOutflowTop10"
+      },
+      "2026-08-14": {
+        "sentiment": "missing_fields:limitSealRatePct,maxLimitUpStreak"
+      }
+    },
+    "rejectedModuleDetail": {
+      "2026-08-17": {
+        "sentiment": "outside_applicability"
+      },
+      "2026-08-18": {
+        "fundFlow": "outside_applicability"
+      },
+      "2026-08-19": {
+        "fundFlow": "outside_applicability"
+      }
+    },
+    "summary": {
+      "originalFailDates": [
+        "2026-07-20",
+        "2026-07-21",
+        "2026-07-22",
+        "2026-07-23",
+        "2026-07-24",
+        "2026-07-27",
+        "2026-07-28",
+        "2026-07-29",
+        "2026-07-30",
+        "2026-07-31",
+        "2026-08-03",
+        "2026-08-04",
+        "2026-08-05",
+        "2026-08-06",
+        "2026-08-07",
+        "2026-08-10",
+        "2026-08-11",
+        "2026-08-12",
+        "2026-08-13",
+        "2026-08-14",
+        "2026-08-17",
+        "2026-08-18",
+        "2026-08-19"
+      ],
+      "acceptedBoundaryDates": [
+        "2026-07-20",
+        "2026-07-21",
+        "2026-07-22",
+        "2026-07-23",
+        "2026-07-24",
+        "2026-07-27",
+        "2026-07-28",
+        "2026-07-29",
+        "2026-07-30",
+        "2026-07-31",
+        "2026-08-03",
+        "2026-08-04",
+        "2026-08-05",
+        "2026-08-06",
+        "2026-08-07",
+        "2026-08-10",
+        "2026-08-11",
+        "2026-08-12",
+        "2026-08-13",
+        "2026-08-14"
+      ],
+      "acceptedModuleCount": 28,
+      "remainingFailDates": [
+        "2026-08-17",
+        "2026-08-18",
+        "2026-08-19"
+      ],
+      "remainingFailCount": 3,
+      "allDatesAccepted": false,
+      "result": "PROFILE_APPLIED_V2"
+    }
+  }
+}
