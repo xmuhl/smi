@@ -112,25 +112,28 @@
       ]
     },
     "sentiment": {
-      "status": "PARTIAL",
+      "status": "FINAL",
       "dataDate": "2026-07-27",
       "source": [
-        "EASTMONEY"
+        "EASTMONEY",
+        "GILDATA"
       ],
-      "riseCount": null,
-      "fallCount": null,
-      "flatCount": null,
+      "riseCount": 5256,
+      "fallCount": 297,
+      "flatCount": 59,
       "suspendedCount": null,
       "nonStLimitUpCount": 111,
       "stLimitUpCount": 0,
       "nonStLimitDownCount": 6,
       "stLimitDownCount": 0,
       "brokenLimitCount": 13,
-      "reason": "HISTORICAL_LIMIT_POOL_ONLY",
       "limitSealRatePct": 89.52,
       "maxLimitUpStreak": "5连板",
       "errors": [],
-      "warnings": []
+      "warnings": [
+        "breadth=GILDATA_JUYUAN 沪深北口径,与东财/新浪spot存在约1%口径差"
+      ],
+      "spotSource": "GILDATA"
     },
     "sectorPerformance": {
       "status": "FINAL",

@@ -54,7 +54,7 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 
 - **评审收敛**：R22→R28 七轮迭代全部 CLOSED（R28：0 NOT_CLOSED）；起因为人工验收发现种子池无条件占位（R22-DEF-01）；R22 假设清单机制升级出 4 项规格问题并全部修复（3.3→3.4→3.5）
 - **tracks 3.5 已上线**：08-21 监测表=当日前5（半导体①通信②元件③高股息中特估④[概念注入]化学制药⑤，turnoverRank 全局升序）；07-20~08-19 历史日诚实空池；acceptance PASS=3（07-17/08-20/08-21）；测试 313 绿
-- **人工验收修复轮（08-23，验收通过）**：turnover 08-18 回补 ERROR→FINAL + 08-19 链条重算（1272e5f）；tracks 监测表 turnoverRank 全局升序统一排序 + sortedBy 强制/Legacy 豁免（b2be8ed）；margin 08-17 T+1 回补 FINAL + 08-18 balanceChange 联动（f371c26）；margin 两融成交额行 UNAVAILABLE 隐藏（0590126）；全量审计报告 work/DATA_AUDIT_20260823.md（dba0a91）。turnover/summary/margin 模块级 failDates 全部清零，残余仅 sentiment 22 日 + fundFlow 21 日结构性缺口
+- **人工验收修复轮（08-23，验收通过）**：turnover 08-18 回补 ERROR→FINAL + 08-19 链条重算（1272e5f）；tracks 监测表 turnoverRank 全局升序统一排序 + sortedBy 强制/Legacy 豁免（b2be8ed）；margin 08-17 T+1 回补 FINAL + 08-18 balanceChange 联动（f371c26）；margin 两融成交额行 UNAVAILABLE 隐藏（0590126）；全量审计报告 work/DATA_AUDIT_20260823.md（dba0a91）。turnover/summary/margin 模块级 failDates 全部清零；sentiment 涨跌家数已于 08-24 经 gildata(恒生聚源)回补（12 日升 FINAL，3 日仍 PARTIAL），sentiment 残余仅剩 07-20~07-24 五天 PARTIAL 边界 + fundFlow 21 日结构性缺口
 - **UI 版面修订轮（08-23，已上线 e095805，Kimi 复核 10 项 PASS + 上线实测 12 项 PASS）**：提案 work/UI_UX_REVIEW_20260823.md（342f33b）；A1 fundFlow 单位插值 bug 修复；A2 北向季度持仓默认折叠（localStorage 记忆）；A3 FINAL 徽标隐藏；A4 分区锚点 chip；B1 ②区解除三等列（北向独立折叠卡）；B2 顶部今日结论速览条；B3 主赛道说明上移；C 字号层级/tabular-nums/骨架屏；验收反馈追加：③区宽表撑破页面横向滚动修复（.table-wrap 内部滚动 + fixed 布局显式列宽 + scoped 源头换行，da22cde→e095805）；概念腿无净流入入榜语义维持裁决（7ade750）
 - **提交链**：e0c0db6(3.3)→6171484(--replace-modules)→d77cdd7(3.4)→58e89c1(3.5)→8bf7d03/95a9ed6/ce60d38/e90f940(R28 收口)→094bf3b(上下文)→1272e5f/b2be8ed/f371c26/dba0a91/0590126(验收修复轮)→1444621(付费源裁决)→342f33b/7042ead(UI 修订)→da22cde~e095805(③区布局修复)→7ade750(语义裁决)
 - **待观察**：① 周一 2026-08-24 首个 3.5 自动滚动日（close-snapshot 应自动产出当日前5，无确认延迟）② 方案 A（完整概念 universe=375 概念逐日采集+taxonomy 去重）为留档产品增强，当前方案 B（监测口径命名）已收敛 ③ fundFlow push2his 替代源长期跟踪（免费源实测确认无替代——两个 _hist 接口底层同为 push2his；付费源暂不考虑——产品裁决 2026-08-23）
@@ -101,17 +101,17 @@ python -m collector.jobs.t1_reconcile --date YYYY-MM-DD
 
 - 验收器：`tools/acceptance/accept.py`（读标准 `docs/acceptance/template-standard.json`）
 - 历史覆盖 Profile：`docs/acceptance/historical-profile.json`（产品裁决已知边界）
-- 最新 clean 报告：`work/acceptance/baseline-report.json`（验收修复轮后，08-23）；常态 PASS=3（07-17/08-20/08-21），模块级残余仅 sentiment 22 日 + fundFlow 21 日（结构性无历史源）——turnover/summary/margin failDates 已于 08-23 清零
+- 最新 clean 报告：`work/acceptance/baseline-report.json`（验收修复轮后，08-23）；常态 PASS=3（07-17/08-20/08-21），模块级残余 sentiment 仅剩 07-20~07-24 五天 PARTIAL 已知边界（涨跌家数 08-24 经 gildata 回补）+ fundFlow 21 日（结构性无历史源）——turnover/summary/margin failDates 已于 08-23 清零
 - 页面探针：`tools/acceptance/page_check.js`（`window.__smiPageCheck()`）
 
 ## 已知边界（产品裁决 v1 + R12 运行时观察项）
 
 | 模块 | 历史缺口 | 状态 |
 |------|----------|------|
-| sentiment | riseCount/fallCount/flatCount 等无免费历史源 | PARTIAL/UNAVAILABLE |
+| sentiment | 07-20~07-24 涨停池派生字段（非ST/ST拆分/炸板/封板率）不可恢复；涨跌家数已于 2026-08-24 经 gildata(恒生聚源)回补（沪深北口径，与东财/新浪spot约1%口径差） | 07-20~07-24 PARTIAL；其余已回补 |
 | fundFlow | stockInflowTop10/OutflowTop10 无历史源；push2his 封禁 | UNAVAILABLE/PARTIAL |
 | tracks | 07-20~08-19 板块快照不可回溯（接入前）→诚实空池（3.3 起）；excessReturn20d 无 HS300 归档源（诚实缺口）；概念腿净流入/涨跌家数无源（INSUFFICIENT 层诚实缺列）；涨停池分子（东财）与 universe 分母（THS 家数）命名体系混合，未对齐时情绪维 fail-closed | 空池日 UNAVAILABLE；数据日 PARTIAL |
-| 07-20~07-24 | 涨停池保留窗口外不可恢复 | UNRECOVERABLE |
+| 07-20~07-24 | 涨停池派生字段（非ST/ST拆分/炸板/封板率）保留窗口外不可恢复；涨跌家数已回补 | UNRECOVERABLE（仅派生字段） |
 
 R28 后待观察：周一 08-24 首个 3.5 自动滚动；coverage 常态 76~82% 对阈值 80 余量薄（08-21 已落 DEGRADED 带——保留评分降置信，属设计内）；概念腿资金流缺口常态化后 minFormalItems=4 是否仍稳。
 

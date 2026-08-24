@@ -17,19 +17,16 @@
     "sentiment": {
       "earliestSupportedDate": "2026-07-20",
       "missingFields": [
-        "riseCount",
-        "fallCount",
-        "flatCount",
         "nonStLimitDownCount",
         "stLimitDownCount",
         "limitSealRatePct",
         "maxLimitUpStreak"
       ],
-      "missingReason": "涨跌家数无免费历史数据源（R2 数据源研究确认），诚实缺口",
+      "missingReason": "涨跌家数(riseCount/fallCount/flatCount)已于 2026-08-24 经 gildata(恒生聚源)『市场涨跌停家数』沪深北口径回补；剩余缺字段为涨停池派生项，依赖东财涨停池窗口",
       "extraFields": [],
       "extraFieldsNote": "limitSealRatePct/maxLimitUpStreak 依赖东财涨停池，仅 07-27 起窗口内可采集",
-      "statusMapping": "riseCount/fallCount/flatCount/nonStLimitDownCount/stLimitDownCount 为 null 时 PARTIAL；FINAL 状态但 sealRate/streak 缺失也接受为已知边界",
-      "uiNotice": "历史日展示『部分情绪指标无历史源（涨跌家数/非ST跌停/封板率），仅显示可采集指标』",
+      "statusMapping": "nonStLimitDownCount/stLimitDownCount 为 null 时 PARTIAL；FINAL 状态但 sealRate/streak 缺失也接受为已知边界；涨跌家数自 2026-08-24 起按 gildata 回补值验收",
+      "uiNotice": "历史日展示『部分情绪指标无历史源（非ST跌停/封板率），仅显示可采集指标；涨跌家数经 gildata 回补，与东财/新浪spot存在约1%口径差』",
       "acceptedStatuses": [
         "PARTIAL",
         "UNAVAILABLE",
@@ -78,7 +75,7 @@
         "sentiment",
         "tracks"
       ],
-      "reason": "东财涨停池保留窗口仅覆盖 ~2026-07-27 起，此前 limit-up-pool archive 无数据，不可恢复",
+      "reason": "东财涨停池保留窗口仅覆盖 ~2026-07-27 起，此前 limit-up-pool archive 无数据，涨停池派生字段（非ST/ST拆分/炸板/封板率）仍不可恢复；涨跌家数已于 2026-08-24 经 gildata(恒生聚源)回补",
       "status": "UNRECOVERABLE"
     }
   ],

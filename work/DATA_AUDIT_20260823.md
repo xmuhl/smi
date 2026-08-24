@@ -126,3 +126,18 @@ POST_20240819_OFFICIAL_REPLACEMENT 模式：HKEX 于 2024-08-19 起停止披露�
 1. **周一 08-24 晚**：确认 t1-reconcile cron 自动补齐 08-21 两融；
 2. fundFlow 若发现新的免费历史源（或东财解封），可按本清单逐日重放回补；
 3. 方案 A（完整概念 universe）落地后，tracks 历史仍无法回溯——缺口性质不变。
+
+---
+
+## 回补附录（2026-08-24）
+
+**sentiment 涨跌家数经 gildata（恒生聚源）『市场涨跌停家数』API 回补**，覆盖原审计清单中全部 20 个缺口日（07-20~07-24、07-27~07-31、08-03~08-07、08-10~08-13、08-18），取数口径为沪深北市场，原始 CSV 留档 `tmp/gildata_breadth_<date>.csv`。
+
+结果：
+- **12 日升 FINAL**：07-27~07-30、08-03、08-05~08-07、08-10、08-11、08-13、08-18（涨停池派生字段齐全，补齐涨跌家数后必填字段全齐）
+- **3 日维持 PARTIAL**：07-31、08-04、08-12（涨停池派生字段 nonStLimitDownCount/stLimitDownCount 仍缺，诚实缺口不伪造）
+- **5 日 UNAVAILABLE→PARTIAL**：07-20~07-24（涨停池窗口外，派生字段仍不可恢复，reason 维持 HISTORICAL_LIMIT_POOL_UNAVAILABLE；涨跌家数已补）
+
+口径声明：gildata 沪深北口径与既有东财/新浪 spot 口径存在约 1% 差异（FINAL 日实测比对确认），数据已标注 `source+=GILDATA`、`spotSource=GILDATA` 及 warnings 说明。suspendedCount 维持 null。
+
+fundFlow 与 tracks 模块本次未动，缺口性质不变。

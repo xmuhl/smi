@@ -139,11 +139,12 @@
       "status": "PARTIAL",
       "dataDate": "2026-08-04",
       "source": [
-        "EASTMONEY"
+        "EASTMONEY",
+        "GILDATA"
       ],
-      "riseCount": null,
-      "fallCount": null,
-      "flatCount": null,
+      "riseCount": 3679,
+      "fallCount": 1771,
+      "flatCount": 165,
       "suspendedCount": null,
       "nonStLimitUpCount": 138,
       "stLimitUpCount": 0,
@@ -155,8 +156,10 @@
       "maxLimitUpStreak": "7连板",
       "errors": [],
       "warnings": [
-        "dt_pool: EMPTY_OR_UNAVAILABLE"
-      ]
+        "dt_pool: EMPTY_OR_UNAVAILABLE",
+        "breadth=GILDATA_JUYUAN 沪深北口径,与东财/新浪spot存在约1%口径差"
+      ],
+      "spotSource": "GILDATA"
     },
     "sectorPerformance": {
       "status": "FINAL",
