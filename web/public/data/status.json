@@ -1,23 +1,23 @@
 {
-  "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-08-24T11:18:07+08:00",
+  "lastWorkflow": "close-snapshot",
+  "lastRunAt": "2026-08-24T17:25:56+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
-  "latestCapturedDate": "2026-08-21",
+  "latestCapturedDate": "2026-08-24",
   "latestCloseCompleteDate": "2026-08-20",
   "latestFinalDate": "2026-07-17",
-  "latestDate": "2026-08-21",
+  "latestDate": "2026-08-24",
   "health": "DEGRADED",
   "errors": [
     {
       "module": "margin",
-      "status": "ERROR",
+      "status": "PENDING",
       "errors": [
-        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
       ]
     },
     {
       "module": "tracks",
-      "status": "PARTIAL",
+      "status": "UNAVAILABLE",
       "errors": [
         "HS300_SEED_UNAVAILABLE"
       ]
