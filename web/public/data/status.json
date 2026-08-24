@@ -1,6 +1,6 @@
 {
-  "lastWorkflow": "manual",
-  "lastRunAt": "2026-08-23T18:41:56+08:00",
+  "lastWorkflow": "t1-reconcile",
+  "lastRunAt": "2026-08-24T11:18:07+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-21",
   "latestCloseCompleteDate": "2026-08-20",
@@ -10,9 +10,9 @@
   "errors": [
     {
       "module": "margin",
-      "status": "PENDING",
+      "status": "ERROR",
       "errors": [
-        "SZSE margin not published for 2026-08-21 (T+1 disclosure)"
+        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
       ]
     },
     {
