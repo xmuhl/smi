@@ -2,8 +2,11 @@ name: t1-reconcile
 
 on:
   schedule:
+    # 10:17 / 18:17 / 20:17 CST（UTC+8）。第三窗口（P0-b，2026-08-25）
+    # 为交易所源对 runner 海外 IP 的连接重置留出额外重试时段。
     - cron: "17 2 * * 1-5"
     - cron: "17 9 * * 1-5"
+    - cron: "17 12 * * 1-5"
   workflow_dispatch:
     inputs:
       deploy:
@@ -148,3 +151,16 @@ jobs:
           done
           echo "SITE_STALE_OR_UNREACHABLE after deploy"
           exit 1
+
+      # P0-b（2026-08-25）：两融硬门禁 + 告警。此前补数失败一律退出 0
+      # （绿皮红心），margin 连续 ERROR 两天无人察觉（08-21/08-24 事故）。
+      # margin=ERROR 属源失败硬缺口 → 红灯 + 飞书；STALE（交易所未披露）
+      # 仅 warning。FEISHU_WEBHOOK_URL 未配置时降级为 annotation + 邮件。
+      - name: Margin health gate & alert
+        if: always()
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python tools/alert/data_health.py \
+            --mode t1-reconcile

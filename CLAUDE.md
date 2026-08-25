@@ -50,7 +50,12 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 | `smi-6s2.pages.dev` | Cloudflare Pages 默认域 | ✅ 生产 |
 | `smi.gorestart.cn` | 自定义域名（阿里云 CNAME） | ✅ 生产 |
 
-## 当前状态（2026-08-23 · 验收修复基线，人工验收通过）
+## 当前状态（2026-08-25 · spot 双源整窗被封事故 + P0 自愈改造）
+
+- **08-25 事故与修复**：close-snapshot 16:23 主窗口因 spot 双源（东财 RemoteDisconnected + 新浪 HTML 反爬）同挂，4 次内部重试全失败，STOCK_UNIVERSE_TOO_SMALL 门禁拦截发布（fail-closed 正确）；同日发现 t1-reconcile 绿皮红心——margin 08-21/08-24 连续 ERROR 静默两天（runner 海外 IP 被交易所重置）。修复：本机回补 08-21/08-24 两融 FINAL + 08-24 环比联动（4ed9bbb）；dispatch 重采 08-25；P0-a 自愈窗口 + P0-b 数据健康门禁/告警上线
+- **待观察**：① 自愈窗口实效（下一工作日 18:23/19:23 首次自然轮转）② FEISHU_WEBHOOK_URL secret 待配置（用户操作：GitHub → Settings → Secrets → Actions）③ spot 第三源（腾讯/gildata）与采集迁国内为 P1/P2 留档方案
+
+### 08-23 验收修复基线（人工验收通过，存档）
 
 - **评审收敛**：R22→R28 七轮迭代全部 CLOSED（R28：0 NOT_CLOSED）；起因为人工验收发现种子池无条件占位（R22-DEF-01）；R22 假设清单机制升级出 4 项规格问题并全部修复（3.3→3.4→3.5）
 - **tracks 3.5 已上线**：08-21 监测表=当日前5（半导体①通信②元件③高股息中特估④[概念注入]化学制药⑤，turnoverRank 全局升序）；07-20~08-19 历史日诚实空池；acceptance PASS=3（07-17/08-20/08-21）；测试 313 绿
@@ -64,15 +69,17 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 
 | 工作流 | 触发 | 功能 |
 |--------|------|------|
-| `close-snapshot.yml` | Cron 工作日 16:23 CST | 采集（含 universe 预写+动态选池）→ commit → build → Pages 部署 → 站点新鲜度自检 |
-| `archive-raw.yml` | Cron 工作日 16:35 CST | 归档 universe/涨停池 + 候选 THS 历史回补 → 部署 → jsonl md5 自检 |
-| `t1-reconcile.yml` | Cron 工作日 10:17/18:17 CST | 补昨日两融（T+1）→ 部署 → 自检 |
-| `manual-backfill.yml` | 手动 | 回补指定日 → 部署 → 自检 |
+| `close-snapshot.yml` | Cron 工作日 16:23/18:23/19:23 CST（P0-a 自愈窗口） | 采集（含 universe 预写+动态选池）→ commit → build → Pages 部署 → 站点新鲜度自检；后两窗口为 spot 源整窗被封的重试时段，当日已发布则 freshness 守卫秒级跳过；收尾数据健康门禁（当日缺文件/margin ERROR → 红+飞书） |
+| `archive-raw.yml` | Cron 工作日 16:35 CST | 归档 universe/涨停池 + 候选 THS 历史回补 → 部署 → jsonl md5 自检；失败推飞书 |
+| `t1-reconcile.yml` | Cron 工作日 10:17/18:17/20:17 CST | 补昨日两融（T+1）→ 部署 → 自检；收尾 margin 硬门禁：ERROR→红+飞书、STALE 仅 warning（P0-b 消灭绿皮红心） |
+| `manual-backfill.yml` | 手动 | 回补指定日 → 部署 → 自检；失败推飞书 |
 | `ci.yml` | Push to main | 类型检查 + 测试 + 构建验证 |
 
 - 自检口径：改写 latest.json 的 workflow 断言 `updatedAt ≥ JOB_START_UTC`；archive-raw（不改写 latest.json）比对站点与 dist 的 jsonl md5
 - 全部数据写入 workflow 共用 concurrency group `smi-data-write` 串行；提交冲突（rebase conflict）用再次 dispatch 化解
 - 部署失败会打红 workflow（GitHub 默认通知）——连续红 = 发布链路断，人工介入
+- **数据级告警（P0-b，2026-08-25）**：`tools/alert/data_health.py` 作各 workflow 收尾步骤（`if: always()`）——close-snapshot 当日缺文件/margin ERROR → 红；t1-reconcile margin ERROR → 红、STALE → warning；其余模块缺口 → warning annotation。飞书通知读 secret `FEISHU_WEBHOOK_URL`（群机器人 webhook，未配置则降级为 annotation + GitHub 邮件，不阻塞）
+- **runner 海外 IP 结构性劣势（2026-08-25 事故根因）**：东财 push2/push2his 与交易所官网（两融 SSE/SZSE）对 GitHub Actions runner（Azure 海外 IP）频繁重置连接；本机国内网络同源全部畅通——runner 采集失败优先怀疑 IP 封锁而非源失效，可用本机 t1_reconcile/manual_backfill 兜底回补后推送
 
 ## 关键命令速查
 

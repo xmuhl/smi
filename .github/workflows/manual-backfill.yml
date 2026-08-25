@@ -178,4 +178,12 @@ jobs:
           echo "SITE_DAY_STALE_OR_MISMATCH after deploy"
           exit 1
 
+      # P0-b：失败告警（generic——仅任务失败时推飞书）。成功时零成本跳过。
+      - name: Failure alert
+        if: always() && job.status != 'success'
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          JOB_STATUS: ${{ job.status }}
+        run: python tools/alert/data_health.py --mode generic
+
 

@@ -158,3 +158,12 @@ jobs:
       - name: Verify deployment freshness
         if: ${{ steps.archive.outputs.exit_code == '0' && (steps.commit.outputs.changed == 'true' || inputs.deploy) }}
         run: bash tools/deploy/verify_archive_sync.sh
+
+      # P0-b：失败告警（generic——仅任务失败时推飞书；数据级门禁由
+      # close-snapshot / t1-reconcile 的健康步骤承担）。成功时零成本跳过。
+      - name: Failure alert
+        if: always() && job.status != 'success'
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          JOB_STATUS: ${{ job.status }}
+        run: python tools/alert/data_health.py --mode generic

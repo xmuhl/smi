@@ -132,6 +132,23 @@ def main() -> int:
     else:
         print(f"NO_CHANGE {target}")
 
+    # P0-b（2026-08-25）：补数失败必须显性化。此前无论 margin 是否补上
+    # 都退出 0，runner 拉不到两融时连续多日静默 ERROR（绿皮红心）。
+    # 这里打 annotation；硬门禁（红/告警）由 workflow 收尾的
+    # tools/alert/data_health.py --mode t1-reconcile 承担。
+    margin_status = updated_margin.get("status")
+
+    if margin_status == ModuleStatus.ERROR.value:
+        print(
+            f"::warning::margin {target} reconcile=ERROR "
+            f"(source fetch failure; retried next window)"
+        )
+    elif margin_status == ModuleStatus.STALE.value:
+        print(
+            f"::warning::margin {target} reconcile=STALE "
+            f"(not yet published; retried next window)"
+        )
+
     return 0
 
 if __name__ == "__main__":
