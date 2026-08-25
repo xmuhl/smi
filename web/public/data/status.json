@@ -1,6 +1,6 @@
 {
-  "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-08-25T11:13:52+08:00",
+  "lastWorkflow": "manual",
+  "lastRunAt": "2026-08-25T20:21:10+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-24",
   "latestCloseCompleteDate": "2026-08-20",
@@ -8,13 +8,6 @@
   "latestDate": "2026-08-24",
   "health": "DEGRADED",
   "errors": [
-    {
-      "module": "margin",
-      "status": "ERROR",
-      "errors": [
-        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
-      ]
-    },
     {
       "module": "tracks",
       "status": "UNAVAILABLE",
