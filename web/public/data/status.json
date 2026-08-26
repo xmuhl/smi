@@ -1,6 +1,6 @@
 {
   "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-08-26T17:57:35+08:00",
+  "lastRunAt": "2026-08-26T21:16:52+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-26",
   "latestCloseCompleteDate": "2026-08-20",
@@ -12,7 +12,7 @@
       "module": "margin",
       "status": "ERROR",
       "errors": [
-        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+        "Expecting value: line 1 column 1 (char 0)"
       ]
     },
     {
