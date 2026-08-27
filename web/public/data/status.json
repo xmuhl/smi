@@ -1,6 +1,6 @@
 {
-  "lastWorkflow": "close-snapshot",
-  "lastRunAt": "2026-08-27T20:55:42+08:00",
+  "lastWorkflow": "manual",
+  "lastRunAt": "2026-08-27T23:31:21+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-27",
   "latestCloseCompleteDate": "2026-08-20",
@@ -17,7 +17,7 @@
     },
     {
       "module": "tracks",
-      "status": "UNAVAILABLE",
+      "status": "PARTIAL",
       "errors": [
         "HS300_SEED_UNAVAILABLE"
       ]
