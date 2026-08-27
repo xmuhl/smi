@@ -1,23 +1,23 @@
 {
-  "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-08-26T21:16:52+08:00",
+  "lastWorkflow": "close-snapshot",
+  "lastRunAt": "2026-08-27T20:29:23+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
-  "latestCapturedDate": "2026-08-26",
+  "latestCapturedDate": "2026-08-27",
   "latestCloseCompleteDate": "2026-08-20",
   "latestFinalDate": "2026-07-17",
-  "latestDate": "2026-08-26",
+  "latestDate": "2026-08-27",
   "health": "DEGRADED",
   "errors": [
     {
       "module": "margin",
-      "status": "ERROR",
+      "status": "PENDING",
       "errors": [
-        "Expecting value: line 1 column 1 (char 0)"
+        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
       ]
     },
     {
       "module": "tracks",
-      "status": "PARTIAL",
+      "status": "UNAVAILABLE",
       "errors": [
         "HS300_SEED_UNAVAILABLE"
       ]
