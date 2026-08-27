@@ -924,13 +924,81 @@ def test_validator_rejects_partial_wrong_reason():
     snapshot = _load_legacy_baseline()
     snapshot["modules"]["sentiment"] = (
         _partial_sentiment(
-            reason="HISTORICAL_LIMIT_POOL_UNAVAILABLE",
+            reason="HISTORICAL_WINDOW_UNKNOWN",
         )
     )
     snapshot["overallStatus"] = "PARTIAL"
 
     with pytest.raises(ValueError):
         validate_snapshot(snapshot)
+
+def test_validator_accepts_breadth_only_sentiment_partial():
+    import copy
+
+    from collector.validators.schema import validate_snapshot
+
+    # gildata 回补形态（如 07-20~07-24）：涨跌家数可得，
+    # 涨停池派生字段全缺。
+    snapshot = _load_legacy_baseline()
+    snapshot["modules"]["sentiment"] = (
+        _partial_sentiment(
+            reason="HISTORICAL_LIMIT_POOL_UNAVAILABLE",
+            source=["EASTMONEY", "GILDATA"],
+            riseCount=482,
+            fallCount=5001,
+            flatCount=40,
+            nonStLimitUpCount=None,
+            stLimitUpCount=None,
+            nonStLimitDownCount=None,
+            stLimitDownCount=None,
+            brokenLimitCount=None,
+        )
+    )
+    snapshot["overallStatus"] = "PARTIAL"
+
+    validate_snapshot(snapshot)
+
+def test_validator_rejects_pool_fields_under_breadth_only():
+    import copy
+
+    import pytest
+
+    from collector.validators.schema import validate_snapshot
+
+    snapshot = _load_legacy_baseline()
+    snapshot["modules"]["sentiment"] = (
+        _partial_sentiment(
+            reason="HISTORICAL_LIMIT_POOL_UNAVAILABLE",
+            riseCount=482,
+            fallCount=5001,
+            flatCount=40,
+            nonStLimitUpCount=None,
+            stLimitUpCount=None,
+        )
+    )
+    snapshot["overallStatus"] = "PARTIAL"
+
+    with pytest.raises(ValueError):
+        validate_snapshot(snapshot)
+
+def test_validator_accepts_only_with_backfilled_breadth():
+    import copy
+
+    from collector.validators.schema import validate_snapshot
+
+    # 混合形态（如 07-31/08-04/08-12）：涨停池可得，
+    # gildata 回补的涨跌家数允许共存（null 或非负整数）。
+    snapshot = _load_legacy_baseline()
+    snapshot["modules"]["sentiment"] = (
+        _partial_sentiment(
+            riseCount=4741,
+            fallCount=741,
+            flatCount=131,
+        )
+    )
+    snapshot["overallStatus"] = "PARTIAL"
+
+    validate_snapshot(snapshot)
 
 def test_validator_rejects_partial_date_mismatch():
     import copy

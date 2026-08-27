@@ -484,50 +484,94 @@ def _validate_partial_module(
             f"{trade_date}"
         )
 
-    if (
-        module.get("reason")
-        != "HISTORICAL_LIMIT_POOL_ONLY"
-    ):
+    # 历史窗口日两种互斥 PARTIAL 形态：LIMIT_POOL_ONLY=涨停池可得
+    # （R8-P2-01 原契约；涨跌家数原强制 null，2026-08-24 gildata 回补
+    # 后允许共存，按可选字段校验）；LIMIT_POOL_UNAVAILABLE=仅涨跌家数
+    # （gildata 回补引入，如 07-20~07-24 五日），涨停池派生字段全缺。
+    # 域外 reason 一律拒绝。
+    reason = module.get("reason")
+    breadth_fields = ("riseCount", "fallCount", "flatCount")
+    pool_fields = (
+        "nonStLimitUpCount",
+        "stLimitUpCount",
+        "nonStLimitDownCount",
+        "stLimitDownCount",
+        "brokenLimitCount",
+    )
+
+    if reason == "HISTORICAL_LIMIT_POOL_ONLY":
+        up_values = (
+            module.get("nonStLimitUpCount"),
+            module.get("stLimitUpCount"),
+        )
+
+        if not all(
+            _is_nonnegative_int(value)
+            for value in up_values
+        ):
+            errors.append(
+                "sentiment: PARTIAL limit-up counts "
+                "must be non-negative integers"
+            )
+        elif sum(up_values) <= 0:
+            errors.append(
+                "sentiment: PARTIAL must contain "
+                "at least one limit-up record"
+            )
+
+        for field in breadth_fields + ("suspendedCount",):
+            value = module.get(field)
+
+            if (
+                value is not None
+                and not _is_nonnegative_int(value)
+            ):
+                errors.append(
+                    f"sentiment.{field} must be "
+                    "null or non-negative integer"
+                )
+    elif reason == "HISTORICAL_LIMIT_POOL_UNAVAILABLE":
+        breadth_values = [
+            module.get(field) for field in breadth_fields
+        ]
+
+        if not all(
+            _is_nonnegative_int(value)
+            for value in breadth_values
+        ):
+            errors.append(
+                "sentiment: PARTIAL breadth counts "
+                "must be non-negative integers"
+            )
+        elif sum(breadth_values) <= 0:
+            errors.append(
+                "sentiment: PARTIAL must contain "
+                "at least one breadth record"
+            )
+
+        suspended = module.get("suspendedCount")
+
+        if (
+            suspended is not None
+            and not _is_nonnegative_int(suspended)
+        ):
+            errors.append(
+                "sentiment.suspendedCount must be "
+                "null or non-negative integer"
+            )
+
+        for field in pool_fields:
+            if module.get(field) is not None:
+                errors.append(
+                    f"sentiment.{field} must be null "
+                    "for HISTORICAL_LIMIT_POOL_UNAVAILABLE"
+                )
+    else:
         errors.append(
             "sentiment: invalid PARTIAL reason"
         )
 
-    for field in (
-        "riseCount",
-        "fallCount",
-        "flatCount",
-        "suspendedCount",
-    ):
-        if module.get(field) is not None:
-            errors.append(
-                f"sentiment.{field} must be null "
-                "for historical PARTIAL"
-            )
-
-    up_values = (
-        module.get("nonStLimitUpCount"),
-        module.get("stLimitUpCount"),
-    )
-
-    if not all(
-        _is_nonnegative_int(value)
-        for value in up_values
-    ):
-        errors.append(
-            "sentiment: PARTIAL limit-up counts "
-            "must be non-negative integers"
-        )
-    elif sum(up_values) <= 0:
-        errors.append(
-            "sentiment: PARTIAL must contain "
-            "at least one limit-up record"
-        )
-
-    for field in (
-        "nonStLimitDownCount",
-        "stLimitDownCount",
-        "brokenLimitCount",
-    ):
+    for field in pool_fields:
         value = module.get(field)
 
         if (
