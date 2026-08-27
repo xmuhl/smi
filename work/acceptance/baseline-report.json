@@ -1,24 +1,24 @@
 {
   "reportCommitSemantics": "two-commit：先提交输入树后运行验收，报告单独提交。evaluatedCommit=被验收输入树(HEAD)所在提交；dirty=true 表示未提交改动存在，输入树未完全固化。",
   "provenance": {
-    "repoCommit": "b2be8ed1686db406ac2f3e880bfa5eaf218296cd",
-    "evaluatedCommit": "b2be8ed1686db406ac2f3e880bfa5eaf218296cd",
+    "repoCommit": "b3d1d4cd25d594baaef7be5c464a8b2b78278eb4",
+    "evaluatedCommit": "b3d1d4cd25d594baaef7be5c464a8b2b78278eb4",
     "dirty": true,
-    "standardSha256": "7f7252845b30604fae2076e66c61ddcbd228fab637c63d32c4f036db6d3ec310",
+    "standardSha256": "96388a2f6d2140c5cd06ac8116d56c20421d55516b63c4c65e65157bf8af21be",
     "acceptorSha256": "3b8f217a23d5ac5d8073718af1979b1f25a4a8bfd2c4123178685954310bbf88",
-    "manifestSha256": "606c09506c78095bba907e40aaa4d16eb8cf495f0d8052d5a24f086b398f492b",
+    "manifestSha256": "5f076bb15a88c9cc09668bdc768d767cb350588d7dd7b0396e248f9600b9a140",
     "schemaVersion": "1.2",
     "perDateSnapshotSha256": {
-      "2026-08-18": "6eba5fbc65aeeecb666dc78f4a4c5f48084777570f4771d4798b4809429d66fb"
+      "2026-08-27": "ba7210a49e3721bccccdbe481a6bf772eaf44ec5b92aac3e2f58127a84f8e630"
     },
     "pythonVersion": "3.13.5",
-    "generatedAt": "2026-08-23T18:42:05.839800+08:00"
+    "generatedAt": "2026-08-27T23:32:04.451829+08:00"
   },
   "standard": "docs\\acceptance\\template-standard.json",
   "dates": {
-    "2026-08-18": {
+    "2026-08-27": {
       "gap": null,
-      "overall": "FAIL",
+      "overall": "PASS",
       "invariants": {
         "INV-DATE-LOOKAHEAD": true,
         "INV-UNIT-亿元": true,
@@ -54,25 +54,13 @@
           ]
         },
         "sentiment": {
-          "status": "PARTIAL",
-          "pass": false,
+          "status": "FINAL",
+          "pass": true,
           "rule": "sentiment_V2",
           "details": [
             {
-              "passed": false,
-              "detail": "status='PARTIAL' 期望 FINAL"
-            },
-            {
-              "passed": false,
-              "detail": "字段为 null: riseCount"
-            },
-            {
-              "passed": false,
-              "detail": "字段为 null: fallCount"
-            },
-            {
-              "passed": false,
-              "detail": "字段为 null: flatCount"
+              "passed": true,
+              "detail": "sentiment_V2: canonical 计数与市场宽度通过"
             }
           ]
         },
@@ -88,37 +76,13 @@
           ]
         },
         "fundFlow": {
-          "status": "UNAVAILABLE",
-          "pass": false,
+          "status": "FINAL",
+          "pass": true,
           "rule": "fundFlow_V2",
           "details": [
             {
-              "passed": false,
-              "detail": "status='UNAVAILABLE' 期望 FINAL"
-            },
-            {
-              "passed": false,
-              "detail": "industryInflowTop10 长度 0 < minItems 10"
-            },
-            {
-              "passed": false,
-              "detail": "industryOutflowTop10 长度 0 < minItems 10"
-            },
-            {
-              "passed": false,
-              "detail": "conceptInflowTop10 长度 0 < minItems 10"
-            },
-            {
-              "passed": false,
-              "detail": "conceptOutflowTop10 长度 0 < minItems 10"
-            },
-            {
-              "passed": false,
-              "detail": "stockInflowTop10 长度 0 < minItems 10"
-            },
-            {
-              "passed": false,
-              "detail": "stockOutflowTop10 长度 0 < minItems 10"
+              "passed": true,
+              "detail": "fundFlow_V2: 六类 TOP10 榜单/符号/排序通过"
             }
           ]
         },
@@ -134,33 +98,29 @@
           ]
         },
         "margin": {
-          "status": "FINAL",
+          "status": "PENDING",
           "pass": true,
           "rule": "margin_V2",
-          "details": []
+          "details": [
+            {
+              "passed": true,
+              "detail": "PENDING D0 分支通过"
+            }
+          ]
         },
         "tracks": {
-          "status": "UNAVAILABLE",
+          "status": "PARTIAL",
           "pass": true,
           "rule": {
-            "through": "2026-08-20",
-            "allowedConfigVersions": [
-              "legacy",
-              "1.0",
-              "2.0",
-              "3.0",
-              "3.1",
-              "3.2",
-              "3.3",
-              "3.4",
-              "3.5"
-            ],
-            "note": "R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。"
+            "from": "2026-08-21",
+            "minConfigVersion": "3.5",
+            "note": "R16-P2-01：3.2 代码（ebac337，2026-08-22）之后的首个可产数据交易日为 cutoff；此后新快照 configVersion<3.2 一律 FAIL，阻断版本降级旁路（configVersion 是被验收事实，不得作为验收强度的可信依据）。；cutoff 后 configVersion 必须严格可解析为 x.y（R17-P2-01：legacy/3.x 等非数值形态一律 FAIL） R22-DEF-01：3.3（种子并入状态机，出池仅按成交额排名口径——净流入为评分维度非出局条件，范本 07-17 医药-386亿/半导体-730亿仍在监测表自证）；cutoff 提升至 3.3。 R23：cutoff 提升至 3.4（R22-P2-01/02/03+P3-01 语义修订：准入仅排名<=5；QUALIFIED_TODAY/RETAINED_OBSERVATION 分层；概念资格腿注入行业 universe 联合排名）。 R24：cutoff 3.5（R23 裁定收口：QUALIFIED_TODAY=当日前5每日范本真理源无确认门槛；监测口径改名=行业universe+已配置概念联合排名，不自称全市场；复合赛道显式 qualification leg+rankScope 元数据）。",
+            "numericOnly": true
           },
           "details": [
             {
               "passed": true,
-              "detail": "{'through': '2026-08-20', 'allowedConfigVersions': ['legacy', '1.0', '2.0', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5'], 'note': 'R16-P2-01：历史快照实际版本全集（legacy=07-17 范本日；2.0×20日 07-20..08-19；1.0×08-14/17；3.0×08-18..20）。历史日按当期契约验收，不回溯强改。 R22-DEF-01：+3.3（种子并入状态机/仅排名出池/无数据日空池）——07-20..08-19 按 3.3 重生成为空池 UNAVAILABLE 快照（上游板块快照不可回溯），08-20 起按 3.3 重生成。 R23：+3.4（入池改范本严格前5仅排名口径/两层资格 poolQualification/概念腿跨 taxonomy 联合排名注入）。 R24：+3.5（当日前5直接入池/复合显式资格腿/rankScope）。'}: items>=4；逐列 typed 校验通过"
+              "detail": "{'from': '2026-08-21', 'minConfigVersion': '3.5', 'note': 'R16-P2-01：3.2 代码（ebac337，2026-08-22）之后的首个可产数据交易日为 cutoff；此后新快照 configVersion<3.2 一律 FAIL，阻断版本降级旁路（configVersion 是被验收事实，不得作为验收强度的可信依据）。；cutoff 后 configVersion 必须严格可解析为 x.y（R17-P2-01：legacy/3.x 等非数值形态一律 FAIL） R22-DEF-01：3.3（种子并入状态机，出池仅按成交额排名口径——净流入为评分维度非出局条件，范本 07-17 医药-386亿/半导体-730亿仍在监测表自证）；cutoff 提升至 3.3。 R23：cutoff 提升至 3.4（R22-P2-01/02/03+P3-01 语义修订：准入仅排名<=5；QUALIFIED_TODAY/RETAINED_OBSERVATION 分层；概念资格腿注入行业 universe 联合排名）。 R24：cutoff 3.5（R23 裁定收口：QUALIFIED_TODAY=当日前5每日范本真理源无确认门槛；监测口径改名=行业universe+已配置概念联合排名，不自称全市场；复合赛道显式 qualification leg+rankScope 元数据）。', 'numericOnly': True}: items>=4；逐列 typed 校验通过"
             }
           ]
         },
@@ -179,10 +139,10 @@
     }
   },
   "summary": {
-    "passDates": [],
-    "failDates": [
-      "2026-08-18"
+    "passDates": [
+      "2026-08-27"
     ],
+    "failDates": [],
     "moduleFailCounts": [
       {
         "module": "marketIndex",
@@ -194,7 +154,7 @@
       },
       {
         "module": "sentiment",
-        "failDates": 1
+        "failDates": 0
       },
       {
         "module": "sectorPerformance",
@@ -202,7 +162,7 @@
       },
       {
         "module": "fundFlow",
-        "failDates": 1
+        "failDates": 0
       },
       {
         "module": "northbound",
