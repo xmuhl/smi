@@ -1,6 +1,6 @@
 {
-  "lastWorkflow": "manual",
-  "lastRunAt": "2026-08-27T23:31:21+08:00",
+  "lastWorkflow": "close-snapshot",
+  "lastRunAt": "2026-08-27T23:52:20+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-27",
   "latestCloseCompleteDate": "2026-08-20",

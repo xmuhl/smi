@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-27",
   "generatedAt": "2026-08-27T20:25:26+08:00",
-  "updatedAt": "2026-08-27T23:31:20+08:00",
-  "revision": 3,
+  "updatedAt": "2026-08-27T23:52:19+08:00",
+  "revision": 4,
   "overallStatus": "PARTIAL_PENDING",
   "generationReason": "CLOSE_SNAPSHOT",
   "market": "CN_A",
@@ -689,7 +689,7 @@
       ],
       "errors": [],
       "sourceWarnings": [
-        "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+        "eastmoney: Expecting value: line 1 column 1 (char 0)"
       ]
     },
     "northbound": {
