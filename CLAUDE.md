@@ -50,10 +50,12 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 | `smi-6s2.pages.dev` | Cloudflare Pages 默认域 | ✅ 生产 |
 | `smi.gorestart.cn` | 自定义域名（阿里云 CNAME） | ✅ 生产 |
 
-## 当前状态（2026-08-25 · spot 双源整窗被封事故 + P0 自愈改造）
+## 当前状态（2026-08-27 · cron 调度整体丢弃事故 + 看门狗兜底）
 
-- **08-25 事故与修复**：close-snapshot 16:23 主窗口因 spot 双源（东财 RemoteDisconnected + 新浪 HTML 反爬）同挂，4 次内部重试全失败，STOCK_UNIVERSE_TOO_SMALL 门禁拦截发布（fail-closed 正确）；同日发现 t1-reconcile 绿皮红心——margin 08-21/08-24 连续 ERROR 静默两天（runner 海外 IP 被交易所重置）。修复：本机回补 08-21/08-24 两融 FINAL + 08-24 环比联动（4ed9bbb）；dispatch 重采 08-25；P0-a 自愈窗口 + P0-b 数据健康门禁/告警上线
-- **待观察**：① 自愈窗口实效（下一工作日 18:23/19:23 首次自然轮转）② FEISHU_WEBHOOK_URL secret 待配置（用户操作：GitHub → Settings → Secrets → Actions）③ spot 第三源（腾讯/gildata）与采集迁国内为 P1/P2 留档方案
+- **08-27 事故与修复**：GitHub 调度全天丢弃 5+ 个 cron 触发（close-snapshot×3 窗口 + archive-raw + t1×2 晨窗；workflow 均 active、cron 未变，08-26 同调度正常——属 GitHub 侧调度丢弃）。**"未触发"不产生失败运行 → GitHub 通知零告警**，20:19/20:38 手动 dispatch 才恢复发布（7/9 模块 FINAL）。archive-raw 手动补跑（20:57/21:02）晚于 close-snapshot → tracks 缺当日涨停池 → 全赛道 limitUpCount/连板缺列 → coverage 57.6<65 fail-closed UNAVAILABLE。修复：`freshness-watchdog` 看门狗上线（盘后 17:10~20:10 CST 巡检线上 latest.json，滞后自动 dispatch close-snapshot + 飞书/红灯；次晨 10:40 catchup 对上一交易日缺失自动 dispatch manual-backfill；dispatch 是 API 调用，免疫 cron 丢弃；45/90 分钟派发冷却防叠加）
+- **校验器契约修订（08-27 21:07 manual-backfill 失败根因）**：sentiment PARTIAL 新增 `HISTORICAL_LIMIT_POOL_UNAVAILABLE` 形态（gildata 回补涨跌家数可得、涨停池派生字段全缺，07-20~07-24 五日）；`HISTORICAL_LIMIT_POOL_ONLY` 形态允许涨跌家数共存（07-31/08-04/08-12 混合态：涨停池部分可得+gildata 家数）。此前这 8 天与现行规则矛盾，链条重算（reconcile_turnover_chain）一旦改写到即崩——数据与校验器的既有地雷，本次拆除
+- **08-25 事故与修复（存档）**：close-snapshot 16:23 主窗口因 spot 双源（东财 RemoteDisconnected + 新浪 HTML 反爬）同挂，4 次内部重试全失败，STOCK_UNIVERSE_TOO_SMALL 门禁拦截发布（fail-closed 正确）；同日发现 t1-reconcile 绿皮红心——margin 08-21/08-24 连续 ERROR 静默两天（runner 海外 IP 被交易所重置）。修复：本机回补 08-21/08-24 两融 FINAL + 08-24 环比联动（4ed9bbb）；dispatch 重采 08-25；P0-a 自愈窗口 + P0-b 数据健康门禁/告警上线
+- **待观察**：① freshness-watchdog 首个自然生效（下一工作日 17:10 CST）② FEISHU_WEBHOOK_URL secret 仍未配置（用户操作：GitHub → Settings → Secrets → Actions；未配置期间告警降级为 annotation + GitHub 邮件）③ spot 第三源（腾讯/gildata）与采集迁国内为 P1/P2 留档方案
 
 ### 08-23 验收修复基线（人工验收通过，存档）
 
@@ -72,6 +74,7 @@ Python(AKShare) 采集 → web/public/data/daily/YYYY/YYYY-MM-DD.json (9 大模�
 | `close-snapshot.yml` | Cron 工作日 16:23/18:23/19:23 CST（P0-a 自愈窗口） | 采集（含 universe 预写+动态选池）→ commit → build → Pages 部署 → 站点新鲜度自检；后两窗口为 spot 源整窗被封的重试时段，当日已发布则 freshness 守卫秒级跳过；收尾数据健康门禁（当日缺文件/margin ERROR → 红+飞书） |
 | `archive-raw.yml` | Cron 工作日 16:35 CST | 归档 universe/涨停池 + 候选 THS 历史回补 → 部署 → jsonl md5 自检；失败推飞书 |
 | `t1-reconcile.yml` | Cron 工作日 10:17/18:17/20:17 CST | 补昨日两融（T+1）→ 部署 → 自检；收尾 margin 硬门禁：ERROR→红+飞书、STALE 仅 warning（P0-b 消灭绿皮红心） |
+| `freshness-watchdog.yml` | Cron 工作日 17:10/18:10/19:10/20:10 + 次晨 10:40 CST | **cron 丢弃兜底**：巡检线上 latest.json / 上一交易日文件，滞后即自动 dispatch close-snapshot（盘后）/ manual-backfill（次晨）+ 红灯飞书；dispatch 走 API 免疫调度丢弃（2026-08-27 事故） |
 | `manual-backfill.yml` | 手动 | 回补指定日 → 部署 → 自检；失败推飞书 |
 | `ci.yml` | Push to main | 类型检查 + 测试 + 构建验证 |
 
