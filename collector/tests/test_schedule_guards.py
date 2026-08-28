@@ -60,20 +60,37 @@ def test_archive_raw_before_close_skips_without_collect(monkeypatch, capsys):
     assert "BEFORE_CLOSE 2026-08-28" in capsys.readouterr().out
 
 
-def test_archive_raw_after_close_proceeds(monkeypatch):
-    """16:00 后允许采集（守卫不误伤正常窗口）。"""
+def test_archive_raw_after_close_proceeds(monkeypatch, capsys):
+    """16:00 后守卫放行采集（不拦截）；测试自身零联网零落盘。"""
     import collector.jobs.archive_raw as job
 
     monkeypatch.setattr(job, "resolve_target_date", lambda raw: "2026-08-28")
     monkeypatch.setattr(job, "is_trading_day", lambda *a, **k: True)
     monkeypatch.setattr(job, "datetime", _pre_close_datetime_cls(hour=16, minute=35))
 
-    expanded: list[dict] = []
+    def _skip(*a, **k):  # noqa: ANN001
+        return {"ok": False, "reason": "SKIP_TEST", "record": None}
 
-    monkeypatch.setattr(job, "_expanded_tracks", lambda: expanded)
+    # 全部采集器打桩：防止真实联网（collect_limit_up_pool 等「即时」源
+    # 会真请求）与向生产归档目录写入（此前版本曾把 08-28 真实数据写进
+    # web/public/data/archive/，与 dispatch 运行产物冲突）。
+    for name in (
+        "collect_board_close",
+        "collect_board_flow",
+        "collect_limit_up_pool",
+        "collect_membership",
+        "collect_industry_universe",
+        "collect_board_close_history",
+    ):
+        monkeypatch.setattr(job, name, _skip)
+    monkeypatch.setattr(job, "_expanded_tracks", lambda: [])
+    monkeypatch.setattr(job, "_boards_needing_history", lambda *a, **k: [])
+    monkeypatch.setattr(
+        "collector.archive.read_records", lambda *a, **k: []
+    )
     monkeypatch.setattr(sys, "argv", ["archive_raw", "--date", "auto"])
 
-    # 空 tracks 列表：走完所有阶段，正常收尾（written=0 且无 SKIP → rc=1
-    # 全源失败语义不适用于空配置，这里返回 0/1 均可，只断言未被守卫拦截）
+    # 全 SKIP 且零写入 → 交易日全源失败语义 rc=1；证明守卫未拦截主流程
     rc = job.main()
-    assert rc in (0, 1)
+    assert rc == 1
+    assert "BEFORE_CLOSE" not in capsys.readouterr().out
