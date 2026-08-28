@@ -3,14 +3,20 @@
 > 生成：2026-08-28 断更事故恢复过程（详见 work/INCIDENT_20260828_RECOVERY.md）。
 > 以下事项不阻塞数据恢复，但需要人工决策或操作。处理后请勾销对应条目。
 
-## 1. FEISHU_WEBHOOK_URL secret 未配置（第三次提醒）
+## 1. FEISHU_WEBHOOK_URL secret 未配置（第三次提醒 · 08-28 已备好一键方案）
 
-- **操作**：GitHub → xmuhl/smi → Settings → Secrets and variables → Actions →
-  New repository secret：名称 `FEISHU_WEBHOOK_URL`，值为飞书群机器人 webhook 地址。
-- **影响**：未配置期间所有数据级告警（当日缺文件、margin ERROR、看门狗红灯）降级为
-  workflow annotation + GitHub 邮件；GitHub cron「静默丢弃」类事故（无失败运行产生）
-  依旧零通知——这正是本次断更到 19:39 才被发现的原因之一。
-- **优先级**：高（08-25 引入告警时即提醒，至今未配）。
+- **仅需人工做的一步**（约 2 分钟，需登录飞书）：
+  1. 打开接收告警的飞书群（可新建，如「SMI 数据告警」）→ 设置 → 群机器人 → 添加机器人 → **自定义机器人**；
+  2. 安全设置选 **自定义关键词**，填 `SMI`（告警文本固定以 `[SMI]` 开头）；
+     ⚠️ 不能选「加签」——data_health.py 发的是无签名纯文本，选加签会被全部拒收；
+     ⚠️ 不能选「IP 白名单」——GitHub runner 出口 IP 动态，无法枚举；
+  3. 复制生成的 webhook 地址（`https://open.feishu.cn/open-apis/bot/v2/hook/xxx`）发给助手。
+- **其余全自动**（助手执行，无需人工）：
+  `tools/alert/set_feishu_secret.py` 一键写入 GitHub secret（sealed box 加密，无明文落盘；
+  token 权限已于 08-28 验证 HTTP 200）→ 直发一条 `[SMI] test` 消息验证收达 → 勾销本条。
+- **影响**：未配置期间所有数据级告警降级为 workflow annotation + GitHub 邮件；
+  GitHub cron「静默丢弃」类事故（无失败运行产生）依旧零通知——这正是 08-28 断更到
+  19:39 才被发现的原因之一。
 
 ## 2. 跨平台看门狗的调度平面选择
 
