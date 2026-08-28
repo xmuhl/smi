@@ -113,3 +113,25 @@
    开机时段；Worker 可覆盖本机关机时段）。
 3. **runner 海外 IP 结构性劣势**（两融/东财源）：迁国内 runner / 付费代理 / 常态化本机
    兜底三选一，属基础设施决策，留档。
+
+## 七、恢复结果（终态，2026-08-28 21:1x CST）
+
+| 项 | 结果 |
+|---|---|
+| 线上 latest.json | tradeDate=**2026-08-28** rev2（20:50:40），PARTIAL_PENDING（margin T+1 正常时序 + tracks 常态降级带） |
+| 模块状态 | 7 FINAL + tracks PARTIAL（coverage 75.3>65 地板，前5=半导体/通信设备/元件/通用设备/消费电子，rank 升序）+ margin PENDING（周五两融下周一披露，t1-reconcile 届时回补） |
+| 08-27 margin | FINAL 已随构建上线（daily/2026/2026-08-27.json） |
+| 归档 08-28 | flow×5 + universe×1 + limit-up×1 真实 post-close 记录（capturedAt 20:15/20:16，70a033c）；board-close 日线 THS 盘后延迟生成 → 次日回补（既有模式） |
+| 运行链 | archive-raw ✅ → close-snapshot ✅（SITE_LATEST_EXACT_MATCH）→ 重建 close-snapshot ✅（rev2） |
+| MCP webReader 核对 | 双域一致 ✅ 9 面板内容 ✅ 板块涨幅与归档交叉一致 ✅ 两融数字与本机回补一致 ✅（webReader 自身渲染缓存滞后一轮，生产 no-cache 策略下用户即时见 rev2） |
+| 提交链 | 98a77f9(数据修复) → d9e6e58(盘前守卫) → 70a033c(归档) → 7a27e6c(测试离线化) → 889065f(08-28 快照) → 4277795(summary 自引用修复) → 30c014a(事故报告) |
+
+### 过程中额外发现并修复（非事故直接根因）
+
+1. **summary riskWarning 自引用**（既有 bug，每晚速览条误显示「待披露：margin、summary」）：
+   new_snapshot 播种 PENDING 占位，generate_summary 运行时 summary 自身未被覆写，
+   _rule_risk 把它写进自己的待披露清单。已过滤（4277795），rev2 实测修正为
+   「待披露：margin。」。
+2. **测试联网写生产归档**：test_archive_raw_after_close_proceeds 初版真实调用
+   「即时」类采集器，把 08-28 数据写进生产归档目录（20:03 本机写入）。已全量打桩
+   离线化（7a27e6c），本地以 dispatch 运行产物（70a033c）为准还原。
