@@ -570,37 +570,47 @@ def _rule_northbound(
 def _rule_risk(
     modules: dict[str, Any],
 ) -> str:
+    # 排除 summary 自身：new_snapshot 为 9 模块播种 PENDING 占位，
+    # generate_summary 运行时 summary 尚未被覆写（仍是占位 PENDING），
+    # 不过滤会把「summary」写进它自己的待披露清单——速览条每晚误显示
+    # 「待披露：margin、summary」的根因（2026-08-28 MCP 核对发现）。
+    others = {
+        name: module
+        for name, module in modules.items()
+        if name != "summary"
+    }
+
     errors = [
         name
-        for name, module in modules.items()
+        for name, module in others.items()
         if module.get("status")
         == ModuleStatus.ERROR.value
     ]
 
     pending = [
         name
-        for name, module in modules.items()
+        for name, module in others.items()
         if module.get("status")
         == ModuleStatus.PENDING.value
     ]
 
     stale = [
         name
-        for name, module in modules.items()
+        for name, module in others.items()
         if module.get("status")
         == ModuleStatus.STALE.value
     ]
 
     unavailable = [
         name
-        for name, module in modules.items()
+        for name, module in others.items()
         if module.get("status")
         == ModuleStatus.UNAVAILABLE.value
     ]
 
     partial = [
         name
-        for name, module in modules.items()
+        for name, module in others.items()
         if module.get("status")
         == ModuleStatus.PARTIAL.value
     ]

@@ -295,3 +295,24 @@ def test_index_fundflow_sentiment_no_placeholder():
     _assert_segment(mod["indexAndTurnover"], "indexAndTurnover")
     _assert_segment(mod["fundFlow"], "fundFlow")
     _assert_segment(mod["sentiment"], "sentiment")
+
+
+def test_risk_warning_excludes_summary_self_reference():
+    """margin PENDING + summary 仍为占位 PENDING 时，待披露清单不含
+    summary 自身（new_snapshot 播种占位导致速览条每晚误显示
+    「待披露：margin、summary」，2026-08-28 修复回归）。"""
+    modules = _base_modules()
+    modules["margin"] = {
+        "status": "PENDING",
+        "latestPublishedReference": {
+            "dataDate": "2026-08-19",
+            "marginBalance": 26673.45,
+        },
+    }
+    # 复现生产时序：generate_summary 运行时 summary 尚是播种的占位 PENDING
+    modules["summary"] = {"status": "PENDING", "dataDate": None}
+
+    rw = _summary(modules)["riskWarning"]
+
+    assert "待披露：margin。" in rw
+    assert "summary" not in rw
