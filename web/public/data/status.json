@@ -1,6 +1,6 @@
 {
   "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-08-28T22:22:31+08:00",
+  "lastRunAt": "2026-08-29T07:15:17+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-08-28",
   "latestCloseCompleteDate": "2026-08-20",
@@ -8,6 +8,13 @@
   "latestDate": "2026-08-28",
   "health": "DEGRADED",
   "errors": [
+    {
+      "module": "margin",
+      "status": "ERROR",
+      "errors": [
+        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+      ]
+    },
     {
       "module": "tracks",
       "status": "PARTIAL",
