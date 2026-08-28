@@ -19,11 +19,12 @@ from __future__ import annotations
 import argparse
 import sys
 import traceback
-from datetime import date
+from datetime import date, datetime, time
 
 from collector.archive import append_record, count_records
 from collector.calendar import is_trading_day
 from collector.jobs.common import resolve_target_date
+from collector.schema import TZ_SHANGHAI
 from collector.modules.raw_archive import (
     _expanded_tracks,
     collect_board_close,
@@ -147,6 +148,18 @@ def main() -> int:
             fallback_weekday=True,
         ):
             print(f"NOT_TRADING_DAY {target}")
+            return 0
+
+        # 2026-08-28：盘前守卫——GitHub 调度劣化时 cron 补发可延迟数小时
+        # （08-27 事故实测 7~10h），凌晨执行时 auto 解析到未收盘日；THS
+        # 「即时」资金流/涨停池盘前返回的是昨日收盘值，照常归档会把旧值
+        # 打成今日标签（450fd9a 脏数据根因，7 行 03:14 capturedAt 的
+        # 08-28 记录，次日 post-close 重采触发 payload conflict 炸 rc=2）。
+        # 与 close_snapshot 的 BEFORE_CLOSE 同阈：16:00 CST 后才允许采当日。
+        now = datetime.now(TZ_SHANGHAI)
+
+        if target == now.date().isoformat() and now.time() < time(16, 0):
+            print(f"BEFORE_CLOSE {target}")
             return 0
 
         tracks = _expanded_tracks()

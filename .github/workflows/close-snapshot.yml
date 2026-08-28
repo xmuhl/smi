@@ -74,15 +74,28 @@ jobs:
           python -m compileall -q collector
 
       - name: Run close snapshot
+        id: snapshot
         if: steps.freshness.outputs.skip != 'true'
+        # 2026-08-28：exit 3（BEFORE_CLOSE 盘前良性跳过）在 shell 内转
+        # exit 0——GitHub 调度劣化时 cron 补发延迟 7~10h（08-27 事故
+        # 实测），凌晨执行 auto 解析到未收盘日属预期跳过，不应红灯；
+        # exit 2（VALIDATION_FAILED 采集失败/门禁拦截）原样透传保留
+        # job 级红灯（步骤失败 + data_health 双保险，含 dispatch 重采
+        # 已发布日场景）。下游按 exitcode 输出门控。
         env:
           SMI_WORKFLOW: close-snapshot
           TARGET_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.date || 'auto' }}
         run: |
+          set +e
           python -m collector.jobs.close_snapshot             --date "$TARGET_DATE"
+          rc=$?
+          set -e
+          echo "exitcode=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$rc" -eq 3 ]; then exit 0; fi
+          exit $rc
 
       - name: Commit data if changed
-        if: steps.freshness.outputs.skip != 'true'
+        if: steps.freshness.outputs.skip != 'true' && steps.snapshot.outputs.exitcode == '0'
         id: commit
         env:
           TARGET_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.date || 'auto' }}
@@ -105,7 +118,7 @@ jobs:
 
       # ===== 方案 A：数据变化才构建并发布到 Cloudflare Pages =====
       - name: Setup Node
-        if: steps.commit.outputs.changed == 'true' || inputs.deploy
+        if: (steps.commit.outputs.changed == 'true' || inputs.deploy) && steps.snapshot.outputs.exitcode == '0'
         uses: actions/setup-node@v4
         with:
           # wrangler 4.122.0 要求 Node >= 22（R12-FIX-1：Node 20 曾导致
@@ -115,22 +128,22 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install web dependencies
-        if: steps.commit.outputs.changed == 'true' || inputs.deploy
+        if: (steps.commit.outputs.changed == 'true' || inputs.deploy) && steps.snapshot.outputs.exitcode == '0'
         working-directory: web
         run: npm ci
 
       - name: Type check
-        if: steps.commit.outputs.changed == 'true' || inputs.deploy
+        if: (steps.commit.outputs.changed == 'true' || inputs.deploy) && steps.snapshot.outputs.exitcode == '0'
         working-directory: web
         run: npm run typecheck
 
       - name: Build
-        if: steps.commit.outputs.changed == 'true' || inputs.deploy
+        if: (steps.commit.outputs.changed == 'true' || inputs.deploy) && steps.snapshot.outputs.exitcode == '0'
         working-directory: web
         run: npm run build
 
       - name: Deploy to Cloudflare Pages
-        if: steps.commit.outputs.changed == 'true' || inputs.deploy
+        if: (steps.commit.outputs.changed == 'true' || inputs.deploy) && steps.snapshot.outputs.exitcode == '0'
         working-directory: web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -214,8 +227,10 @@ jobs:
       # 当日快照缺失（采集失败/门禁拦截）或 margin ERROR → 红灯 + 飞书；
       # 其余模块缺口 → warning annotation。FEISHU_WEBHOOK_URL 未配置时
       # 降级为 annotation + GitHub 邮件，不阻塞。
+      # 2026-08-28：exit 3（BEFORE_CLOSE 盘前良性跳过）不告警——调度延迟
+      # 补发在凌晨执行属预期跳过，非数据缺口。
       - name: Data health & alert
-        if: always() && steps.freshness.outputs.skip != 'true'
+        if: always() && steps.freshness.outputs.skip != 'true' && steps.snapshot.outputs.exitcode != '3'
         env:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
           JOB_STATUS: ${{ job.status }}

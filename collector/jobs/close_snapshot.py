@@ -158,8 +158,11 @@ def main() -> int:
         target == now.date().isoformat()
         and now.time() < time(16, 0)
     ):
+        # 2026-08-28：exit 3 = 盘前良性跳过（调度延迟补发时 auto 解析到
+        # 未收盘日）。与 VALIDATION_FAILED 的 exit 2 区分——后者是采集
+        # 失败/门禁拦截，必须红灯；前者不应触发 data_health 误报。
         print(f"BEFORE_CLOSE {target}")
-        return 2
+        return 3
 
     attempt = 0
     retry_delays = [] if args.no_retry else RETRY_DELAYS_SECONDS
