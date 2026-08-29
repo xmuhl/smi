@@ -20,7 +20,7 @@
 cron(工作日 CST):                      deploy-pages.yml(新):            Pages
  16:23/18:23/19:23 close_snapshot ──push──> checkout→node22→npm ci     (托管不变)
  16:35          archive_raw       数据提交   →typecheck→build
- 10:17/18:20*   t1_reconcile                →wrangler pages deploy
+ 10:17/18:17/20:17 t1_reconcile             →wrangler pages deploy
  收尾 data_health(飞书直连)                  →SITE_LATEST_EXACT_MATCH 自检
 ```
 
