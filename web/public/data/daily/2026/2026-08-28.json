@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-28",
   "generatedAt": "2026-08-28T20:26:27+08:00",
-  "updatedAt": "2026-08-29T07:15:17+08:00",
-  "revision": 3,
+  "updatedAt": "2026-08-31T16:41:03+08:00",
+  "revision": 4,
   "overallStatus": "PARTIAL_ERROR",
   "generationReason": "T1_RECONCILE",
   "market": "CN_A",
@@ -35178,7 +35178,7 @@
       ],
       "unit": "亿元",
       "errors": [
-        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+        "Expecting value: line 1 column 1 (char 0)"
       ],
       "warnings": [],
       "latestPublishedReference": {
