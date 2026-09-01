@@ -1,18 +1,18 @@
 {
-  "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-09-01T01:04:12+08:00",
+  "lastWorkflow": "close-snapshot",
+  "lastRunAt": "2026-09-01T21:10:51+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
-  "latestCapturedDate": "2026-08-31",
+  "latestCapturedDate": "2026-09-01",
   "latestCloseCompleteDate": "2026-08-20",
   "latestFinalDate": "2026-07-17",
-  "latestDate": "2026-08-31",
+  "latestDate": "2026-09-01",
   "health": "DEGRADED",
   "errors": [
     {
       "module": "margin",
-      "status": "ERROR",
+      "status": "PENDING",
       "errors": [
-        "Expecting value: line 1 column 1 (char 0)"
+        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
       ]
     },
     {
