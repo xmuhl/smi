@@ -1,6 +1,9 @@
 # 采集链路迁移国内 VPS 方案（阿里云可用性评估 + 实施设计）
 
-> 2026-08-28 起草 · 状态：方案待人工确认后实施 · 关联 PENDING_HUMAN_DECISIONS.md §3/§4
+> 2026-08-28 起草 · 状态：**实施中**——VPS 勘察完成（2026-09-01）：github.com HTTPS
+> 阻断（TLS 挂起），方案 A git 通道改走 ssh.github.com:443（协议层待验证），
+> 进度与剩余任务真源见 `VPS_MIGRATION_PROGRESS_20260901.md` ·
+> 关联 PENDING_HUMAN_DECISIONS.md §3/§4
 
 ## 一、动机（两次事故的共同根因）
 
