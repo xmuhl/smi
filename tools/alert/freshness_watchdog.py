@@ -13,8 +13,15 @@ GitHub 默认通知完全静默，数据停更至当晚 20:19 手动 dispatch �
                   全部窗口丢失）→ 自动 dispatch manual-backfill 该日
                   （90 分钟内已有运行则不重复派发）+ 告警。
 
+2026-09-01 修订（today 模式发布窗口守卫）：GitHub 调度延迟补发可能把
+today 巡检拖到当日 16:23 首窗之前执行（09-01 实测 15:58 触发）——此前
+逻辑把"当日未发布"当缺口，派发的 close-snapshot 恢复必然被
+close_snapshot 的 16:00 BEFORE_CLOSE 守卫静默跳过（exit 3→0），白跑
+一次恢复还误报红灯。修订后 16:00 CST 前良性跳过：不派发、不告警、
+exit 0，与 close_snapshot/archive_raw 的盘前守卫同阈。
+
 退出码：
-  0 = 新鲜 / 非交易日 / 无缺口
+  0 = 新鲜 / 非交易日 / 无缺口 / 未到发布窗口
   1 = 存在缺口（已尝试自动恢复并推通知）——工作流红 + GitHub 邮件
 """
 
@@ -25,7 +32,7 @@ import json
 import os
 import sys
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +48,12 @@ import data_health  # noqa: E402  # tools/alert/data_health.py（复用 _notify�
 SITE_LATEST = "https://smi-6s2.pages.dev/data/latest.json"
 SITE_DAILY = "https://smi-6s2.pages.dev/data/daily/{year}/{date}.json"
 
+# today 巡检的发布窗口下限：16:00 CST 前当日快照尚未到发布时间
+# （close-snapshot 首窗 16:23），"未发布"属预期状态。与
+# close_snapshot BEFORE_CLOSE / archive_raw 盘前守卫（2026-08-28，
+# d9e6e58）同一阈值。
+PUBLISH_WINDOW_START = time(16, 0)
+
 # 同一恢复动作在冷却窗口内不重复派发（巡检是小时级，一次采集
 # 15~40 分钟；冷却期内交由在途/刚完成的运行自行收敛）。
 DISPATCH_COOLDOWN_MINUTES = {
@@ -49,8 +62,12 @@ DISPATCH_COOLDOWN_MINUTES = {
 }
 
 
+def _now_cst() -> datetime:
+    return datetime.now(TZ_SHANGHAI)
+
+
 def _today_cst() -> date:
-    return datetime.now(TZ_SHANGHAI).date()
+    return _now_cst().date()
 
 
 def _fetch_json(url: str, attempts: int = 3) -> dict | None:
@@ -186,6 +203,16 @@ def _run_today_mode() -> int:
 
     if not is_trading_day(today):
         print(f"NON_TRADING_DAY {today.isoformat()}")
+        return 0
+
+    # 2026-09-01 修订：16:00 前当日未发布属预期（见模块 docstring），
+    # 不巡检、不派发、不误报——派发的恢复也会被 BEFORE_CLOSE 守卫跳过。
+    now = _now_cst()
+    if now.time() < PUBLISH_WINDOW_START:
+        print(
+            f"BEFORE_PUBLISH_WINDOW {now.isoformat()}——"
+            "当日 16:23 首窗未到，未发布属预期；不派发恢复、不误报"
+        )
         return 0
 
     latest = _fetch_json(SITE_LATEST)
