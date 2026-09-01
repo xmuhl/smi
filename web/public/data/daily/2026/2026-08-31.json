@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-08-31",
   "generatedAt": "2026-08-31T16:54:20+08:00",
-  "updatedAt": "2026-09-01T01:04:11+08:00",
-  "revision": 2,
+  "updatedAt": "2026-09-01T22:09:11+08:00",
+  "revision": 3,
   "overallStatus": "PARTIAL_ERROR",
   "generationReason": "T1_RECONCILE",
   "market": "CN_A",
@@ -35178,7 +35178,7 @@
       ],
       "unit": "亿元",
       "errors": [
-        "Expecting value: line 1 column 1 (char 0)"
+        "HTTPSConnectionPool(host='query.sse.com.cn', port=443): Max retries exceeded with url: /marketdata/tradedata/queryMargin.do?isPagination=true&beginDate=20260831&endDate=20260831&tabType=&stockCode=&pageHelp.pageSize=5000&pageHelp.pageNo=1&pageHelp.beginPage=1&pageHelp.cacheSize=1&pageHelp.endPage=5 (Caused by NewConnectionError(\"HTTPSConnection(host='query.sse.com.cn', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable\"))"
       ],
       "warnings": [],
       "latestPublishedReference": {
