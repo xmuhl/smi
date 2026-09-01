@@ -1,6 +1,6 @@
 {
-  "lastWorkflow": "t1-reconcile",
-  "lastRunAt": "2026-09-01T22:09:12+08:00",
+  "lastWorkflow": "manual",
+  "lastRunAt": "2026-09-01T22:22:16+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-09-01",
   "latestCloseCompleteDate": "2026-08-20",
@@ -8,13 +8,6 @@
   "latestDate": "2026-09-01",
   "health": "DEGRADED",
   "errors": [
-    {
-      "module": "margin",
-      "status": "ERROR",
-      "errors": [
-        "HTTPSConnectionPool(host='query.sse.com.cn', port=443): Max retries exceeded with url: /marketdata/tradedata/queryMargin.do?isPagination=true&beginDate=20260831&endDate=20260831&tabType=&stockCode=&pageHelp.pageSize=5000&pageHelp.pageNo=1&pageHelp.beginPage=1&pageHelp.cacheSize=1&pageHelp.endPage=5 (Caused by NewConnectionError(\"HTTPSConnection(host='query.sse.com.cn', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable\"))"
-      ]
-    },
     {
       "module": "tracks",
       "status": "UNAVAILABLE",
