@@ -32,6 +32,27 @@ deploy key 的 push 正常触发。09-01 t1 第三窗口失败复核：margin 09
 采集，后推方 rebase 冲突 → 重试 3 次失败 → 当窗红灯/飞书告警，下一窗口
 自愈（见 run_job.sh 设计）。
 
+### 双跑首窗口战报（10:17 t1 · 2026-09-02）
+
+1. **VPS 10:17:00 准点触发**，margin 09-01 采集国内直连一次成功：
+   `UPDATED 2026-09-01 margin=FINAL revision=5`——GitHub runner 连续 6 个
+   t1 窗口失败（08-31 起 `Length mismatch: 0 vs 13`，海外 IP 第 4 次表现）的
+   同一目标，VPS 首次尝试即修复，`HEALTH_OK margin all FINAL`。**迁移核心
+   收益当场实证**
+2. **发现并修复 wrapper bug**：部署时 `chmod +x` 造成 mode 变更（仓库 644 →
+   本地 755 未提交）挡住推送段无 autostash 的 `pull --rebase` → push 3 连败
+   留本地（采集本身无损）。修复 = mode 755 入库 + 推送段 `--autostash` +
+   `.git/info/exclude` 排除 .env/logs（35d371e）；手动补推 `8c71853`
+3. **deploy-pages 首次实战触发**：VPS deploy key push → run 33582989211
+   push 事件 success（build → deploy → SITE_LATEST_EXACT_MATCH）。递归保护
+   实证：本机 GITHUB_TOKEN push（35d371e）只触发 ci，不触发 deploy-pages
+4. **线上核验**：pages.dev 与 gorestart.cn 双域 latest.json 一致——tradeDate
+   09-01 / revision 5 / margin **FINAL**(dataDate 09-01)；9 模块 8 FINAL +
+   tracks PARTIAL（昨日既有 coverage 75.3 降置信语义，非本轮引入，VPS diff
+   仅 margin ERROR→FINAL）
+5. GitHub 侧 10:17 t1 scheduled run 至 10:30 仍未出现（调度延迟/丢弃进行中
+   ——迁移正当性的活证据；出现后预期 ALREADY_FINAL 跳过）
+
 ## 一、背景与目标
 
 2026-09-01 GitHub 托管侧第 3 次调度大面积延迟/丢弃（08-27/08-28 同源），叠加 runner
