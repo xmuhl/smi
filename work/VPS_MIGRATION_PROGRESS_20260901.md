@@ -1,9 +1,36 @@
 # VPS 迁移进度与剩余任务清单（2026-09-01）
 
-> 状态：**勘察完成，待决定性验证（SSH-over-443）→ 环境实施 → 双跑 → 切换 → 上线验收**
+> 状态：**实施完成（2026-09-02 上午）——双跑观察期（任务 7）进行中**
 > 方案：`PLAN_DOMESTIC_MIGRATION.md`（方案 A：VPS 采集 + GitHub 构建部署）
 > 关联：`PENDING_HUMAN_DECISIONS.md` §1/§3/§4；09-01 事故记录见 `CLAUDE.md` 当前状态
 > 本文档由 2026-09-01 勘察会话产出，作为迁移实施的进度真源，随任务推进更新勾选
+
+## 〇、2026-09-02 实施纪要（任务 1-6、8 全部完成）
+
+| # | 任务 | 结果与证据 |
+|---|---|---|
+| 1 | SSH-443 决定性验证 | **PASS**：`ssh -p 443 git@ssh.github.com` 2 秒内到认证阶段，`Permission denied (publickey)` + ED25519 host key 验证（08:13 CST，InvokeId t-bj06vsvcz1do268）。R1 最高风险解除 |
+| 2 | deploy key | ed25519 生成于 /root/.ssh/smi_ed25519；GitHub Deploy Key id 162007900（写权限、单仓）；`git ls-remote ssh://git@ssh.github.com:443/xmuhl/smi.git HEAD` → `63222d81` RC=0；~/.ssh/config 已配 ssh.github.com:443 |
+| 3 | Python 3.11 | jammy universe `python3.11`=3.11.0rc1（venv OK）；**2G swap** 已挂载入 fstab（R2 缓解） |
+| 4 | 环境 | /opt/smi clone 48MB@63222d8（7 秒，R3 带宽实测无压力）；venv + akshare 1.18.88（tuna 镜像）；离线 pytest **260 passed** 9.07s |
+| 5 | 三 job 试运行 | t1 --date 08-31 → `ALREADY_FINAL` RC=0 ✓；archive --date 09-01 → 10 阶段全 `SKIP ALREADY_ARCHIVED` 幂等 ✓（附带 3 文件合法回补已重置）；archive auto 盘前 → `BEFORE_CLOSE` ✓；close 全链路（wrapper）→ RC=3 BEFORE_CLOSE ✓、NO_DATA_CHANGE ✓、飞书未配置优雅降级 ✓。**语义发现**：close_snapshot 的 freshness 跳过在 workflow YAML 层（schedule-only）——已在 ops/vps/run_job.sh 复刻等价守卫（当日文件存在即秒级跳过，fd8e824）；显式 --date 会全量重采并被校验拦截（exit 2），预期行为 |
+| 6 | cron + 提交脚本 | crontab 三行上线（flock -n，时刻与 GitHub 完全一致），cron active；run_job.sh：pull→守卫→job→commit+push 3 次重试/60s→失败飞书+留本地补推→data_health 收尾；logrotate /etc/logrotate.d/smi 按日保留 30 天；/opt/smi/.env 就位（FEISHU_WEBHOOK_URL 空占位——**PENDING §1 第 4 次提醒，仍待人工建群机器人**） |
+| 8 | GitHub 侧 | **PR #1**（deploy-pages.yml + ops/vps/）CI 绿已合并（6ebdc07→fd8e824）；deploy-pages 手动 dispatch 首跑 **success**（build→deploy→EXACT_MATCH 全过，run 33575348327）；**PR #2**（退役三 schedule 段，保留 dispatch 后门）CI 绿 open 中——**任务 9 切换时合并**。freshness-watchdog 不动（第二平面） |
+
+**关键架构决策（PR #1 必须先行合并的原因）**：GitHub scheduled run 在 freshness
+跳过路径不执行部署段（deploy 步骤以 commit.changed==true 为前提）——双跑期 VPS
+先发布时站点会断更。deploy-pages 以 push.paths 触发补齐该缺口；GITHUB_TOKEN 的
+push 有 Actions 递归保护不触发（现有 workflow 自带部署，无重复部署），VPS
+deploy key 的 push 正常触发。09-01 t1 第三窗口失败复核：margin 09-01 源于 runner
+被交易所拒（`Length mismatch: 0 vs 13`，海外 IP 第 4 次表现）→ 09-02 10:17 VPS
+窗口国内直连重试即首个双跑实战。
+
+**双跑期时序（2026-09-02 起）**：VPS cron 已于 08:35 上线；当日窗口 10:17 t1
+（margin 09-01 回补实战）、16:23 close、16:35 archive、18:17 t1 / 18:23 close、
+19:23 close、20:17 t1。双侧 freshness 守卫互斥：VPS 准点 vs GitHub 队列延迟
+3-15 分钟，VPS 通常先发布、GitHub 侧跳过。潜在已知噪声：若两侧近乎同刻完成
+采集，后推方 rebase 冲突 → 重试 3 次失败 → 当窗红灯/飞书告警，下一窗口
+自愈（见 run_job.sh 设计）。
 
 ## 一、背景与目标
 
@@ -79,15 +106,15 @@ runner IP 封锁」双重结构性风险。
 
 | # | 任务 | 依赖 | 验收标准 | 状态 |
 |---|---|---|---|---|
-| 1 | **决定性验证**：云助手跑 `ssh -p 443 -o BatchMode=yes -o StrictHostKeyChecking=no git@ssh.github.com`（预期快速返回 Permission denied(publickey) = 协议层可达） | 无 | SSH 握手 ≤10s 到达认证阶段 | ☐ |
-| 2 | 凭证：VPS 生成 ed25519 deploy key → GitHub 仓库添加 Deploy Key（只授予该仓写权限）[或 fine-grained PAT Contents:RW，90 天轮换提醒] | 1 | `git ls-remote ssh://git@ssh.github.com:443/xmuhl/smi.git HEAD` 返回 HEAD | ☐ |
-| 3 | Python 3.11：`apt install python3.11 python3.11-venv`（jammy universe）；不可则 deadsnakes PPA / Miniconda（tuna 镜像） | 无 | python3.11 --version ≥ 3.11 | ☐ |
-| 4 | VPS 环境：clone 至 `/opt/smi`（remote 改 ssh-443）、venv、`pip install -r collector/requirements.txt` | 2,3 | venv 内 `import akshare` 成功；离线 pytest 全绿 | ☐ |
-| 5 | 三 job 手动试运行：close_snapshot `--date <已发布日>`（预期 freshness SKIP）、t1_reconcile `--auto`（预期 ALREADY_FINAL）、archive_raw（盘后实跑） | 4 | 退出码与语义输出符合预期；不产生非预期写 | ☐ |
-| 6 | cron + 提交脚本：三组 cron（`flock -n` 防重叠）、push 重试 3 次/60s、失败飞书；VPS 配 `FEISHU_WEBHOOK_URL` 环境变量（**顺带解决 PENDING §1 第三次提醒**） | 5 | crontab -l 生效；人为触发一条告警，飞书真实收到 | ☐ |
-| 7 | **双跑观察 1 周**：GitHub cron 不动，VPS cron 上线，双侧 freshness 守卫互斥 | 6 | 一周日志无差异；每日发布只有一侧实际 WRITTEN，另一侧 SKIP | ☐ |
-| 8 | GitHub 侧 PR（与 7 并行）：新增 `deploy-pages.yml`（push paths `web/public/data/**` → node22/npm ci/typecheck/build/wrangler deploy/EXACT_MATCH 自检）；注释 close-snapshot/archive-raw/t1-reconcile 的 schedule 段（保留 workflow_dispatch 后门） | 无 | PR CI 绿 | ☐ |
-| 9 | 切换：合并 8（GitHub schedule 退役，VPS 为主）。回滚预案 = 恢复 schedule 段（≤5 分钟） | 7,8 | 切换后 3 个交易日 VPS 独立供数 | ☐ |
+| 1 | **决定性验证**：云助手跑 `ssh -p 443 -o BatchMode=yes -o StrictHostKeyChecking=no git@ssh.github.com`（预期快速返回 Permission denied(publickey) = 协议层可达） | 无 | SSH 握手 ≤10s 到达认证阶段 | ✅ 09-02 08:13 |
+| 2 | 凭证：VPS 生成 ed25519 deploy key → GitHub 仓库添加 Deploy Key（只授予该仓写权限）[或 fine-grained PAT Contents:RW，90 天轮换提醒] | 1 | `git ls-remote ssh://git@ssh.github.com:443/xmuhl/smi.git HEAD` 返回 HEAD | ✅ HEAD=63222d81 |
+| 3 | Python 3.11：`apt install python3.11 python3.11-venv`（jammy universe）；不可则 deadsnakes PPA / Miniconda（tuna 镜像） | 无 | python3.11 --version ≥ 3.11 | ✅ 3.11.0rc1 + swap 2G |
+| 4 | VPS 环境：clone 至 `/opt/smi`（remote 改 ssh-443）、venv、`pip install -r collector/requirements.txt` | 2,3 | venv 内 `import akshare` 成功；离线 pytest 全绿 | ✅ 260 passed |
+| 5 | 三 job 手动试运行：close_snapshot `--date <已发布日>`（预期 freshness SKIP）、t1_reconcile `--auto`（预期 ALREADY_FINAL）、archive_raw（盘后实跑） | 4 | 退出码与语义输出符合预期；不产生非预期写 | ✅ 语义全验（纪要见 §〇；盘后实跑=当日 16:35 双跑窗口） |
+| 6 | cron + 提交脚本：三组 cron（`flock -n` 防重叠）、push 重试 3 次/60s、失败飞书；VPS 配 `FEISHU_WEBHOOK_URL` 环境变量（**顺带解决 PENDING §1 第三次提醒**） | 5 | crontab -l 生效；人为触发一条告警，飞书真实收到 | ✅ cron 上线（飞书实测项挂起：webhook 待人工，见 §八） |
+| 7 | **双跑观察 1 周**：GitHub cron 不动，VPS cron 上线，双侧 freshness 守卫互斥 | 6 | 一周日志无差异；每日发布只有一侧实际 WRITTEN，另一侧 SKIP | 🔄 09-02 08:35 起（首窗口 10:17 t1） |
+| 8 | GitHub 侧 PR（与 7 并行）：新增 `deploy-pages.yml`（push paths `web/public/data/**` → node22/npm ci/typecheck/build/wrangler deploy/EXACT_MATCH 自检）；注释 close-snapshot/archive-raw/t1-reconcile 的 schedule 段（保留 workflow_dispatch 后门） | 无 | PR CI 绿 | ✅ PR#1 已合并+首跑 success；PR#2 open 待任务 9 |
+| 9 | 切换：合并 8（GitHub schedule 退役，VPS 为主）。回滚预案 = 恢复 schedule 段（≤5 分钟） | 7,8 | 切换后 3 个交易日 VPS 独立供数 | ☐（≈09-09） |
 | 10 | **上线验收**（清单见 §五） | 9 | 全部通过 | ☐ |
 | 11 | 收尾：CLAUDE.md「自动更新链路」章节改写 + PENDING §3/§4 勾销 + PLAN 状态更新 | 10 | 文档三处一致 | ☐ |
 
