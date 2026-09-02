@@ -53,6 +53,22 @@ deploy key 的 push 正常触发。09-01 t1 第三窗口失败复核：margin 09
 5. GitHub 侧 10:17 t1 scheduled run 至 10:30 仍未出现（调度延迟/丢弃进行中
    ——迁移正当性的活证据；出现后预期 ALREADY_FINAL 跳过）
 
+### 双跑首日 16:23/18:23 窗口事件（09-02 盘后）
+
+- **16:23 close VALIDATION_FAILED（rc=2，fail-closed 正确拦截，无脏数据）**：
+  marketIndex「000300/899050 all market sources failed」（spot 源整窗失败）+
+  margin 空表（当日两融未发布，Length mismatch 同昨日 GitHub 侧）。重试 26
+  分钟后放弃，无写入。**18:23 自愈窗口 2 分 21 秒完成发布**（rc=0 → commit
+  e3bef41 → PUSH_OK → deploy-pages 10:25Z success → 双域 18:30 前更新至
+  09-02 rev=1，marketIndex FINAL）。P0-a 自愈窗口设计首次在 VPS 实战生效；
+  margin=PENDING 属 T+1 正常周期（09-03 10:17 t1 回补 FINAL）
+- **同窗 GitHub 侧对照**：GitHub close-snapshot 16:23 scheduled **再次被调度
+  丢弃**（无运行记录）；GitHub t1「10:17」迟到 2h50m（15:07 到达）→
+  ALREADY_FINAL 互斥空转 success；watchdog「10:40」迟到 4.6h（15:18）但
+  巡检正常。双侧互斥零冲突，无人为干预
+- archive 16:35 VPS 准点成功（ab16dcd → deploy-pages 16:36 success），
+  jsonl 归档链路正常
+
 ## 一、背景与目标
 
 2026-09-01 GitHub 托管侧第 3 次调度大面积延迟/丢弃（08-27/08-28 同源），叠加 runner
