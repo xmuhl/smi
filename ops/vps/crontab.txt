@@ -1,0 +1,15 @@
+# SMI VPS 采集调度（VPS_MIGRATION_PROGRESS_20260901 任务 6）
+# 安装: crontab /opt/smi/ops/vps/crontab.txt（root）
+# 时刻与 GitHub 侧原 schedule 完全一致（CST，服务器时区 Asia/Shanghai）：
+#   close_snapshot 16:23/18:23/19:23（P0-a 自愈窗口）
+#   archive_raw     16:35
+#   t1_reconcile    10:17/18:17/20:17（T+1 两融）
+# flock -n 防同 job 重叠；日志按日切割见 logrotate-smi.conf
+# 双跑期（任务 7）与 GitHub cron 并行，freshness 守卫互斥：
+# 谁先发布对方跳过，每日只一侧实际 WRITTEN
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+23 16,18,19 * * 1-5  /usr/bin/flock -n /tmp/smi_close.lock   /opt/smi/ops/vps/run_job.sh close_snapshot
+35 16 * * 1-5        /usr/bin/flock -n /tmp/smi_archive.lock  /opt/smi/ops/vps/run_job.sh archive_raw
+17 10,18,20 * * 1-5  /usr/bin/flock -n /tmp/smi_t1.lock       /opt/smi/ops/vps/run_job.sh t1_reconcile

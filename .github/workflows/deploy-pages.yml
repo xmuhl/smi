@@ -1,0 +1,130 @@
+name: deploy-pages
+
+# 方案 A · VPS 迁移（VPS_MIGRATION_PROGRESS_20260901 任务 8）：
+# 数据提交与构建部署解耦——VPS cron 采集 push（web/public/data/** 变更）
+# 自动触发 构建 → Cloudflare Pages 部署 → 线上身份自检。
+#
+# 触发面精确性（依赖 GitHub Actions 递归保护）：
+# - GITHUB_TOKEN 的 push（现有 workflow 自带的 smi-bot 提交）不触发本
+#   workflow——那些 workflow 自带部署段，天然无重复部署；
+# - VPS deploy key 的 push 正常触发——双跑期与切换后 VPS 发布的唯一
+#   部署通道（VPS 先发布时，GitHub scheduled run 因 freshness 守卫跳过
+#   采集且不部署，本 workflow 补齐该缺口，站点不断更）。
+#
+# 网站代码变更（非 data 路径）不触发：CI 验证后手动 dispatch 发布。
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/public/data/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 独立于 smi-data-write：部署与数据写解耦后可并行排队（close/t1/archive
+# 连续 push 时按序部署，各自断言自己 commit 的产物，时序一致）
+concurrency:
+  group: smi-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # wrangler 4.122.0 要求 Node >= 22（R12-FIX-1）
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Type check
+        working-directory: web
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: web
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        working-directory: web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler pages deploy dist             --project-name smi             --branch main             --commit-dirty=true
+
+      # 部署后身份自检（R13-P3-03 同口径）：线上 latest.json 必须与本次
+      # 构建产物 SHA-256 完全一致。t1/archive 等不改写 latest 的 push，
+      # 断言的是「线上 == 仓库真源」，同样成立。
+      - name: Verify deployment (SITE_LATEST_EXACT_MATCH)
+        run: |
+          set -euo pipefail
+
+          SITE="https://smi-6s2.pages.dev/data/latest.json"
+          LOCAL="web/dist/data/latest.json"
+          REMOTE="/tmp/smi-site-latest.json"
+
+          if [ ! -s "$LOCAL" ]; then
+            echo "LOCAL_LATEST_MISSING_OR_EMPTY: $LOCAL"
+            exit 1
+          fi
+
+          LOCAL_SHA256="$(sha256sum "$LOCAL" | cut -d' ' -f1)"
+          LOCAL_TRADE_DATE="$(
+            python3 -c '
+          import json, sys
+          with open(sys.argv[1], "r", encoding="utf-8") as fh:
+              data = json.load(fh)
+          print(data.get("tradeDate", ""))
+          ' "$LOCAL"
+          )"
+
+          if [ -z "$LOCAL_TRADE_DATE" ]; then
+            echo "LOCAL_LATEST_TRADE_DATE_MISSING"
+            exit 1
+          fi
+
+          for attempt in 1 2 3 4 5 6; do
+            sleep 30
+            rm -f "$REMOTE"
+
+            if ! curl -fsS --max-time 20               -H 'Cache-Control: no-cache'               "$SITE"               -o "$REMOTE"; then
+              echo "attempt=$attempt site unreachable"
+              continue
+            fi
+
+            SITE_SHA256="$(sha256sum "$REMOTE" | cut -d' ' -f1)"
+            SITE_TRADE_DATE="$(
+              python3 -c '
+          import json, sys
+          try:
+              with open(sys.argv[1], "r", encoding="utf-8") as fh:
+                  data = json.load(fh)
+          except Exception:
+              print("")
+              raise SystemExit(0)
+          print(data.get("tradeDate", ""))
+          ' "$REMOTE"
+            )"
+
+            echo               "attempt=$attempt"               "localTradeDate=$LOCAL_TRADE_DATE"               "siteTradeDate=$SITE_TRADE_DATE"               "localSha256=$LOCAL_SHA256"               "siteSha256=$SITE_SHA256"
+
+            if [ "$SITE_TRADE_DATE" = "$LOCAL_TRADE_DATE" ] &&                [ "$SITE_SHA256" = "$LOCAL_SHA256" ]; then
+              echo "SITE_LATEST_EXACT_MATCH"
+              exit 0
+            fi
+          done
+
+          echo "SITE_LATEST_MISMATCH_OR_UNREACHABLE after deploy"
+          exit 1
