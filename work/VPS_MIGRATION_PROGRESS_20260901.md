@@ -69,6 +69,27 @@ deploy key 的 push 正常触发。09-01 t1 第三窗口失败复核：margin 09
 - archive 16:35 VPS 准点成功（ab16dcd → deploy-pages 16:36 success），
   jsonl 归档链路正常
 
+### 双跑首日全天收官（09-02，VPS 7 窗口 + GitHub 对照）
+
+| 时刻 | VPS | GitHub 侧对照 |
+|---|---|---|
+| 10:17 t1 | 准点；margin 09-01 FINAL（国内直连一发即中） | 「10:17」迟到 2h50m（15:07 到）→ ALREADY_FINAL 空转 |
+| 10:40 watchdog | （VPS 无 watchdog，GitHub 保留为第二平面） | 迟到 4.6h（15:18 到），巡检正常 |
+| 16:23 close | 准点；spot 源未就绪 VALIDATION_FAILED（fail-closed，零写入） | **调度丢弃（无运行记录，第 4 次事故）** |
+| 16:35 archive | 准点 rc=0 → PUSH_OK → deploy 16:36 success | 「16:35」未见运行 |
+| 18:17 t1 | 准点 ALREADY_FINAL | — |
+| 18:23 close | **自愈窗口 2m21s 恢复发布**（e3bef41 → deploy success） | 未见运行 |
+| 19:23 close | **守卫首验：4 秒 SKIP_ALREADY_PUBLISHED**（wrapper freshness 守卫首次自然触发） | — |
+| 20:17 t1 | 准点 rc=0 → 元数据提交 b5c6ddf → PUSH_OK → deploy success | — |
+
+当日线上终态：09-02 rev=1，8/9 模块 FINAL + tracks PARTIAL（既有降置信语义）
++ margin PENDING（T+1 正常周期，marginBalance ref 已携带 09-01 数据，09-03
+10:17 t1 转 FINAL）。VPS 侧零人工干预完成「失败→拦截→自愈→守卫跳过」全闭环。
+
+**用户裁决（2026-09-02 晚）**：两项候选加固（margin 空表异常转干净 PENDING；
+16:23 主窗口后移）**先冻结，观察满一周双跑数据后再定**——当前设计已把最坏
+情况控制在「当天延迟发布」内。
+
 ## 一、背景与目标
 
 2026-09-01 GitHub 托管侧第 3 次调度大面积延迟/丢弃（08-27/08-28 同源），叠加 runner
