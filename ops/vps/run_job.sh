@@ -57,7 +57,7 @@ if [ "$rc" -eq 0 ] || [ "$rc" -eq 3 ]; then
     git commit -m "data: $JOB (vps)" >> "$LOG" 2>&1
     pushed=0
     for i in 1 2 3; do
-      if git pull --rebase >> "$LOG" 2>&1 && git push >> "$LOG" 2>&1; then
+      if git pull --rebase --autostash >> "$LOG" 2>&1 && git push >> "$LOG" 2>&1; then
         pushed=1; log "PUSH_OK attempt=$i"; break
       fi
       log "PUSH_FAIL attempt=$i"; [ "$i" -lt 3 ] && sleep 60
