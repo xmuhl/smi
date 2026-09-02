@@ -31,6 +31,19 @@ cd "$REPO" || exit 1
 log "RUN_BEGIN $JOB args=$*"
 git pull --rebase --autostash >> "$LOG" 2>&1 || log "PULL_FAIL (继续，推送阶段再拉平)"
 
+# close_snapshot freshness 守卫（GitHub workflow YAML schedule 守卫的 VPS
+# 等价物）：当日 daily 文件已存在（本侧 16:23 已发布，或双跑期 GitHub 侧
+# 先发布）即跳过采集——18:23/19:23 自愈窗口零成本；仅在未发布时重试。
+# t1/archive 的守卫在 job 内部（ALREADY_FINAL / ALREADY_ARCHIVED）。
+if [ "$JOB" = "close_snapshot" ]; then
+  TODAY="$(TZ=Asia/Shanghai date +%F)"
+  if [ -f "web/public/data/daily/${TODAY%%-*}/${TODAY}.json" ]; then
+    log "SKIP_ALREADY_PUBLISHED ${TODAY}"
+    log "JOB_DONE $JOB (skip)"
+    exit 0
+  fi
+fi
+
 "$VENV/python" -m "collector.jobs.$JOB" "$@" >> "$LOG" 2>&1
 rc=$?
 log "RUN_END rc=$rc"
