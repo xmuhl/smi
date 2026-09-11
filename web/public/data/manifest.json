@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.2",
-  "latestCapturedDate": "2026-09-10",
+  "latestCapturedDate": "2026-09-11",
   "latestCloseCompleteDate": "2026-08-20",
   "latestFinalDate": "2026-07-17",
-  "latestDate": "2026-09-10",
-  "updatedAt": "2026-09-11T10:17:11+08:00",
+  "latestDate": "2026-09-11",
+  "updatedAt": "2026-09-11T18:25:19+08:00",
   "availableDates": [
     "2026-07-17",
     "2026-07-20",
@@ -45,6 +45,7 @@
     "2026-09-07",
     "2026-09-08",
     "2026-09-09",
-    "2026-09-10"
+    "2026-09-10",
+    "2026-09-11"
   ]
 }
