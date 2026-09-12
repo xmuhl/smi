@@ -1,9 +1,10 @@
 name: archive-raw
 
 on:
-  schedule:
-    # 08:35 UTC = 16:35 Asia/Shanghai（工作日，close-snapshot 之后）
-    - cron: "35 8 * * 1-5"
+  # 2026-09-02（VPS 迁移任务 9 · GitHub schedule 退役，回滚见 close-snapshot.yml 注释）
+  # schedule:
+  #   # 08:35 UTC = 16:35 Asia/Shanghai（工作日，close-snapshot 之后）
+  #   - cron: "35 8 * * 1-5"
   workflow_dispatch:
     inputs:
       date:

@@ -1,12 +1,14 @@
 name: t1-reconcile
 
 on:
-  schedule:
-    # 10:17 / 18:17 / 20:17 CST（UTC+8）。第三窗口（P0-b，2026-08-25）
-    # 为交易所源对 runner 海外 IP 的连接重置留出额外重试时段。
-    - cron: "17 2 * * 1-5"
-    - cron: "17 9 * * 1-5"
-    - cron: "17 12 * * 1-5"
+  # 2026-09-02（VPS 迁移任务 9 · GitHub schedule 退役，回滚见 close-snapshot.yml 注释；
+  # runner 海外 IP 被交易所重置的结构性劣势由 VPS 国内直连根治）
+  # schedule:
+  #   # 10:17 / 18:17 / 20:17 CST（UTC+8）。第三窗口（P0-b，2026-08-25）
+  #   # 为交易所源对 runner 海外 IP 的连接重置留出额外重试时段。
+  #   - cron: "17 2 * * 1-5"
+  #   - cron: "17 9 * * 1-5"
+  #   - cron: "17 12 * * 1-5"
   workflow_dispatch:
     inputs:
       deploy:
