@@ -2,10 +2,10 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-09-16",
   "generatedAt": "2026-09-16T16:48:54+08:00",
-  "updatedAt": "2026-09-16T16:51:43+08:00",
-  "revision": 1,
+  "updatedAt": "2026-09-17T00:54:04+08:00",
+  "revision": 2,
   "overallStatus": "PARTIAL_ERROR",
-  "generationReason": "CLOSE_SNAPSHOT",
+  "generationReason": "T1_RECONCILE",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -730,7 +730,7 @@
       ]
     },
     "margin": {
-      "status": "PENDING",
+      "status": "ERROR",
       "dataDate": null,
       "source": [
         "SSE",
@@ -1031,11 +1031,11 @@
       "indexAndTurnover": "上证指数收涨 +0.71%；创业板表现强于沪深300。",
       "sentiment": "上涨 4170 家、下跌 1188 家，非ST涨停 89 家，上涨家数占优。",
       "fundFlow": "行业主力净流入居前：半导体、通信设备、元件；行业主力净流出居前：风电设备、电力、港口航运。",
-      "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-09-15）总余额 26191.93 亿元。",
+      "margin": "两融模块暂未取得完整有效数据，本项不作判断。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
       "marketEnvironment": "沪深两市成交额 18407 亿元，前一交易日 16141 亿元，较前一交易日增加 2265 亿元（+14.03%），放量。",
       "northbound": "北向旧式日度净流入披露不再延续；当前季度持仓数据暂未取得，本项不作判断。",
-      "riskWarning": "获取失败：northbound。 待披露：margin。 部分数据：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
+      "riskWarning": "获取失败：northbound、margin。 部分数据：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
   },
   "validation": {
