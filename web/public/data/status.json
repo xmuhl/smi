@@ -1,6 +1,6 @@
 {
-  "lastWorkflow": "vps-t1_reconcile",
-  "lastRunAt": "2026-09-25T10:17:10+08:00",
+  "lastWorkflow": "t1-reconcile",
+  "lastRunAt": "2026-09-25T15:51:54+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
   "latestCapturedDate": "2026-09-24",
   "latestCloseCompleteDate": "2026-08-20",
@@ -10,9 +10,9 @@
   "errors": [
     {
       "module": "margin",
-      "status": "STALE",
+      "status": "ERROR",
       "errors": [
-        "SZSE_NOT_YET_PUBLISHED:2026-09-24"
+        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
       ]
     },
     {
@@ -23,7 +23,5 @@
       ]
     }
   ],
-  "staleModules": [
-    "margin"
-  ]
+  "staleModules": []
 }
