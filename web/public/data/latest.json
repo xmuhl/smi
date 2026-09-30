@@ -2,8 +2,8 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-09-29",
   "generatedAt": "2026-09-29T16:23:05+08:00",
-  "updatedAt": "2026-09-30T02:04:53+08:00",
-  "revision": 2,
+  "updatedAt": "2026-09-30T16:36:48+08:00",
+  "revision": 3,
   "overallStatus": "PARTIAL_ERROR",
   "generationReason": "T1_RECONCILE",
   "market": "CN_A",
@@ -35178,7 +35178,7 @@
       ],
       "unit": "亿元",
       "errors": [
-        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+        "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
       ],
       "warnings": [],
       "latestPublishedReference": {
