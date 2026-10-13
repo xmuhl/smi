@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.1",
-  "tradeDate": "2026-10-12",
-  "generatedAt": "2026-10-12T17:45:09+08:00",
-  "updatedAt": "2026-10-13T10:17:10+08:00",
-  "revision": 3,
-  "overallStatus": "PARTIAL",
-  "generationReason": "T1_RECONCILE",
+  "tradeDate": "2026-10-13",
+  "generatedAt": "2026-10-13T16:23:06+08:00",
+  "updatedAt": "2026-10-13T16:26:18+08:00",
+  "revision": 1,
+  "overallStatus": "PARTIAL_PENDING",
+  "generationReason": "CLOSE_SNAPSHOT",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
   "meta": {
@@ -17,7 +17,7 @@
   "modules": {
     "marketIndex": {
       "status": "FINAL",
-      "dataDate": "2026-10-12",
+      "dataDate": "2026-10-13",
       "source": [
         "EASTMONEY",
         "EASTMONEY_DELAY",
@@ -29,673 +29,636 @@
         {
           "code": "000001",
           "name": "上证指数",
-          "close": 3797.24,
-          "previousClose": 3813.79,
-          "changePct": -0.43,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: 502 Server Error: Bad Gateway for url: https://push2delay.eastmoney.com/api/qt/ulist.np/get?secids=1.000001,0.399001,0.399006,1.000688,1.000300,0.899050,0.399311,0.399303&fields=f2,f3,f4,f18,f12,f14&fltt=2&invt=2&ut=bd1d9ddb04089700f9c27d4d04e0e0cc"
-          ]
+          "close": 3800.86,
+          "previousClose": 3797.24,
+          "changePct": 0.1,
+          "source": "EASTMONEY"
         },
         {
           "code": "399001",
           "name": "深证成指",
-          "close": 12384.87,
-          "previousClose": 12641.86,
-          "changePct": -2.03,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: 502 Server Error: Bad Gateway for url: https://push2delay.eastmoney.com/api/qt/ulist.np/get?secids=1.000001,0.399001,0.399006,1.000688,1.000300,0.899050,0.399311,0.399303&fields=f2,f3,f4,f18,f12,f14&fltt=2&invt=2&ut=bd1d9ddb04089700f9c27d4d04e0e0cc"
-          ]
+          "close": 12353.7,
+          "previousClose": 12384.87,
+          "changePct": -0.25,
+          "source": "EASTMONEY"
         },
         {
           "code": "399006",
           "name": "创业板指",
-          "close": 2963.82,
-          "previousClose": 3043.33,
-          "changePct": -2.61,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: 502 Server Error: Bad Gateway for url: https://push2delay.eastmoney.com/api/qt/ulist.np/get?secids=1.000001,0.399001,0.399006,1.000688,1.000300,0.899050,0.399311,0.399303&fields=f2,f3,f4,f18,f12,f14&fltt=2&invt=2&ut=bd1d9ddb04089700f9c27d4d04e0e0cc"
-          ]
+          "close": 2958.34,
+          "previousClose": 2963.82,
+          "changePct": -0.18,
+          "source": "EASTMONEY"
         },
         {
           "code": "000688",
           "name": "科创50",
-          "close": 1426.72,
-          "previousClose": 1457.27,
-          "changePct": -2.1,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: 502 Server Error: Bad Gateway for url: https://push2delay.eastmoney.com/api/qt/ulist.np/get?secids=1.000001,0.399001,0.399006,1.000688,1.000300,0.899050,0.399311,0.399303&fields=f2,f3,f4,f18,f12,f14&fltt=2&invt=2&ut=bd1d9ddb04089700f9c27d4d04e0e0cc"
-          ]
+          "close": 1427.18,
+          "previousClose": 1426.72,
+          "changePct": 0.03,
+          "source": "EASTMONEY"
         },
         {
           "code": "000300",
           "name": "沪深300",
-          "close": 4287.98,
-          "previousClose": 4317.25,
-          "changePct": -0.68,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: 502 Server Error: Bad Gateway for url: https://push2delay.eastmoney.com/api/qt/ulist.np/get?secids=1.000001,0.399001,0.399006,1.000688,1.000300,0.899050,0.399311,0.399303&fields=f2,f3,f4,f18,f12,f14&fltt=2&invt=2&ut=bd1d9ddb04089700f9c27d4d04e0e0cc"
-          ]
+          "close": 4275.68,
+          "previousClose": 4287.98,
+          "changePct": -0.29,
+          "source": "EASTMONEY"
         },
         {
           "code": "899050",
           "name": "北证50",
-          "close": 1011.75,
-          "previousClose": 1037.31,
-          "changePct": -2.46,
-          "source": "TENCENT",
-          "sourceWarnings": [
-            "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-            "eastmoney_delay: 502 Server Error: Bad Gateway for url: https://push2delay.eastmoney.com/api/qt/ulist.np/get?secids=1.000001,0.399001,0.399006,1.000688,1.000300,0.899050,0.399311,0.399303&fields=f2,f3,f4,f18,f12,f14&fltt=2&invt=2&ut=bd1d9ddb04089700f9c27d4d04e0e0cc"
-          ]
+          "close": 1008.66,
+          "previousClose": 1011.75,
+          "changePct": -0.31,
+          "source": "EASTMONEY"
         },
         {
           "code": "399311",
           "name": "国证1000",
-          "close": 4601.25,
-          "previousClose": 4655.66,
-          "changePct": -1.17,
+          "close": 4590.83,
+          "previousClose": 4601.25,
+          "changePct": -0.23,
           "source": "TENCENT",
           "sourceWarnings": [
-            "cni: no data for target date 2026-10-12"
+            "cni: no data for target date 2026-10-13"
           ]
         },
         {
           "code": "399303",
           "name": "国证2000",
-          "close": 9310.17,
-          "previousClose": 9490.64,
-          "changePct": -1.9,
+          "close": 9337.52,
+          "previousClose": 9310.17,
+          "changePct": 0.29,
           "source": "TENCENT",
           "sourceWarnings": [
-            "cni: no data for target date 2026-10-12"
+            "cni: no data for target date 2026-10-13"
           ]
         }
       ]
     },
     "turnover": {
       "status": "FINAL",
-      "dataDate": "2026-10-12",
+      "dataDate": "2026-10-13",
       "source": [
-        "SINA"
+        "EASTMONEY"
       ],
       "unit": "亿元",
       "method": "SH_SZ_A_NO_B_NO_BJ_V1",
-      "turnoverToday": 15373.6,
-      "turnoverPrevious": 19000.98,
-      "turnoverDelta": -3627.38,
-      "turnoverChangePct": -19.09,
-      "volumeState": "CONTRACTION",
+      "turnoverToday": 16756.94,
+      "turnoverPrevious": 15373.6,
+      "turnoverDelta": 1383.34,
+      "turnoverChangePct": 9.0,
+      "volumeState": "EXPANSION",
       "previousMethod": "SH_SZ_A_NO_B_NO_BJ_V1",
-      "comparisonStatus": "COMPARABLE",
-      "sourceWarnings": [
-        "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-        "exchange: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
-      ]
+      "comparisonStatus": "COMPARABLE"
     },
     "sentiment": {
       "status": "FINAL",
-      "dataDate": "2026-10-12",
+      "dataDate": "2026-10-13",
       "source": [
         "EASTMONEY",
         "SINA"
       ],
-      "riseCount": 1166,
-      "fallCount": 4325,
-      "flatCount": 81,
-      "suspendedCount": 0,
-      "nonStLimitUpCount": 46,
+      "riseCount": 2909,
+      "fallCount": 2486,
+      "flatCount": 167,
+      "suspendedCount": 361,
+      "nonStLimitUpCount": 67,
       "stLimitUpCount": 0,
-      "nonStLimitDownCount": 19,
+      "nonStLimitDownCount": 8,
       "stLimitDownCount": 0,
-      "brokenLimitCount": 25,
-      "limitSealRatePct": 64.79,
-      "maxLimitUpStreak": "10连板",
+      "brokenLimitCount": 19,
+      "limitSealRatePct": 77.91,
+      "maxLimitUpStreak": "3连板",
       "errors": [],
-      "spotSource": "SINA",
-      "sourceWarnings": [
-        "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
-      ]
+      "spotSource": "EASTMONEY"
     },
     "sectorPerformance": {
       "status": "FINAL",
-      "dataDate": "2026-10-12",
+      "dataDate": "2026-10-13",
       "source": [
         "EASTMONEY",
         "THS"
       ],
-      "method": "THS",
+      "method": "EASTMONEY",
       "industryTop5": [
         {
-          "code": "",
-          "name": "影视院线",
-          "changePct": 3.67,
-          "turnoverRate": null,
-          "riseCount": 15,
-          "fallCount": 5,
-          "leader": "欢瑞世纪"
-        },
-        {
-          "code": "",
-          "name": "文化传媒",
-          "changePct": 2.37,
-          "turnoverRate": null,
-          "riseCount": 57,
-          "fallCount": 26,
-          "leader": "果麦文化"
-        },
-        {
-          "code": "",
-          "name": "风电设备",
-          "changePct": 2.34,
-          "turnoverRate": null,
-          "riseCount": 24,
-          "fallCount": 8,
-          "leader": "振宏股份"
-        },
-        {
-          "code": "",
-          "name": "银行",
-          "changePct": 1.99,
-          "turnoverRate": null,
-          "riseCount": 42,
+          "code": "BK1295",
+          "name": "其他数字媒体",
+          "changePct": 11.94,
+          "turnoverRate": 17.52,
+          "riseCount": 2,
           "fallCount": 0,
-          "leader": "渝农商行"
+          "leader": "风语筑"
         },
         {
-          "code": "",
-          "name": "游戏",
-          "changePct": 0.86,
-          "turnoverRate": null,
-          "riseCount": 16,
-          "fallCount": 7,
-          "leader": "名臣健康"
+          "code": "BK1340",
+          "name": "印制电路板",
+          "changePct": 6.08,
+          "turnoverRate": 5.66,
+          "riseCount": 47,
+          "fallCount": 1,
+          "leader": "超声电子"
+        },
+        {
+          "code": "BK1423",
+          "name": "纺织化学制品",
+          "changePct": 5.43,
+          "turnoverRate": 5.08,
+          "riseCount": 12,
+          "fallCount": 1,
+          "leader": "亚邦股份"
+        },
+        {
+          "code": "BK0459",
+          "name": "元件",
+          "changePct": 4.77,
+          "turnoverRate": 5.43,
+          "riseCount": 61,
+          "fallCount": 6,
+          "leader": "超声电子"
+        },
+        {
+          "code": "BK1382",
+          "name": "地面兵装Ⅲ",
+          "changePct": 4.54,
+          "turnoverRate": 3.38,
+          "riseCount": 12,
+          "fallCount": 0,
+          "leader": "国科军工"
         }
       ],
       "industryBottom5": [
         {
-          "code": "",
-          "name": "贵金属",
-          "changePct": -4.71,
-          "turnoverRate": null,
-          "riseCount": 0,
-          "fallCount": 14,
-          "leader": "紫金矿业"
-        },
-        {
-          "code": "",
-          "name": "种植业与林业",
-          "changePct": -4.62,
-          "turnoverRate": null,
-          "riseCount": 2,
-          "fallCount": 27,
-          "leader": "海南橡胶"
-        },
-        {
-          "code": "",
-          "name": "能源金属",
-          "changePct": -3.95,
-          "turnoverRate": null,
-          "riseCount": 1,
-          "fallCount": 13,
-          "leader": "*ST威领"
-        },
-        {
-          "code": "",
-          "name": "元件",
-          "changePct": -3.75,
-          "turnoverRate": null,
-          "riseCount": 7,
-          "fallCount": 56,
-          "leader": "弘信电子"
-        },
-        {
-          "code": "",
-          "name": "小金属",
-          "changePct": -3.63,
-          "turnoverRate": null,
+          "code": "BK1304",
+          "name": "锂电专用设备",
+          "changePct": -3.32,
+          "turnoverRate": 6.15,
           "riseCount": 3,
-          "fallCount": 27,
-          "leader": "宜安科技"
+          "fallCount": 16,
+          "leader": "尚水智能"
+        },
+        {
+          "code": "BK1302",
+          "name": "电池化学品",
+          "changePct": -3.14,
+          "turnoverRate": 3.57,
+          "riseCount": 4,
+          "fallCount": 40,
+          "leader": "ST帕瓦"
+        },
+        {
+          "code": "BK1358",
+          "name": "保险Ⅲ",
+          "changePct": -3.12,
+          "turnoverRate": 0.38,
+          "riseCount": 0,
+          "fallCount": 5,
+          "leader": "新华保险"
+        },
+        {
+          "code": "BK0474",
+          "name": "保险Ⅱ",
+          "changePct": -3.12,
+          "turnoverRate": 0.38,
+          "riseCount": 0,
+          "fallCount": 5,
+          "leader": "新华保险"
+        },
+        {
+          "code": "BK1320",
+          "name": "逆变器",
+          "changePct": -2.99,
+          "turnoverRate": 2.97,
+          "riseCount": 0,
+          "fallCount": 10,
+          "leader": "上能电气"
         }
       ],
       "conceptTop5": [
         {
-          "code": "",
-          "name": "短剧游戏",
-          "changePct": 1.86,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "果麦文化"
+          "code": "BK1185",
+          "name": "冰雪经济",
+          "changePct": 3.31,
+          "turnoverRate": 3.39,
+          "riseCount": 34,
+          "fallCount": 7,
+          "leader": "冰山冷热"
         },
         {
-          "code": "",
-          "name": "AI视频",
-          "changePct": 1.53,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "因赛集团"
+          "code": "BK1199",
+          "name": "2025三季报预减",
+          "changePct": 2.89,
+          "turnoverRate": 8.67,
+          "riseCount": 8,
+          "fallCount": 0,
+          "leader": "东岳硅材"
         },
         {
-          "code": "",
-          "name": "知识产权保护",
-          "changePct": 1.44,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "莱美药业"
+          "code": "BK0949",
+          "name": "氦气概念",
+          "changePct": 2.86,
+          "turnoverRate": 3.51,
+          "riseCount": 15,
+          "fallCount": 3,
+          "leader": "凯美特气"
         },
         {
-          "code": "",
-          "name": "AI语料",
-          "changePct": 1.24,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "慈文传媒"
+          "code": "BK1142",
+          "name": "裸眼3D",
+          "changePct": 2.65,
+          "turnoverRate": 2.71,
+          "riseCount": 16,
+          "fallCount": 6,
+          "leader": "超声电子"
         },
         {
-          "code": "",
-          "name": "证金持股",
-          "changePct": 1.21,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "长城汽车"
+          "code": "BK0933",
+          "name": "退税商店",
+          "changePct": 2.58,
+          "turnoverRate": 1.51,
+          "riseCount": 17,
+          "fallCount": 3,
+          "leader": "南宁百货"
         }
       ],
       "conceptBottom5": [
         {
-          "code": "",
-          "name": "转基因",
-          "changePct": -4.2,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "托普云农"
+          "code": "BK1645",
+          "name": "昨日打二板以上表现",
+          "changePct": -3.11,
+          "turnoverRate": 11.95,
+          "riseCount": 1,
+          "fallCount": 3,
+          "leader": "九阳股份"
         },
         {
-          "code": "",
-          "name": "粮食概念",
-          "changePct": -3.98,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "华资实业"
+          "code": "BK1716",
+          "name": "反转股",
+          "changePct": -2.57,
+          "turnoverRate": 10.04,
+          "riseCount": 1,
+          "fallCount": 7,
+          "leader": "东岳硅材"
         },
         {
-          "code": "",
-          "name": "科创次新股",
-          "changePct": -3.67,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "高凯技术"
+          "code": "BK0868",
+          "name": "GDR",
+          "changePct": -2.39,
+          "turnoverRate": 0.96,
+          "riseCount": 0,
+          "fallCount": 11,
+          "leader": "国投电力"
         },
         {
-          "code": "",
-          "name": "MLCC概念",
-          "changePct": -3.52,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "华瓷股份"
+          "code": "BK1754",
+          "name": "2026三季报首亏",
+          "changePct": -2.21,
+          "turnoverRate": 4.82,
+          "riseCount": 0,
+          "fallCount": 5,
+          "leader": "豪声电子"
         },
         {
-          "code": "",
-          "name": "大豆",
-          "changePct": -3.47,
-          "turnoverRate": null,
-          "riseCount": null,
-          "fallCount": null,
-          "leader": "索宝蛋白"
+          "code": "BK1063",
+          "name": "重组蛋白",
+          "changePct": -2.2,
+          "turnoverRate": 2.32,
+          "riseCount": 4,
+          "fallCount": 31,
+          "leader": "丸美生物"
         }
       ],
-      "errors": [],
-      "sourceWarnings": [
-        "eastmoney: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
-      ]
+      "errors": []
     },
     "fundFlow": {
       "status": "FINAL",
-      "dataDate": "2026-10-12",
+      "dataDate": "2026-10-13",
       "source": [
         "EASTMONEY",
         "THS"
       ],
-      "method": "THS_MAIN_FORCE",
+      "method": "EASTMONEY_MAIN_FORCE",
       "unit": "亿元",
       "industryInflowTop10": [
         {
           "code": "",
-          "name": "银行",
-          "netInflowYi": 62.52
+          "name": "印制电路板",
+          "netInflowYi": 20.8775
         },
         {
           "code": "",
-          "name": "文化传媒",
-          "netInflowYi": 13.41
+          "name": "集成电路制造",
+          "netInflowYi": 20.5216
         },
         {
           "code": "",
-          "name": "白酒",
-          "netInflowYi": 9.0
+          "name": "国防军工",
+          "netInflowYi": 19.3294
         },
         {
           "code": "",
-          "name": "影视院线",
-          "netInflowYi": 8.7
+          "name": "元件",
+          "netInflowYi": 13.6661
         },
         {
           "code": "",
-          "name": "工程机械",
-          "netInflowYi": 5.26
+          "name": "电子",
+          "netInflowYi": 12.8418
         },
         {
           "code": "",
-          "name": "证券",
-          "netInflowYi": 2.32
+          "name": "航海装备Ⅲ",
+          "netInflowYi": 9.8897
         },
         {
           "code": "",
-          "name": "医疗服务",
-          "netInflowYi": 2.07
+          "name": "航海装备Ⅱ",
+          "netInflowYi": 9.8897
         },
         {
           "code": "",
-          "name": "风电设备",
-          "netInflowYi": 1.79
+          "name": "营销代理",
+          "netInflowYi": 8.7288
         },
         {
           "code": "",
-          "name": "白色家电",
-          "netInflowYi": 1.67
+          "name": "传媒",
+          "netInflowYi": 7.9064
         },
         {
           "code": "",
-          "name": "轨交设备",
-          "netInflowYi": 1.39
+          "name": "航空装备Ⅲ",
+          "netInflowYi": 7.9059
         }
       ],
       "industryOutflowTop10": [
         {
           "code": "",
-          "name": "半导体",
-          "netInflowYi": -46.11
-        },
-        {
-          "code": "",
-          "name": "通信设备",
-          "netInflowYi": -44.77
+          "name": "电力设备",
+          "netInflowYi": -55.5371
         },
         {
           "code": "",
           "name": "电池",
-          "netInflowYi": -41.18
+          "netInflowYi": -38.4565
         },
         {
           "code": "",
-          "name": "元件",
-          "netInflowYi": -39.75
+          "name": "医药生物",
+          "netInflowYi": -32.5755
         },
         {
           "code": "",
-          "name": "化学制药",
-          "netInflowYi": -34.29
+          "name": "数字芯片设计",
+          "netInflowYi": -17.6642
         },
         {
           "code": "",
-          "name": "工业金属",
-          "netInflowYi": -29.37
+          "name": "锂电池",
+          "netInflowYi": -17.1363
         },
         {
           "code": "",
-          "name": "化学制品",
-          "netInflowYi": -25.38
+          "name": "电池化学品",
+          "netInflowYi": -15.2565
         },
         {
           "code": "",
-          "name": "贵金属",
-          "netInflowYi": -21.97
+          "name": "医疗服务",
+          "netInflowYi": -10.5327
         },
         {
           "code": "",
-          "name": "军工装备",
-          "netInflowYi": -19.54
+          "name": "非银金融",
+          "netInflowYi": -9.7078
         },
         {
           "code": "",
-          "name": "小金属",
-          "netInflowYi": -19.12
+          "name": "公用事业",
+          "netInflowYi": -9.5071
+        },
+        {
+          "code": "",
+          "name": "风电设备",
+          "netInflowYi": -9.1877
         }
       ],
       "conceptInflowTop10": [
         {
           "code": "",
-          "name": "高股息精选",
-          "netInflowYi": 55.69
+          "name": "光通信模块",
+          "netInflowYi": 35.3218
         },
         {
           "code": "",
-          "name": "跨境支付(CIPS)",
-          "netInflowYi": 40.85
+          "name": "小盘成长",
+          "netInflowYi": 26.4861
         },
         {
           "code": "",
-          "name": "证金持股",
-          "netInflowYi": 32.53
+          "name": "高成长股",
+          "netInflowYi": 23.4314
         },
         {
           "code": "",
-          "name": "短剧游戏",
-          "netInflowYi": 20.0
+          "name": "PCB",
+          "netInflowYi": 19.0532
         },
         {
           "code": "",
-          "name": "同花顺中特估100",
-          "netInflowYi": 18.73
+          "name": "IGBT概念",
+          "netInflowYi": 17.6495
         },
         {
           "code": "",
-          "name": "AI视频",
-          "netInflowYi": 17.72
+          "name": "CPO概念",
+          "netInflowYi": 17.4864
         },
         {
           "code": "",
-          "name": "虚拟数字人",
-          "netInflowYi": 16.39
+          "name": "海洋经济",
+          "netInflowYi": 14.753
         },
         {
           "code": "",
-          "name": "AI语料",
-          "netInflowYi": 13.86
+          "name": "军工",
+          "netInflowYi": 14.5753
         },
         {
           "code": "",
-          "name": "多模态AI",
-          "netInflowYi": 12.43
+          "name": "航母概念",
+          "netInflowYi": 12.8372
         },
         {
           "code": "",
-          "name": "IP经济(谷子经济)",
-          "netInflowYi": 12.25
+          "name": "中字头",
+          "netInflowYi": 12.4078
         }
       ],
       "conceptOutflowTop10": [
         {
           "code": "",
+          "name": "富时罗素",
+          "netInflowYi": -117.2353
+        },
+        {
+          "code": "",
+          "name": "MSCI中国",
+          "netInflowYi": -102.6657
+        },
+        {
+          "code": "",
           "name": "融资融券",
-          "netInflowYi": -490.67
+          "netInflowYi": -93.5855
         },
         {
           "code": "",
-          "name": "深股通",
-          "netInflowYi": -289.22
-        },
-        {
-          "code": "",
-          "name": "2026中报预增",
-          "netInflowYi": -249.03
-        },
-        {
-          "code": "",
-          "name": "国企改革",
-          "netInflowYi": -241.95
-        },
-        {
-          "code": "",
-          "name": "沪股通",
-          "netInflowYi": -213.13
-        },
-        {
-          "code": "",
-          "name": "芯片概念",
-          "netInflowYi": -199.61
+          "name": "电池技术",
+          "netInflowYi": -74.997
         },
         {
           "code": "",
           "name": "锂电池概念",
-          "netInflowYi": -160.03
+          "netInflowYi": -73.9868
         },
         {
           "code": "",
-          "name": "新能源汽车",
-          "netInflowYi": -156.95
+          "name": "标准普尔",
+          "netInflowYi": -69.9029
         },
         {
           "code": "",
-          "name": "华为概念",
-          "netInflowYi": -134.68
+          "name": "沪股通",
+          "netInflowYi": -69.1838
         },
         {
           "code": "",
-          "name": "数据中心(AIDC)",
-          "netInflowYi": -128.45
+          "name": "深成500",
+          "netInflowYi": -66.0089
+        },
+        {
+          "code": "",
+          "name": "AH股",
+          "netInflowYi": -58.1682
+        },
+        {
+          "code": "",
+          "name": "中盘股",
+          "netInflowYi": -55.5288
         }
       ],
       "stockInflowTop10": [
         {
-          "code": "600036",
-          "name": "招商银行",
-          "netInflowYi": 9.94
+          "code": "301660",
+          "name": "N粤芯-U",
+          "netInflowYi": 21.888
         },
         {
-          "code": "600519",
-          "name": "贵州茅台",
-          "netInflowYi": 8.37
+          "code": "600150",
+          "name": "中国船舶",
+          "netInflowYi": 7.2988
         },
         {
-          "code": "601166",
-          "name": "兴业银行",
-          "netInflowYi": 6.4
+          "code": "002354",
+          "name": "天娱数科",
+          "netInflowYi": 5.8398
         },
         {
-          "code": "300364",
-          "name": "中文在线",
-          "netInflowYi": 6.0
+          "code": "300394",
+          "name": "天孚通信",
+          "netInflowYi": 5.6967
         },
         {
-          "code": "601288",
-          "name": "农业银行",
-          "netInflowYi": 5.7
+          "code": "002463",
+          "name": "沪电股份",
+          "netInflowYi": 4.7779
         },
         {
-          "code": "601398",
-          "name": "工商银行",
-          "netInflowYi": 4.65
+          "code": "688256",
+          "name": "寒武纪",
+          "netInflowYi": 3.9845
         },
         {
-          "code": "601939",
-          "name": "建设银行",
-          "netInflowYi": 4.21
+          "code": "688072",
+          "name": "拓荆科技",
+          "netInflowYi": 3.8991
         },
         {
-          "code": "600941",
-          "name": "中国移动",
-          "netInflowYi": 4.02
+          "code": "600664",
+          "name": "哈药股份",
+          "netInflowYi": 3.6785
         },
         {
-          "code": "601818",
-          "name": "光大银行",
-          "netInflowYi": 3.99
+          "code": "002639",
+          "name": "雪人集团",
+          "netInflowYi": 3.4571
         },
         {
-          "code": "300133",
-          "name": "华策影视",
-          "netInflowYi": 3.97
+          "code": "600641",
+          "name": "先导基电",
+          "netInflowYi": 3.253
         }
       ],
       "stockOutflowTop10": [
         {
-          "code": "002938",
-          "name": "鹏鼎控股",
-          "netInflowYi": -10.8
+          "code": "300750",
+          "name": "宁德时代",
+          "netInflowYi": -7.1405
+        },
+        {
+          "code": "300502",
+          "name": "新易盛",
+          "netInflowYi": -5.6456
+        },
+        {
+          "code": "601318",
+          "name": "中国平安",
+          "netInflowYi": -5.0767
+        },
+        {
+          "code": "603986",
+          "name": "兆易创新",
+          "netInflowYi": -4.9245
+        },
+        {
+          "code": "600206",
+          "name": "有研新材",
+          "netInflowYi": -4.5992
+        },
+        {
+          "code": "300408",
+          "name": "三环集团",
+          "netInflowYi": -4.0728
+        },
+        {
+          "code": "600309",
+          "name": "万华化学",
+          "netInflowYi": -3.8832
         },
         {
           "code": "688825",
           "name": "长鑫科技",
-          "netInflowYi": -10.6
+          "netInflowYi": -3.511
         },
         {
-          "code": "601899",
-          "name": "紫金矿业",
-          "netInflowYi": -9.05
+          "code": "002487",
+          "name": "大金重工",
+          "netInflowYi": -3.4731
         },
         {
-          "code": "300006",
-          "name": "莱美药业",
-          "netInflowYi": -8.07
-        },
-        {
-          "code": "002407",
-          "name": "多氟多",
-          "netInflowYi": -7.83
-        },
-        {
-          "code": "600127",
-          "name": "金健米业",
-          "netInflowYi": -6.85
-        },
-        {
-          "code": "601872",
-          "name": "招商轮船",
-          "netInflowYi": -6.71
-        },
-        {
-          "code": "002242",
-          "name": "九阳股份",
-          "netInflowYi": -6.33
-        },
-        {
-          "code": "000725",
-          "name": "京东方A",
-          "netInflowYi": -6.23
-        },
-        {
-          "code": "688498",
-          "name": "源杰科技",
-          "netInflowYi": -5.88
+          "code": "300433",
+          "name": "蓝思科技",
+          "netInflowYi": -3.4525
         }
       ],
-      "errors": [],
-      "sourceWarnings": [
-        "eastmoney: Expecting value: line 1 column 1 (char 0)"
-      ]
+      "errors": []
     },
     "northbound": {
       "status": "FINAL",
-      "dataDate": "2026-10-12",
+      "dataDate": "2026-10-13",
       "mode": "POST_20240819_OFFICIAL_REPLACEMENT",
       "sourceSystem": "HKEX",
       "source": [
@@ -35194,46 +35157,32 @@
       "errors": []
     },
     "margin": {
-      "status": "FINAL",
-      "dataDate": "2026-10-12",
+      "status": "PENDING",
+      "dataDate": null,
       "source": [
         "SSE",
         "SZSE"
       ],
       "unit": "亿元",
-      "errors": [],
+      "errors": [
+        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+      ],
       "warnings": [],
-      "financingBalance": 25171.89,
-      "securitiesLendingBalance": 297.19,
-      "marginBalance": 25469.09,
-      "marginBalanceChange": -45.77,
-      "financingBuyAmount": 1212.31,
-      "financingNetBuyAmount": {
-        "value": -46.73,
-        "quality": "DERIVED"
-      },
-      "securitiesLendingNetSellVolume": {
-        "value": 0.3964,
-        "unit": "亿股/亿份",
-        "quality": "DERIVED"
-      },
-      "marginTradeAmount": {
-        "value": null,
-        "quality": "UNAVAILABLE"
-      },
-      "marginTradeSharePct": {
-        "value": null,
-        "quality": "UNAVAILABLE"
+      "latestPublishedReference": {
+        "dataDate": "2026-10-12",
+        "financingBalance": 25171.89,
+        "securitiesLendingBalance": 297.19,
+        "marginBalance": 25469.09
       }
     },
     "tracks": {
-      "status": "PARTIAL",
-      "dataDate": "2026-10-12",
+      "status": "UNAVAILABLE",
+      "dataDate": "2026-10-13",
       "configVersion": "3.5",
       "effectiveFrom": "2026-07-20",
       "effectiveTo": "2026-12-31",
       "sourceSystem": "SELF",
-      "coveragePct": 75.3,
+      "coveragePct": 63.6,
       "coverageTargetPct": 80.0,
       "coverageHardFloorPct": 65.0,
       "errors": [
@@ -35241,26 +35190,26 @@
       ],
       "items": [
         {
-          "date": "2026-10-12",
+          "date": "2026-10-13",
           "trackId": "semiconductor_ai",
           "trackName": "半导体/AI算力",
           "positioning": "科技成长",
           "selectionReason": "seed",
           "turnoverRank": 1,
-          "mainNetInflow": -61.18,
-          "continuousInflowDays": 0,
+          "mainNetInflow": 2.72,
+          "continuousInflowDays": 1,
           "maAlignment": "否",
-          "rps60": 57.1,
+          "rps60": null,
           "excessReturn20d": null,
-          "limitUpCount": 0,
-          "ladderCompleteness": "无连板",
-          "redStockRatio": "11%",
+          "limitUpCount": null,
+          "ladderCompleteness": null,
+          "redStockRatio": "44%",
           "coreCatalyst": "AI算力需求景气、国产替代加速、先进制程与国产算力事件催化",
           "earningsRealization": "板块业绩兑现依赖景气延续，高估值下兑现不及预期风险大",
-          "score": 24.6,
-          "coveragePct": 82.4,
-          "decision": "一日游脉冲/回避",
-          "decisionCode": "PULSE_AVOID",
+          "score": 49.1,
+          "coveragePct": 51.8,
+          "decision": "数据不足",
+          "decisionCode": "INSUFFICIENT",
           "dimensionPass": {
             "capital": false,
             "trend": false,
@@ -35269,219 +35218,196 @@
           },
           "poolQualification": "QUALIFIED_TODAY",
           "rankScope": "INDUSTRY_LEG",
-          "dataReadiness": "READY",
+          "dataReadiness": "INSUFFICIENT",
           "historyDays": 160
         },
         {
-          "date": "2026-10-12",
-          "trackId": "dyn_THS-通信设备",
+          "date": "2026-10-13",
+          "trackId": "dyn_BK0448",
           "trackName": "通信设备",
           "positioning": "",
-          "selectionReason": "dynamic:rank=2/90,inflow=-40.15",
+          "selectionReason": "dynamic:rank=2/90,inflow=47.9",
           "turnoverRank": 2,
-          "mainNetInflow": -40.15,
-          "continuousInflowDays": 0,
-          "maAlignment": "否",
-          "rps60": 71.4,
+          "mainNetInflow": 47.9,
+          "continuousInflowDays": 1,
+          "maAlignment": null,
+          "rps60": null,
           "excessReturn20d": null,
-          "limitUpCount": 1,
-          "ladderCompleteness": "1连板",
-          "redStockRatio": "3%",
+          "limitUpCount": null,
+          "ladderCompleteness": null,
+          "redStockRatio": "72%",
           "coreCatalyst": "",
           "earningsRealization": "",
-          "score": 38.1,
-          "coveragePct": 82.4,
-          "decision": "一日游脉冲/回避",
-          "decisionCode": "PULSE_AVOID",
-          "dimensionPass": {
-            "capital": false,
-            "trend": false,
-            "emotion": false,
-            "logic": null
-          },
+          "score": null,
+          "coveragePct": null,
+          "decision": "数据不足",
+          "decisionCode": "INSUFFICIENT",
+          "dimensionPass": null,
           "poolQualification": "QUALIFIED_TODAY",
           "rankScope": "INDUSTRY_UNIVERSE",
-          "dataReadiness": "READY",
-          "historyDays": 153
+          "dataReadiness": "WARMING_UP",
+          "historyDays": 0
         },
         {
-          "date": "2026-10-12",
-          "trackId": "dyn_THS-元件",
+          "date": "2026-10-13",
+          "trackId": "dyn_BK0459",
           "trackName": "元件",
           "positioning": "",
-          "selectionReason": "dynamic:rank=3/90,inflow=-42.16",
+          "selectionReason": "dynamic:rank=3/90,inflow=39.83",
           "turnoverRank": 3,
-          "mainNetInflow": -42.16,
-          "continuousInflowDays": 0,
-          "maAlignment": "否",
-          "rps60": 100.0,
+          "mainNetInflow": 39.83,
+          "continuousInflowDays": 1,
+          "maAlignment": null,
+          "rps60": null,
           "excessReturn20d": null,
-          "limitUpCount": 0,
-          "ladderCompleteness": "无连板",
-          "redStockRatio": "11%",
+          "limitUpCount": null,
+          "ladderCompleteness": null,
+          "redStockRatio": "94%",
           "coreCatalyst": "",
           "earningsRealization": "",
-          "score": 30.7,
-          "coveragePct": 82.4,
-          "decision": "一日游脉冲/回避",
-          "decisionCode": "PULSE_AVOID",
-          "dimensionPass": {
-            "capital": false,
-            "trend": false,
-            "emotion": false,
-            "logic": null
-          },
+          "score": null,
+          "coveragePct": null,
+          "decision": "数据不足",
+          "decisionCode": "INSUFFICIENT",
+          "dimensionPass": null,
           "poolQualification": "QUALIFIED_TODAY",
           "rankScope": "INDUSTRY_UNIVERSE",
-          "dataReadiness": "READY",
-          "historyDays": 153
+          "dataReadiness": "WARMING_UP",
+          "historyDays": 0
         },
         {
-          "date": "2026-10-12",
-          "trackId": "dyn_THS-电池",
+          "date": "2026-10-13",
+          "trackId": "dyn_BK1033",
           "trackName": "电池",
           "positioning": "",
-          "selectionReason": "dynamic:rank=4/90,inflow=-47.76",
+          "selectionReason": "dynamic:rank=4/90,inflow=-34.71",
           "turnoverRank": 4,
-          "mainNetInflow": -47.76,
+          "mainNetInflow": -34.71,
           "continuousInflowDays": 0,
-          "maAlignment": "否",
-          "rps60": 14.3,
+          "maAlignment": null,
+          "rps60": null,
           "excessReturn20d": null,
-          "limitUpCount": 2,
-          "ladderCompleteness": "6连板",
-          "redStockRatio": "19%",
+          "limitUpCount": null,
+          "ladderCompleteness": null,
+          "redStockRatio": "14%",
           "coreCatalyst": "",
           "earningsRealization": "",
-          "score": 32.2,
-          "coveragePct": 82.4,
-          "decision": "一日游脉冲/回避",
-          "decisionCode": "PULSE_AVOID",
-          "dimensionPass": {
-            "capital": false,
-            "trend": false,
-            "emotion": false,
-            "logic": null
-          },
+          "score": null,
+          "coveragePct": null,
+          "decision": "数据不足",
+          "decisionCode": "INSUFFICIENT",
+          "dimensionPass": null,
           "poolQualification": "QUALIFIED_TODAY",
           "rankScope": "INDUSTRY_UNIVERSE",
-          "dataReadiness": "READY",
-          "historyDays": 153
+          "dataReadiness": "WARMING_UP",
+          "historyDays": 0
         },
         {
-          "date": "2026-10-12",
-          "trackId": "dyn_THS-通用设备",
+          "date": "2026-10-13",
+          "trackId": "dyn_BK0545",
           "trackName": "通用设备",
           "positioning": "",
-          "selectionReason": "dynamic:rank=5/90,inflow=-25.26",
+          "selectionReason": "dynamic:rank=5/90,inflow=1.16",
           "turnoverRank": 5,
-          "mainNetInflow": -25.26,
-          "continuousInflowDays": 0,
-          "maAlignment": "否",
-          "rps60": 85.7,
+          "mainNetInflow": 1.16,
+          "continuousInflowDays": 1,
+          "maAlignment": null,
+          "rps60": null,
           "excessReturn20d": null,
-          "limitUpCount": 0,
-          "ladderCompleteness": "无连板",
-          "redStockRatio": "16%",
+          "limitUpCount": null,
+          "ladderCompleteness": null,
+          "redStockRatio": "60%",
           "coreCatalyst": "",
           "earningsRealization": "",
-          "score": 28.7,
-          "coveragePct": 82.4,
-          "decision": "一日游脉冲/回避",
-          "decisionCode": "PULSE_AVOID",
-          "dimensionPass": {
-            "capital": false,
-            "trend": false,
-            "emotion": false,
-            "logic": null
-          },
+          "score": null,
+          "coveragePct": null,
+          "decision": "数据不足",
+          "decisionCode": "INSUFFICIENT",
+          "dimensionPass": null,
           "poolQualification": "QUALIFIED_TODAY",
           "rankScope": "INDUSTRY_UNIVERSE",
-          "dataReadiness": "READY",
-          "historyDays": 153
+          "dataReadiness": "WARMING_UP",
+          "historyDays": 0
         },
         {
-          "date": "2026-10-12",
-          "trackId": "dyn_THS-光学光电子",
+          "date": "2026-10-13",
+          "trackId": "dyn_BK1038",
           "trackName": "光学光电子",
           "positioning": "",
-          "selectionReason": "dynamic:rank=8/90,inflow=-24.97",
-          "turnoverRank": 8,
-          "mainNetInflow": -24.97,
-          "continuousInflowDays": 0,
-          "maAlignment": "否",
-          "rps60": 28.6,
+          "selectionReason": "dynamic:rank=9/90,inflow=9.86",
+          "turnoverRank": 9,
+          "mainNetInflow": 9.86,
+          "continuousInflowDays": 1,
+          "maAlignment": null,
+          "rps60": null,
           "excessReturn20d": null,
-          "limitUpCount": 0,
-          "ladderCompleteness": "无连板",
-          "redStockRatio": "11%",
+          "limitUpCount": null,
+          "ladderCompleteness": null,
+          "redStockRatio": "74%",
           "coreCatalyst": "",
           "earningsRealization": "",
-          "score": 20.5,
-          "coveragePct": 82.4,
-          "decision": "一日游脉冲/回避",
-          "decisionCode": "PULSE_AVOID",
-          "dimensionPass": {
-            "capital": false,
-            "trend": false,
-            "emotion": false,
-            "logic": null
-          },
+          "score": null,
+          "coveragePct": null,
+          "decision": "数据不足",
+          "decisionCode": "INSUFFICIENT",
+          "dimensionPass": null,
           "poolQualification": "RETAINED_OBSERVATION",
           "rankScope": "INDUSTRY_UNIVERSE",
-          "dataReadiness": "READY",
-          "historyDays": 153
+          "dataReadiness": "WARMING_UP",
+          "historyDays": 0
         },
         {
-          "date": "2026-10-12",
-          "trackId": "dyn_THS-消费电子",
+          "date": "2026-10-13",
+          "trackId": "dyn_BK1037",
           "trackName": "消费电子",
           "positioning": "",
-          "selectionReason": "dynamic:rank=10/90,inflow=-16.1",
+          "selectionReason": "dynamic:rank=10/90,inflow=8.68",
           "turnoverRank": 10,
-          "mainNetInflow": -16.1,
-          "continuousInflowDays": 0,
-          "maAlignment": "否",
-          "rps60": 42.9,
+          "mainNetInflow": 8.68,
+          "continuousInflowDays": 1,
+          "maAlignment": null,
+          "rps60": null,
           "excessReturn20d": null,
-          "limitUpCount": 0,
-          "ladderCompleteness": "无连板",
-          "redStockRatio": "17%",
+          "limitUpCount": null,
+          "ladderCompleteness": null,
+          "redStockRatio": "67%",
           "coreCatalyst": "",
           "earningsRealization": "",
-          "score": 22.6,
-          "coveragePct": 82.4,
-          "decision": "一日游脉冲/回避",
-          "decisionCode": "PULSE_AVOID",
-          "dimensionPass": {
-            "capital": false,
-            "trend": false,
-            "emotion": false,
-            "logic": null
-          },
+          "score": null,
+          "coveragePct": null,
+          "decision": "数据不足",
+          "decisionCode": "INSUFFICIENT",
+          "dimensionPass": null,
           "poolQualification": "RETAINED_OBSERVATION",
           "rankScope": "INDUSTRY_UNIVERSE",
-          "dataReadiness": "READY",
-          "historyDays": 153
+          "dataReadiness": "WARMING_UP",
+          "historyDays": 0
         }
       ],
-      "warmingUpBoards": [],
-      "decision": "TRACKS_DEGRADED",
-      "dataReadiness": "DEGRADED",
-      "reason": "PARTIAL_TRACKS_DEGRADED; coverage 75.3 处于 [65.0, 80.0) 区间，保留可用评分并降置信；excessReturn20d 为诚实缺口（见 errors）；候选池=7（universe OK）"
+      "warmingUpBoards": [
+        "通信设备",
+        "元件",
+        "电池",
+        "通用设备",
+        "光学光电子",
+        "消费电子"
+      ],
+      "decision": "TRACKS_INSUFFICIENT",
+      "dataReadiness": "FAILED",
+      "reason": "TRACK_METRICS_INSUFFICIENT_COVERAGE"
     },
     "summary": {
       "status": "FINAL",
-      "dataDate": "2026-10-12",
+      "dataDate": "2026-10-13",
       "generator": "RULE_ENGINE_V1",
-      "indexAndTurnover": "上证指数收跌 -0.43%；沪深300表现强于创业板。",
-      "sentiment": "上涨 1166 家、下跌 4325 家，非ST涨停 46 家，下跌家数占优。",
-      "fundFlow": "行业主力净流入居前：银行、文化传媒、白酒；行业主力净流出居前：半导体、通信设备、电池。",
-      "margin": "两融总余额 25469.09 亿元，较前一交易日减少 45.77 亿元。",
+      "indexAndTurnover": "上证指数收涨 +0.10%；创业板表现强于沪深300。",
+      "sentiment": "上涨 2909 家、下跌 2486 家，非ST涨停 67 家，上涨家数占优。",
+      "fundFlow": "行业主力净流入居前：印制电路板、集成电路制造、国防军工；行业主力净流出居前：电力设备、电池、医药生物。",
+      "margin": "两融数据按 T+1 节奏回补，目前待披露；最近已披露（2026-10-12）总余额 25469.09 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
-      "marketEnvironment": "沪深两市成交额 15373 亿元，前一交易日 19000 亿元，较前一交易日减少 3627 亿元（-19.09%），缩量。",
+      "marketEnvironment": "沪深两市成交额 16756 亿元，前一交易日 15373 亿元，较前一交易日增加 1383 亿元（+9.00%），放量。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-06-30）。",
-      "riskWarning": "部分数据：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
+      "riskWarning": "待披露：margin。 当前不可用：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
   },
   "validation": {
