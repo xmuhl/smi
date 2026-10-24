@@ -1,13 +1,18 @@
 name: close-snapshot
 
 on:
-  schedule:
-    # P0-a（2026-08-25）：16:23 主窗口 + 18:23/19:23 自愈窗口（CST=UTC+8）。
-    # 当日 spot 源（东财/新浪）整窗被封时，主窗口 fail-closed 拦截发布；
-    # 后续窗口在新时段重试。已发布日由 freshness 守卫秒级跳过，零成本。
-    - cron: "23 8 * * 1-5"
-    - cron: "23 10 * * 1-5"
-    - cron: "23 11 * * 1-5"
+  # 2026-09-02（VPS 迁移任务 9 · GitHub schedule 退役）：调度主平面已切换
+  # 至阿里云 VPS cron（ops/vps/crontab.txt，时刻一致），GitHub 三次调度丢弃
+  # 事故（08-27/08-28/09-01）的结构性风险就此解除。本 workflow 保留
+  # workflow_dispatch 作为应急采集后门；部署由 deploy-pages.yml 承担
+  # （VPS push 触发）。回滚 = 恢复下方 schedule 段（≤5 分钟，见 PR 描述）：
+  # schedule:
+  #   # P0-a（2026-08-25）：16:23 主窗口 + 18:23/19:23 自愈窗口（CST=UTC+8）。
+  #   # 当日 spot 源（东财/新浪）整窗被封时，主窗口 fail-closed 拦截发布；
+  #   # 后续窗口在新时段重试。已发布日由 freshness 守卫秒级跳过，零成本。
+  #   - cron: "23 8 * * 1-5"
+  #   - cron: "23 10 * * 1-5"
+  #   - cron: "23 11 * * 1-5"
   workflow_dispatch:
     inputs:
       date:
