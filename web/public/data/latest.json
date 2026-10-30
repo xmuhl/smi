@@ -2,9 +2,9 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-10-29",
   "generatedAt": "2026-10-29T17:04:34+08:00",
-  "updatedAt": "2026-10-30T02:27:48+08:00",
-  "revision": 3,
-  "overallStatus": "PARTIAL_ERROR",
+  "updatedAt": "2026-10-30T10:17:10+08:00",
+  "revision": 4,
+  "overallStatus": "PARTIAL",
   "generationReason": "T1_RECONCILE",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
@@ -36001,22 +36001,36 @@
       "errors": []
     },
     "margin": {
-      "status": "ERROR",
-      "dataDate": null,
+      "status": "FINAL",
+      "dataDate": "2026-10-29",
       "source": [
         "SSE",
         "SZSE"
       ],
       "unit": "亿元",
-      "errors": [
-        "Expecting value: line 1 column 1 (char 0)"
-      ],
+      "errors": [],
       "warnings": [],
-      "latestPublishedReference": {
-        "dataDate": "2026-10-28",
-        "financingBalance": 23752.6,
-        "securitiesLendingBalance": 290.22,
-        "marginBalance": 24042.82
+      "financingBalance": 23491.52,
+      "securitiesLendingBalance": 282.22,
+      "marginBalance": 23773.75,
+      "marginBalanceChange": -269.07,
+      "financingBuyAmount": 1180.39,
+      "financingNetBuyAmount": {
+        "value": -255.16,
+        "quality": "DERIVED"
+      },
+      "securitiesLendingNetSellVolume": {
+        "value": 0.0728,
+        "unit": "亿股/亿份",
+        "quality": "DERIVED"
+      },
+      "marginTradeAmount": {
+        "value": null,
+        "quality": "UNAVAILABLE"
+      },
+      "marginTradeSharePct": {
+        "value": null,
+        "quality": "UNAVAILABLE"
       }
     },
     "tracks": {
@@ -36302,11 +36316,11 @@
       "indexAndTurnover": "上证指数收跌 -0.82%；沪深300表现强于创业板。",
       "sentiment": "上涨 781 家、下跌 4727 家，非ST涨停 39 家，下跌家数占优。",
       "fundFlow": "行业主力净流入居前：银行、保险、白酒；行业主力净流出居前：半导体、通信设备、元件。",
-      "margin": "两融模块暂未取得完整有效数据，本项不作判断。",
+      "margin": "两融总余额 23773.75 亿元，较前一交易日减少 269.07 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
       "marketEnvironment": "沪深两市成交额 15576 亿元，前一交易日 16301 亿元，较前一交易日减少 724 亿元（-4.45%），平量。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-09-30）。",
-      "riskWarning": "获取失败：margin。 部分数据：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
+      "riskWarning": "部分数据：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
   },
   "validation": {
