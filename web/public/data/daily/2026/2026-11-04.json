@@ -2,9 +2,9 @@
   "schemaVersion": "1.1",
   "tradeDate": "2026-11-04",
   "generatedAt": "2026-11-04T18:23:09+08:00",
-  "updatedAt": "2026-11-05T01:14:05+08:00",
-  "revision": 2,
-  "overallStatus": "PARTIAL_ERROR",
+  "updatedAt": "2026-11-05T10:17:09+08:00",
+  "revision": 3,
+  "overallStatus": "PARTIAL",
   "generationReason": "T1_RECONCILE",
   "market": "CN_A",
   "timezone": "Asia/Shanghai",
@@ -35965,22 +35965,36 @@
       "errors": []
     },
     "margin": {
-      "status": "ERROR",
-      "dataDate": null,
+      "status": "FINAL",
+      "dataDate": "2026-11-04",
       "source": [
         "SSE",
         "SZSE"
       ],
       "unit": "亿元",
-      "errors": [
-        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
-      ],
+      "errors": [],
       "warnings": [],
-      "latestPublishedReference": {
-        "dataDate": "2026-11-03",
-        "financingBalance": 22630.26,
-        "securitiesLendingBalance": 283.6,
-        "marginBalance": 22913.86
+      "financingBalance": 22643.55,
+      "securitiesLendingBalance": 286.25,
+      "marginBalance": 22929.8,
+      "marginBalanceChange": 15.94,
+      "financingBuyAmount": 1679.83,
+      "financingNetBuyAmount": {
+        "value": 11.57,
+        "quality": "DERIVED"
+      },
+      "securitiesLendingNetSellVolume": {
+        "value": -0.6731,
+        "unit": "亿股/亿份",
+        "quality": "DERIVED"
+      },
+      "marginTradeAmount": {
+        "value": null,
+        "quality": "UNAVAILABLE"
+      },
+      "marginTradeSharePct": {
+        "value": null,
+        "quality": "UNAVAILABLE"
       }
     },
     "tracks": {
@@ -36266,11 +36280,11 @@
       "indexAndTurnover": "上证指数收涨 +2.16%；创业板表现强于沪深300。",
       "sentiment": "上涨 4667 家、下跌 779 家，非ST涨停 118 家，上涨家数占优。",
       "fundFlow": "行业主力净流入居前：电子、半导体、数字芯片设计；行业主力净流出居前：食品饮料、银行Ⅱ、银行。",
-      "margin": "两融模块暂未取得完整有效数据，本项不作判断。",
+      "margin": "两融总余额 22929.80 亿元，较前一交易日增加 15.94 亿元。",
       "trackConclusion": "主赛道指标尚未形成足够数据覆盖，本项数据缺失，不作达标/规避判断。",
       "marketEnvironment": "沪深两市成交额 20373 亿元，前一交易日 17025 亿元，较前一交易日增加 3348 亿元（+19.67%），放量。",
       "northbound": "北向旧式日度净流入不再按原口径连续展示；当前展示最近一期 HKEX 季度持仓（2026-09-30）。",
-      "riskWarning": "获取失败：margin。 部分数据：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
+      "riskWarning": "部分数据：tracks。 本数据仅供参考，不构成投资建议，股市有风险，投资需谨慎。"
     }
   },
   "validation": {
