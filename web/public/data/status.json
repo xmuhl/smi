@@ -1,16 +1,30 @@
 {
-  "lastWorkflow": "vps-t1_reconcile",
-  "lastRunAt": "2026-11-06T10:17:13+08:00",
+  "lastWorkflow": "close-snapshot",
+  "lastRunAt": "2026-11-06T18:06:42+08:00",
   "lastSuccessfulTradeDate": "2026-07-17",
-  "latestCapturedDate": "2026-11-05",
+  "latestCapturedDate": "2026-11-06",
   "latestCloseCompleteDate": "2026-08-20",
   "latestFinalDate": "2026-07-17",
-  "latestDate": "2026-11-05",
+  "latestDate": "2026-11-06",
   "health": "DEGRADED",
   "errors": [
     {
-      "module": "tracks",
+      "module": "fundFlow",
       "status": "UNAVAILABLE",
+      "errors": [
+        "MODULE_CRASH:GuardTimeoutError:collect_fund_flow exceeded 600.0s; worker process terminated"
+      ]
+    },
+    {
+      "module": "margin",
+      "status": "PENDING",
+      "errors": [
+        "Length mismatch: Expected axis has 0 elements, new values have 13 elements"
+      ]
+    },
+    {
+      "module": "tracks",
+      "status": "PARTIAL",
       "errors": [
         "HS300_SEED_UNAVAILABLE"
       ]
